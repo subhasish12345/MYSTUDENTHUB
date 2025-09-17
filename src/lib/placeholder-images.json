@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "user-avatar",
+      "description": "User avatar in dashboard header",
+      "imageUrl": "https://picsum.photos/seed/user-avatar/100/100",
+      "imageHint": "person face"
+    },
+    {
+      "id": "alice-avatar",
+      "description": "Avatar for user Alice",
+      "imageUrl": "https://picsum.photos/seed/alice/40/40",
+      "imageHint": "person face"
+    },
+    {
+      "id": "bob-avatar",
+      "description": "Avatar for user Bob",
+      "imageUrl": "https://picsum.photos/seed/bob/40/40",
+      "imageHint": "person face"
+    },
+    {
+      "id": "charlie-avatar",
+      "description": "Avatar for user Charlie",
+      "imageUrl": "https://picsum.photos/seed/charlie/40/40",
+      "imageHint": "person face"
+    }
+  ]
 }
