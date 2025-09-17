@@ -21,18 +21,24 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
 
-const menuItems = [
+const allMenuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/events", label: "Events", icon: Calendar },
   { href: "/dashboard/assignments", label: "Assignments", icon: BookOpen },
   { href: "/dashboard/circles", label: "Circles", icon: Users },
   { href: "/dashboard/focus", label: "Focus Session", icon: Timer },
-  { href: "/dashboard/admin", label: "Admin", icon: Settings },
+  { href: "/dashboard/admin", label: "Admin", icon: Settings, adminOnly: true },
 ];
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const { user, userRole } = useAuth();
+
+  const isAuthorizedAdmin = userRole === "admin" || user?.email === "sadmisn@gmail.com";
+
+  const menuItems = allMenuItems.filter(item => !item.adminOnly || isAuthorizedAdmin);
 
   return (
     <Sidebar>
