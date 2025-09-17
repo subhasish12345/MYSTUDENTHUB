@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, AuthError } from "firebase/auth";
 import { LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -27,9 +27,17 @@ export function LoginForm() {
       router.push('/dashboard');
     } catch (error) {
       console.error("Login failed:", error);
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      if (error instanceof Error && 'code' in error) {
+        const authError = error as AuthError;
+        if (authError.code === 'auth/invalid-credential' || authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password') {
+          errorMessage = "Invalid email or password. Please check your credentials and try again.";
+        }
+      }
+      
       toast({
         title: "Login Failed",
-        description: "Please check your email and password and try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
