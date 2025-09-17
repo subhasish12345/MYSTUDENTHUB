@@ -38,12 +38,6 @@ export function LoginForm() {
           <Button className="w-full" type="submit">
             <LogIn className="mr-2 h-4 w-4" /> Sign In
           </Button>
-          <p className="text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <Link href="/register" className="font-semibold text-primary hover:underline">
-              Register
-            </Link>
-          </p>
         </CardFooter>
       </Card>
     </form>
