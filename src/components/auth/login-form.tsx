@@ -23,6 +23,7 @@ export function LoginForm() {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // On successful login, redirect to the dashboard page which will handle role-based routing.
       router.push('/dashboard');
     } catch (error) {
       console.error("Login failed:", error);

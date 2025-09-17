@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { notices, events } from "@/lib/placeholder-data";
@@ -5,8 +10,9 @@ import { Bell, Calendar, ArrowRight, Megaphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default function DashboardPage() {
+function StudentDashboard() {
   return (
     <div className="grid gap-8">
       <div>
@@ -85,4 +91,50 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+}
+
+
+export default function DashboardPage() {
+  const { user, userRole, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        // Not logged in, redirect to login page
+        router.replace("/");
+      } else if (userRole === "admin") {
+        // If user is admin, redirect to admin page
+        router.replace("/dashboard/admin");
+      }
+      // For student or teacher, they stay on this page to see the StudentDashboard
+      // Future: add a condition for 'teacher' to redirect to a teacher dashboard
+    }
+  }, [user, userRole, loading, router]);
+
+  if (loading || userRole === "admin") {
+    // Show a loading screen while checking auth or if redirecting admin
+    return (
+      <div className="space-y-6 p-8">
+        <Skeleton className="h-10 w-1/2" />
+        <Skeleton className="h-6 w-3/4" />
+        <div className="grid gap-8 lg:grid-cols-5 mt-8">
+          <div className="lg:col-span-3 space-y-4">
+            <Skeleton className="h-48 w-full" />
+          </div>
+          <div className="lg:col-span-2 space-y-4">
+            <Skeleton className="h-32 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Render the student dashboard for students and (for now) teachers
+  if(userRole === 'student' || userRole === 'teacher') {
+    return <StudentDashboard />;
+  }
+
+  // Fallback for unauthorized roles or errors
+  return null;
 }
