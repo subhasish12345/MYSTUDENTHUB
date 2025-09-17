@@ -41,6 +41,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else if (user.email === "sadmisn@gmail.com") {
           // Special case for the initial admin
           setUserRole("admin");
+        } else {
+          // No user record, treat as unauthorized
+          setUserRole(null);
         }
       } else {
         setUser(null);

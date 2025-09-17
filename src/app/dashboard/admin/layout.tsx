@@ -13,17 +13,17 @@ export default function AdminLayout({
   const { user, userRole, loading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!loading) {
-      if (!user || (userRole !== "admin" && user.email !== "sadmisn@gmail.com")) {
-        router.replace("/dashboard");
-      }
-    }
-  }, [user, userRole, loading, router]);
+  const isAuthorized = userRole === "admin" || user?.email === "sadmisn@gmail.com";
 
-  if (loading || !user || (userRole !== "admin" && user.email !== "sadmisn@gmail.com")) {
+  useEffect(() => {
+    if (!loading && !isAuthorized) {
+      router.replace("/dashboard");
+    }
+  }, [user, userRole, loading, router, isAuthorized]);
+
+  if (loading || !isAuthorized) {
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 p-8">
             <Skeleton className="h-10 w-1/2" />
             <Skeleton className="h-6 w-3/4" />
             <div className="space-y-4 mt-8">
