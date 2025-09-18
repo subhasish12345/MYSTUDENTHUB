@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { db, auth } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, addDoc, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, setDoc, updateDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -86,12 +86,10 @@ export function TeacherManagement() {
   const confirmDelete = async () => {
     if (deletingTeacherId) {
       try {
-        // Note: This only deletes the Firestore record, not the Firebase Auth user.
-        // For a full cleanup, you would need a Cloud Function.
         await deleteDoc(doc(db, "users", deletingTeacherId));
         toast({
           title: "Success",
-          description: "Teacher record deleted successfully.",
+          description: "Teacher record deleted. Remember to delete the user from the Firebase Authentication tab as well.",
         });
       } catch (error) {
         console.error("Error deleting teacher:", error);
@@ -109,62 +107,74 @@ export function TeacherManagement() {
 
   const handleFormSubmit = async (values: TeacherFormValues) => {
     const dataToSave = {
-        ...values,
+        name: values.name,
+        email: values.email,
+        department: values.department,
+        status: values.status,
+        phone: values.phone,
+        teacherId: values.teacherId,
+        gender: values.gender,
+        joiningDate: values.joiningDate,
         role: 'teacher' as const,
         subjects: values.subjects.split(',').map(s => s.trim()).filter(Boolean),
         semesters: values.semesters?.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)) || [],
         years: values.years?.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)) || [],
         salary: values.salary ? parseFloat(values.salary) : 0,
-        updatedAt: serverTimestamp(),
     };
 
     try {
         if (editingTeacher) {
-            // Update existing teacher in 'users' collection
             const teacherRef = doc(db, "users", editingTeacher.id);
-            await updateDoc(teacherRef, dataToSave);
+            await updateDoc(teacherRef, { ...dataToSave, updatedAt: serverTimestamp()});
             toast({
                 title: "Success",
                 description: "Teacher record updated successfully.",
             });
         } else {
-             // This is a temporary admin SDK bypass for user creation from client.
-            // In a real app, this should be a secure Cloud Function.
             const tempAdminAuth = auth;
-
-            // Generate password
             const last4 = values.phone ? values.phone.slice(-4) : '1234';
             const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
             
-            console.log(`Generated password for ${values.email}: ${password}`);
-            
-            // Create Auth user
-            const userCredential = await createUserWithEmailAndPassword(tempAdminAuth, values.email, password);
-            const uid = userCredential.user.uid;
+            try {
+              const userCredential = await createUserWithEmailAndPassword(tempAdminAuth, values.email, password);
+              const uid = userCredential.user.uid;
 
-            // Add new teacher to 'users' collection with UID as doc ID
-            await updateDoc(doc(db, "users", uid), {
-                ...dataToSave,
-                createdAt: serverTimestamp(),
-            });
+              await setDoc(doc(db, "users", uid), {
+                  ...dataToSave,
+                  createdAt: serverTimestamp(),
+                  updatedAt: serverTimestamp()
+              });
 
-            toast({
-                title: "Success",
-                description: "New teacher added and account created.",
-            });
-             console.log(`Password for ${values.email} is ${password}. Please share this with the user.`);
-             alert(`Password for ${values.email} is ${password}. Please share this with the user.`);
+              toast({
+                  title: "Success",
+                  description: "New teacher added and account created.",
+              });
+              console.log(`Password for ${values.email} is ${password}. Please share this with the user.`);
+              alert(`Password for ${values.email} is ${password}. Please share this with the user.`);
 
+            } catch (authError: any) {
+               if (authError.code === 'auth/email-already-in-use') {
+                 toast({
+                    title: "Creation Failed",
+                    description: "This email is already in use by another account.",
+                    variant: "destructive",
+                });
+               } else {
+                 throw authError; // Re-throw other auth errors
+               }
+            }
         }
         setIsSheetOpen(false);
         setEditingTeacher(null);
     } catch (error: any) {
         console.error("Error saving teacher:", error);
-        toast({
-            title: "Error",
-            description: error.message || "Failed to save teacher record.",
-            variant: "destructive",
-        });
+        if (error.code !== 'auth/email-already-in-use') { // Don't show generic error if it was the specific email error
+           toast({
+              title: "Error",
+              description: error.message || "Failed to save teacher record.",
+              variant: "destructive",
+          });
+        }
     }
   };
 
@@ -318,17 +328,15 @@ export function TeacherManagement() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the teacher's record from Firestore. It will not remove their authentication account.
+                    This action only deletes the teacher's record from Firestore. It does not remove their authentication account, which must be done manually from the Firebase Console. This action cannot be undone.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setDeletingTeacherId(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDelete}>Continue</AlertDialogAction>
+                <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">Delete Record</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
   );
 }
-
-    

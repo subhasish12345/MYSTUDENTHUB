@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   teacherId: z.string().optional(),
@@ -41,12 +42,13 @@ const formSchema = z.object({
 export type TeacherFormValues = z.infer<typeof formSchema>;
 
 interface TeacherFormProps {
-  onSubmit: (values: TeacherFormValues) => void;
+  onSubmit: (values: TeacherFormValues) => Promise<void>;
   defaultValues?: Partial<TeacherFormValues>;
   isEditing?: boolean;
 }
 
 export function TeacherForm({ onSubmit, defaultValues, isEditing = false }: TeacherFormProps) {
+  const { toast } = useToast();
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -55,26 +57,37 @@ export function TeacherForm({ onSubmit, defaultValues, isEditing = false }: Teac
     }
   });
 
+  const handleFormSubmit = async (values: TeacherFormValues) => {
+    try {
+      await onSubmit(values);
+      form.reset();
+    } catch (error: any) {
+       toast({
+        title: "Submission Error",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 py-4">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8 py-4">
         <ScrollArea className="h-[calc(100vh-12rem)]">
             <div className="space-y-6 pr-6">
-                {!isEditing && (
-                  <FormField
-                      control={form.control}
-                      name="teacherId"
-                      render={({ field }) => (
-                          <FormItem>
-                          <FormLabel>Teacher ID</FormLabel>
-                          <FormControl>
-                              <Input placeholder="e.g., TCHR001" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                          </FormItem>
-                      )}
-                  />
-                )}
+                <FormField
+                    control={form.control}
+                    name="teacherId"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Teacher ID</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g., TCHR001" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
                 <FormField
                     control={form.control}
                     name="name"
@@ -136,7 +149,7 @@ export function TeacherForm({ onSubmit, defaultValues, isEditing = false }: Teac
                             <Input placeholder="e.g., +91-9876543210" {...field} />
                         </FormControl>
                          <FormDescription>
-                            Used for generating initial password.
+                            Used for generating initial password. Must be at least 10 digits.
                         </FormDescription>
                         <FormMessage />
                         </FormItem>
@@ -245,10 +258,11 @@ export function TeacherForm({ onSubmit, defaultValues, isEditing = false }: Teac
             </div>
         </ScrollArea>
         <div className="flex justify-end pt-4 border-t">
-          <Button type="submit">Save Changes</Button>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
+          </Button>
         </div>
       </form>
     </Form>
   );
 }
-    
