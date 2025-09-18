@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, DocumentData } from "firebase/firestore";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -10,18 +10,45 @@ import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { TeacherForm, TeacherFormValues } from "./teacher-form";
+import { addDoc, updateDoc } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-interface Teacher extends DocumentData {
+export interface Teacher extends DocumentData {
   id: string;
   name: string;
   email: string;
   department: string;
   subjects: string[];
+  phone?: string;
+  semesters?: number[];
+  years?: number[];
+  salary?: number;
+  gender?: string;
+  joiningDate?: string;
+  teacherId?: string;
 }
+
 
 export function TeacherManagement() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
+
+  const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "teachers"), (snapshot) => {
@@ -33,84 +60,221 @@ export function TeacherManagement() {
       setLoading(false);
     });
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 
+  const handleAddClick = () => {
+    setEditingTeacher(null);
+    setIsSheetOpen(true);
+  };
+
+  const handleEditClick = (teacher: Teacher) => {
+    setEditingTeacher(teacher);
+    setIsSheetOpen(true);
+  };
+  
+  const handleDeleteClick = (teacherId: string) => {
+    setDeletingTeacherId(teacherId);
+  };
+
+  const confirmDelete = async () => {
+    if (deletingTeacherId) {
+      try {
+        await deleteDoc(doc(db, "teachers", deletingTeacherId));
+        toast({
+          title: "Success",
+          description: "Teacher record deleted successfully.",
+        });
+      } catch (error) {
+        console.error("Error deleting teacher:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete teacher record.",
+          variant: "destructive",
+        });
+      } finally {
+        setDeletingTeacherId(null);
+      }
+    }
+  };
+
+
+  const handleFormSubmit = async (values: TeacherFormValues) => {
+    const dataToSave = {
+        ...values,
+        subjects: values.subjects.split(',').map(s => s.trim()).filter(Boolean),
+        semesters: values.semesters.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)),
+        years: values.years.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)),
+        salary: parseFloat(values.salary) || 0,
+        updatedAt: serverTimestamp(),
+    };
+
+    try {
+        if (editingTeacher) {
+            // Update existing teacher
+            const teacherRef = doc(db, "teachers", editingTeacher.id);
+            await updateDoc(teacherRef, dataToSave);
+            toast({
+                title: "Success",
+                description: "Teacher record updated successfully.",
+            });
+        } else {
+            // Add new teacher
+            await addDoc(collection(db, "teachers"), {
+                ...dataToSave,
+                role: 'teacher',
+                createdAt: serverTimestamp(),
+            });
+            toast({
+                title: "Success",
+                description: "New teacher added successfully.",
+            });
+        }
+        setIsSheetOpen(false);
+        setEditingTeacher(null);
+    } catch (error) {
+        console.error("Error saving teacher:", error);
+        toast({
+            title: "Error",
+            description: "Failed to save teacher record.",
+            variant: "destructive",
+        });
+    }
+  };
+
+  const sheetTitle = editingTeacher ? "Edit Teacher" : "Add New Teacher";
+  const sheetDescription = editingTeacher ? "Update the details of the existing teacher." : "Fill in the details to add a new teacher.";
+
+  const defaultValues = useMemo(() => {
+    if (editingTeacher) {
+        return {
+            name: editingTeacher.name || '',
+            email: editingTeacher.email || '',
+            department: editingTeacher.department || '',
+            subjects: (editingTeacher.subjects || []).join(', '),
+            phone: editingTeacher.phone || '',
+            semesters: (editingTeacher.semesters || []).join(', '),
+            years: (editingTeacher.years || []).join(', '),
+            salary: (editingTeacher.salary || 0).toString(),
+            gender: editingTeacher.gender || '',
+            joiningDate: editingTeacher.joiningDate || '',
+            teacherId: editingTeacher.teacherId || '',
+        };
+    }
+    return {
+        name: '', email: '', department: '', subjects: '', phone: '',
+        semesters: '', years: '', salary: '', gender: '', joiningDate: '', teacherId: ''
+    };
+  }, [editingTeacher]);
+
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row justify-between items-center">
-        <div>
-          <CardTitle className="font-headline">Teacher Management</CardTitle>
-          <CardDescription>View, add, edit, and remove teacher records.</CardDescription>
-        </div>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Teacher
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Subjects</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              Array.from({ length: 3 }).map((_, index) => (
-                <TableRow key={index}>
-                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
-                </TableRow>
-              ))
-            ) : teachers.length > 0 ? (
-              teachers.map((teacher) => (
-                <TableRow key={teacher.id}>
-                  <TableCell className="font-medium">{teacher.name}</TableCell>
-                  <TableCell>{teacher.email}</TableCell>
-                  <TableCell>{teacher.department}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {teacher.subjects.map((subject) => (
-                        <Badge key={subject} variant="secondary">{subject}</Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive-foreground focus:bg-destructive">
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row justify-between items-center">
+          <div>
+            <CardTitle className="font-headline">Teacher Management</CardTitle>
+            <CardDescription>View, add, edit, and remove teacher records.</CardDescription>
+          </div>
+          <Button onClick={handleAddClick}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Add Teacher
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-24">
-                  No teachers found.
-                </TableCell>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Subjects</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                Array.from({ length: 3 }).map((_, index) => (
+                  <TableRow key={index}>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : teachers.length > 0 ? (
+                teachers.map((teacher) => (
+                  <TableRow key={teacher.id}>
+                    <TableCell className="font-medium">{teacher.name}</TableCell>
+                    <TableCell>{teacher.email}</TableCell>
+                    <TableCell>{teacher.department}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {teacher.subjects.map((subject) => (
+                          <Badge key={subject} variant="secondary">{subject}</Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleEditClick(teacher)}>Edit</DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteClick(teacher.id)}
+                            className="text-destructive focus:text-destructive-foreground focus:bg-destructive"
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center h-24">
+                    No teachers found. Click "Add Teacher" to start.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="sm:max-w-[600px] overflow-y-auto">
+            <SheetHeader>
+                <SheetTitle>{sheetTitle}</SheetTitle>
+                <SheetDescription>{sheetDescription}</SheetDescription>
+            </SheetHeader>
+            <TeacherForm 
+              onSubmit={handleFormSubmit} 
+              defaultValues={defaultValues}
+            />
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog open={!!deletingTeacherId} onOpenChange={(open) => !open && setDeletingTeacherId(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the teacher's record.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDeletingTeacherId(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete}>Continue</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
