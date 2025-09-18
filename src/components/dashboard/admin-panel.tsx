@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { TeacherManagement } from "@/components/dashboard/admin/teacher-management";
 
 const dummyData = {
     degrees: [{id: 1, name: "B.Sc. Computer Science"}, {id: 2, name: "B.B.A."}, {id: 3, name: "B.A. Arts"}],
@@ -67,13 +68,17 @@ export function AdminPanel() {
                 <p className="text-muted-foreground">Manage academic structure and settings.</p>
             </div>
 
-            <Tabs defaultValue="degrees" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+            <Tabs defaultValue="teachers" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+                    <TabsTrigger value="teachers">Teachers</TabsTrigger>
                     <TabsTrigger value="degrees">Degrees</TabsTrigger>
                     <TabsTrigger value="streams">Streams</TabsTrigger>
                     <TabsTrigger value="years">Years</TabsTrigger>
                     <TabsTrigger value="batches">Batches</TabsTrigger>
                 </TabsList>
+                <TabsContent value="teachers">
+                    <TeacherManagement />
+                </TabsContent>
                 <TabsContent value="degrees">
                     <AdminTable data={dummyData.degrees} title="Degrees" />
                 </TabsContent>
