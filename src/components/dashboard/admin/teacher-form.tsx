@@ -24,10 +24,10 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const formSchema = z.object({
-  teacherId: z.string().min(1, "Teacher ID is required"),
+  teacherId: z.string().optional(),
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
-  phone: z.string().optional(),
+  phone: z.string().min(10, "Phone number must be at least 10 digits.").optional(),
   department: z.string().min(1, "Department is required."),
   subjects: z.string().min(1, "At least one subject is required."),
   semesters: z.string().optional(),
@@ -43,9 +43,10 @@ export type TeacherFormValues = z.infer<typeof formSchema>;
 interface TeacherFormProps {
   onSubmit: (values: TeacherFormValues) => void;
   defaultValues?: Partial<TeacherFormValues>;
+  isEditing?: boolean;
 }
 
-export function TeacherForm({ onSubmit, defaultValues }: TeacherFormProps) {
+export function TeacherForm({ onSubmit, defaultValues, isEditing = false }: TeacherFormProps) {
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -59,19 +60,21 @@ export function TeacherForm({ onSubmit, defaultValues }: TeacherFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 py-4">
         <ScrollArea className="h-[calc(100vh-12rem)]">
             <div className="space-y-6 pr-6">
-                <FormField
-                    control={form.control}
-                    name="teacherId"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Teacher ID</FormLabel>
-                        <FormControl>
-                            <Input placeholder="e.g., TCHR001" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                {!isEditing && (
+                  <FormField
+                      control={form.control}
+                      name="teacherId"
+                      render={({ field }) => (
+                          <FormItem>
+                          <FormLabel>Teacher ID</FormLabel>
+                          <FormControl>
+                              <Input placeholder="e.g., TCHR001" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                )}
                 <FormField
                     control={form.control}
                     name="name"
@@ -92,8 +95,11 @@ export function TeacherForm({ onSubmit, defaultValues }: TeacherFormProps) {
                         <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                            <Input placeholder="e.g., amit.sharma@college.edu" {...field} />
+                            <Input type="email" placeholder="e.g., amit.sharma@college.edu" {...field} disabled={isEditing} />
                         </FormControl>
+                        <FormDescription>
+                          Login email cannot be changed after creation.
+                        </FormDescription>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -129,6 +135,9 @@ export function TeacherForm({ onSubmit, defaultValues }: TeacherFormProps) {
                         <FormControl>
                             <Input placeholder="e.g., +91-9876543210" {...field} />
                         </FormControl>
+                         <FormDescription>
+                            Used for generating initial password.
+                        </FormDescription>
                         <FormMessage />
                         </FormItem>
                     )}
@@ -242,3 +251,4 @@ export function TeacherForm({ onSubmit, defaultValues }: TeacherFormProps) {
     </Form>
   );
 }
+    

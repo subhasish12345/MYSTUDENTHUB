@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, addDoc, updateDoc } from "firebase/firestore";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { TeacherForm, TeacherFormValues } from "./teacher-form";
-import { addDoc, updateDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -24,14 +24,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Roles } from "@/lib/roles";
 
-export interface Teacher extends DocumentData {
+export interface UserData extends DocumentData {
   id: string;
   name: string;
   email: string;
-  department: string;
-  subjects: string[];
-  status: 'Active' | 'Retired' | 'Transferred';
+  role: Roles;
+  department?: string;
+  subjects?: string[];
+  status?: 'Active' | 'Retired' | 'Transferred';
   phone?: string;
   semesters?: number[];
   years?: number[];
@@ -43,21 +45,22 @@ export interface Teacher extends DocumentData {
 
 
 export function TeacherManagement() {
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [teachers, setTeachers] = useState<UserData[]>([]);
   const [teacherCount, setTeacherCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [editingTeacher, setEditingTeacher] = useState<UserData | null>(null);
   const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
 
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "teachers"), (snapshot) => {
+    const q = query(collection(db, "users"), where("role", "==", "teacher"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const teachersData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      } as Teacher));
+      } as UserData));
       setTeachers(teachersData);
       setTeacherCount(snapshot.size);
       setLoading(false);
@@ -71,7 +74,7 @@ export function TeacherManagement() {
     setIsSheetOpen(true);
   };
 
-  const handleEditClick = (teacher: Teacher) => {
+  const handleEditClick = (teacher: UserData) => {
     setEditingTeacher(teacher);
     setIsSheetOpen(true);
   };
@@ -83,7 +86,9 @@ export function TeacherManagement() {
   const confirmDelete = async () => {
     if (deletingTeacherId) {
       try {
-        await deleteDoc(doc(db, "teachers", deletingTeacherId));
+        // Note: This only deletes the Firestore record, not the Firebase Auth user.
+        // For a full cleanup, you would need a Cloud Function.
+        await deleteDoc(doc(db, "users", deletingTeacherId));
         toast({
           title: "Success",
           description: "Teacher record deleted successfully.",
@@ -105,6 +110,7 @@ export function TeacherManagement() {
   const handleFormSubmit = async (values: TeacherFormValues) => {
     const dataToSave = {
         ...values,
+        role: 'teacher' as const,
         subjects: values.subjects.split(',').map(s => s.trim()).filter(Boolean),
         semesters: values.semesters?.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)) || [],
         years: values.years?.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)) || [],
@@ -114,39 +120,56 @@ export function TeacherManagement() {
 
     try {
         if (editingTeacher) {
-            // Update existing teacher
-            const teacherRef = doc(db, "teachers", editingTeacher.id);
+            // Update existing teacher in 'users' collection
+            const teacherRef = doc(db, "users", editingTeacher.id);
             await updateDoc(teacherRef, dataToSave);
             toast({
                 title: "Success",
                 description: "Teacher record updated successfully.",
             });
         } else {
-            // Add new teacher
-            await addDoc(collection(db, "teachers"), {
+             // This is a temporary admin SDK bypass for user creation from client.
+            // In a real app, this should be a secure Cloud Function.
+            const tempAdminAuth = auth;
+
+            // Generate password
+            const last4 = values.phone ? values.phone.slice(-4) : '1234';
+            const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
+            
+            console.log(`Generated password for ${values.email}: ${password}`);
+            
+            // Create Auth user
+            const userCredential = await createUserWithEmailAndPassword(tempAdminAuth, values.email, password);
+            const uid = userCredential.user.uid;
+
+            // Add new teacher to 'users' collection with UID as doc ID
+            await updateDoc(doc(db, "users", uid), {
                 ...dataToSave,
-                role: 'teacher',
                 createdAt: serverTimestamp(),
             });
+
             toast({
                 title: "Success",
-                description: "New teacher added successfully.",
+                description: "New teacher added and account created.",
             });
+             console.log(`Password for ${values.email} is ${password}. Please share this with the user.`);
+             alert(`Password for ${values.email} is ${password}. Please share this with the user.`);
+
         }
         setIsSheetOpen(false);
         setEditingTeacher(null);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error saving teacher:", error);
         toast({
             title: "Error",
-            description: "Failed to save teacher record.",
+            description: error.message || "Failed to save teacher record.",
             variant: "destructive",
         });
     }
   };
 
   const sheetTitle = editingTeacher ? "Edit Teacher" : "Add New Teacher";
-  const sheetDescription = editingTeacher ? "Update the details of the existing teacher." : "Fill in the details to add a new teacher.";
+  const sheetDescription = editingTeacher ? "Update the details of the existing teacher." : "Fill in the details to add a new teacher and create their login.";
 
   const defaultValues = useMemo(() => {
     if (editingTeacher) {
@@ -172,7 +195,7 @@ export function TeacherManagement() {
     };
   }, [editingTeacher]);
   
-  const getStatusVariant = (status: Teacher['status']) => {
+  const getStatusVariant = (status: UserData['status']) => {
     switch (status) {
         case 'Active': return 'default';
         case 'Retired': return 'secondary';
@@ -234,7 +257,7 @@ export function TeacherManagement() {
                     <TableCell>{teacher.department}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1 max-w-xs">
-                        {teacher.subjects.map((subject) => (
+                        {(teacher.subjects || []).map((subject) => (
                           <Badge key={subject} variant="secondary">{subject}</Badge>
                         ))}
                       </div>
@@ -251,9 +274,10 @@ export function TeacherManagement() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEditClick(teacher)}>Edit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditClick(teacher)} disabled={!teacher.id}>Edit</DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={() => handleDeleteClick(teacher.id)}
+                            disabled={!teacher.id}
                             className="text-destructive focus:text-destructive-foreground focus:bg-destructive"
                           >
                             Delete
@@ -284,6 +308,7 @@ export function TeacherManagement() {
             <TeacherForm 
               onSubmit={handleFormSubmit} 
               defaultValues={defaultValues}
+              isEditing={!!editingTeacher}
             />
         </SheetContent>
       </Sheet>
@@ -293,7 +318,7 @@ export function TeacherManagement() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the teacher's record.
+                    This action cannot be undone. This will permanently delete the teacher's record from Firestore. It will not remove their authentication account.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -305,3 +330,5 @@ export function TeacherManagement() {
     </>
   );
 }
+
+    
