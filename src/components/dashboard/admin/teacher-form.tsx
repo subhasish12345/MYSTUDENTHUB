@@ -13,6 +13,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -28,6 +35,7 @@ const formSchema = z.object({
   salary: z.string().refine((val) => !isNaN(parseFloat(val)), { message: "Salary must be a number."}).optional(),
   gender: z.string().optional(),
   joiningDate: z.string().optional(),
+  status: z.enum(["Active", "Retired", "Transferred"]),
 });
 
 export type TeacherFormValues = z.infer<typeof formSchema>;
@@ -40,7 +48,10 @@ interface TeacherFormProps {
 export function TeacherForm({ onSubmit, defaultValues }: TeacherFormProps) {
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues,
+    defaultValues: {
+      status: "Active",
+      ...defaultValues,
+    }
   });
 
   return (
@@ -87,6 +98,28 @@ export function TeacherForm({ onSubmit, defaultValues }: TeacherFormProps) {
                         </FormItem>
                     )}
                 />
+                 <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select teacher status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Active">Active</SelectItem>
+                            <SelectItem value="Retired">Retired</SelectItem>
+                            <SelectItem value="Transferred">Transferred</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 <FormField
                     control={form.control}
                     name="phone"

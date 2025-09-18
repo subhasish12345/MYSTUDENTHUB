@@ -31,6 +31,7 @@ export interface Teacher extends DocumentData {
   email: string;
   department: string;
   subjects: string[];
+  status: 'Active' | 'Retired' | 'Transferred';
   phone?: string;
   semesters?: number[];
   years?: number[];
@@ -43,6 +44,7 @@ export interface Teacher extends DocumentData {
 
 export function TeacherManagement() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [teacherCount, setTeacherCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
@@ -57,6 +59,7 @@ export function TeacherManagement() {
         ...doc.data(),
       } as Teacher));
       setTeachers(teachersData);
+      setTeacherCount(snapshot.size);
       setLoading(false);
     });
 
@@ -103,9 +106,9 @@ export function TeacherManagement() {
     const dataToSave = {
         ...values,
         subjects: values.subjects.split(',').map(s => s.trim()).filter(Boolean),
-        semesters: values.semesters.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)),
-        years: values.years.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)),
-        salary: parseFloat(values.salary) || 0,
+        semesters: values.semesters?.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)) || [],
+        years: values.years?.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)) || [],
+        salary: values.salary ? parseFloat(values.salary) : 0,
         updatedAt: serverTimestamp(),
     };
 
@@ -159,35 +162,54 @@ export function TeacherManagement() {
             gender: editingTeacher.gender || '',
             joiningDate: editingTeacher.joiningDate || '',
             teacherId: editingTeacher.teacherId || '',
+            status: editingTeacher.status || 'Active',
         };
     }
     return {
         name: '', email: '', department: '', subjects: '', phone: '',
-        semesters: '', years: '', salary: '', gender: '', joiningDate: '', teacherId: ''
+        semesters: '', years: '', salary: '', gender: '', joiningDate: '', teacherId: '',
+        status: 'Active' as const,
     };
   }, [editingTeacher]);
+  
+  const getStatusVariant = (status: Teacher['status']) => {
+    switch (status) {
+        case 'Active': return 'default';
+        case 'Retired': return 'secondary';
+        case 'Transferred': return 'outline';
+        default: return 'secondary';
+    }
+  }
 
 
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row justify-between items-center">
-          <div>
-            <CardTitle className="font-headline">Teacher Management</CardTitle>
-            <CardDescription>View, add, edit, and remove teacher records.</CardDescription>
+        <CardHeader>
+           <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+              <div>
+                  <CardTitle className="font-headline">Teacher Management</CardTitle>
+                  <CardDescription>View, add, edit, and remove teacher records.</CardDescription>
+              </div>
+              <div className="flex items-center gap-4">
+                  <div className="text-sm text-muted-foreground text-right">
+                      Total Teachers
+                      <p className="font-bold text-2xl text-foreground">{loading ? '...' : teacherCount}</p>
+                  </div>
+                  <Button onClick={handleAddClick}>
+                      <PlusCircle className="mr-2 h-4 w-4" /> Add Teacher
+                  </Button>
+              </div>
           </div>
-          <Button onClick={handleAddClick}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Teacher
-          </Button>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
                 <TableHead>Department</TableHead>
                 <TableHead>Subjects</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -195,25 +217,30 @@ export function TeacherManagement() {
               {loading ? (
                 Array.from({ length: 3 }).map((_, index) => (
                   <TableRow key={index}>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : teachers.length > 0 ? (
                 teachers.map((teacher) => (
                   <TableRow key={teacher.id}>
-                    <TableCell className="font-medium">{teacher.name}</TableCell>
-                    <TableCell>{teacher.email}</TableCell>
+                    <TableCell className="font-medium">
+                        <div>{teacher.name}</div>
+                        <div className="text-xs text-muted-foreground">{teacher.email}</div>
+                    </TableCell>
                     <TableCell>{teacher.department}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1 max-w-xs">
                         {teacher.subjects.map((subject) => (
                           <Badge key={subject} variant="secondary">{subject}</Badge>
                         ))}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                        <Badge variant={getStatusVariant(teacher.status)}>{teacher.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
