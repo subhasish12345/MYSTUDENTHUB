@@ -35,20 +35,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (user) {
         setUser(user);
         
-        // Special case for the initial admin
+        // Special case for the initial admin, ensuring they always have the admin role.
         if (user.email === "sadmisn@gmail.com") {
           setUserRole("admin");
         } else {
+          // For all other users, fetch their role from Firestore.
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
             setUserRole(userData.role as Roles);
           } else {
-            // No user record, treat as unauthorized
+            // If a user is authenticated but has no Firestore record, they have no role.
             setUserRole(null);
           }
         }
       } else {
+        // No user is signed in.
         setUser(null);
         setUserRole(null);
       }
