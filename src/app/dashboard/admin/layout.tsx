@@ -13,7 +13,8 @@ export default function AdminLayout({
   const { user, userRole, loading } = useAuth();
   const router = useRouter();
 
-  const isAuthorized = userRole === "admin" || user?.email === "sadmisn@gmail.com";
+  // The admin check is now robust and happens inside useAuth
+  const isAuthorized = userRole === "admin";
 
   useEffect(() => {
     if (!loading && !isAuthorized) {

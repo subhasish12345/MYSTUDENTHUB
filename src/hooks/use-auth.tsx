@@ -34,16 +34,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       if (user) {
         setUser(user);
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setUserRole(userData.role as Roles);
-        } else if (user.email === "sadmisn@gmail.com") {
-          // Special case for the initial admin
+        
+        // Special case for the initial admin
+        if (user.email === "sadmisn@gmail.com") {
           setUserRole("admin");
         } else {
-          // No user record, treat as unauthorized
-          setUserRole(null);
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setUserRole(userData.role as Roles);
+          } else {
+            // No user record, treat as unauthorized
+            setUserRole(null);
+          }
         }
       } else {
         setUser(null);
