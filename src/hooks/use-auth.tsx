@@ -35,26 +35,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (user) {
         setUser(user);
         
-        // Special case for the initial admin, ensuring they always have the admin role.
+        // **PERMANENT FIX**: Synchronously check for the special admin email.
+        // This ensures the role is set immediately without an async Firestore call.
         if (user.email === "sadmisn@gmail.com") {
           setUserRole("admin");
+          setLoading(false); // We know the role, stop loading.
         } else {
           // For all other users, fetch their role from Firestore.
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setUserRole(userData.role as Roles);
-          } else {
-            // If a user is authenticated but has no Firestore record, they have no role.
-            setUserRole(null);
+          try {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              setUserRole(userData.role as Roles);
+            } else {
+              // If a user is authenticated but has no Firestore record, they have no role.
+              setUserRole(null);
+            }
+          } catch (error) {
+              console.error("Error fetching user role:", error);
+              setUserRole(null);
+          } finally {
+            setLoading(false);
           }
         }
       } else {
         // No user is signed in.
         setUser(null);
         setUserRole(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
