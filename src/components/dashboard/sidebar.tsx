@@ -34,11 +34,9 @@ const allMenuItems = [
 
 export function DashboardSidebar() {
   const pathname = usePathname();
-  const { user, userRole } = useAuth();
+  const { userRole } = useAuth();
 
-  const isAuthorizedAdmin = userRole === "admin" || user?.email === "sadmisn@gmail.com";
-
-  const menuItems = allMenuItems.filter(item => !item.adminOnly || isAuthorizedAdmin);
+  const menuItems = allMenuItems.filter(item => !item.adminOnly || userRole === "admin");
 
   return (
     <Sidebar>
