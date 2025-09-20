@@ -27,7 +27,8 @@ export default function DashboardPage() {
           router.replace("/profile-setup");
         } else {
           // Profile exists, proceed with role-based redirection
-          switch (userRole) {
+          const userData = docSnap.data();
+          switch (userData.role) {
             case "admin":
               router.replace("/dashboard/admin");
               break;
@@ -38,10 +39,8 @@ export default function DashboardPage() {
               router.replace("/dashboard/student");
               break;
             default:
-              // If role is not yet set by admin, maybe stay here or a waiting page
-              // For now, students and teachers without a role will see a generic dashboard.
-              // We can create a dedicated student dashboard page later.
-               if(userRole === null) router.replace('/dashboard/student');
+              // Fallback for users with a doc but no role
+              router.replace("/profile-setup");
               break;
           }
         }
@@ -49,19 +48,17 @@ export default function DashboardPage() {
     }
   }, [user, userRole, loading, router]);
 
-  // Show a loading screen while checking auth and redirecting
+  // Show a full-page loading screen while checking auth and redirecting
   return (
-    <div className="space-y-6 p-8">
-      <Skeleton className="h-10 w-1/2" />
-      <Skeleton className="h-6 w-3/4" />
-      <div className="grid gap-8 lg:grid-cols-5 mt-8">
-        <div className="lg:col-span-3 space-y-4">
-          <Skeleton className="h-48 w-full" />
+    <div className="flex items-center justify-center h-screen">
+        <div className="space-y-6 p-8 w-full max-w-md">
+            <Skeleton className="h-10 w-3/4 mx-auto" />
+            <Skeleton className="h-6 w-1/2 mx-auto" />
+            <div className="space-y-4 mt-8">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-40 w-full" />
+            </div>
         </div>
-        <div className="lg:col-span-2 space-y-4">
-          <Skeleton className="h-32 w-full" />
-        </div>
-      </div>
     </div>
   );
 }

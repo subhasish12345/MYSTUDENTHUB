@@ -8,12 +8,16 @@ import { Bell, Calendar, ArrowRight, Megaphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function StudentDashboardPage() {
+  const { user } = useAuth();
+  const userName = user?.displayName || "Student";
+
   return (
     <div className="grid gap-8">
       <div>
-        <h1 className="font-headline text-3xl font-bold">Welcome, Student!</h1>
+        <h1 className="font-headline text-3xl font-bold">Welcome, {userName}!</h1>
         <p className="text-muted-foreground">Here's a quick overview of your academic life.</p>
       </div>
 

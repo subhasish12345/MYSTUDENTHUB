@@ -14,12 +14,16 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
   phone: z.string().min(10, "Phone number must be at least 10 digits."),
-  name: z.string().min(2, "Name must be at least 2 characters."),
+  department: z.string().min(2, "Department is required."),
+  subjects: z.string().transform(val => val.split(',').map(s => s.trim())).refine(arr => arr.every(s => s.length > 0), "Subjects cannot be empty."),
+  status: z.enum(['Active', 'Retired', 'Transferred']),
 });
 
 export type TeacherFormValues = z.infer<typeof formSchema>;
@@ -34,9 +38,12 @@ export function TeacherForm({ onSubmit, isSubmitting }: TeacherFormProps) {
   const form = useForm<TeacherFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+        name: "",
         email: "",
         phone: "",
-        name: ""
+        department: "",
+        subjects: [],
+        status: "Active",
     }
   });
 
@@ -66,9 +73,6 @@ export function TeacherForm({ onSubmit, isSubmitting }: TeacherFormProps) {
                     <FormControl>
                         <Input placeholder="e.g., Dr. Amit Sharma" {...field} />
                     </FormControl>
-                    <FormDescription>
-                        Used for generating the initial password.
-                    </FormDescription>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -82,9 +86,6 @@ export function TeacherForm({ onSubmit, isSubmitting }: TeacherFormProps) {
                     <FormControl>
                         <Input type="email" placeholder="e.g., amit.sharma@college.edu" {...field} />
                     </FormControl>
-                    <FormDescription>
-                        The user will use this email to log in.
-                    </FormDescription>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -98,9 +99,60 @@ export function TeacherForm({ onSubmit, isSubmitting }: TeacherFormProps) {
                     <FormControl>
                         <Input placeholder="e.g., 9876543210" {...field} />
                     </FormControl>
-                    <FormDescription>
-                        Used for generating initial password. Must be at least 10 digits.
+                     <FormDescription>
+                        Used for generating the initial password.
                     </FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="department"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Department</FormLabel>
+                    <FormControl>
+                        <Input placeholder="e.g., Computer Science" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="subjects"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Subjects</FormLabel>
+                    <FormControl>
+                        <Input placeholder="e.g., DSA, OS, DBMS" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : ''} />
+                    </FormControl>
+                     <FormDescription>
+                        Comma-separated list of subjects.
+                    </FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                         <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="Active">Active</SelectItem>
+                            <SelectItem value="Retired">Retired</SelectItem>
+                            <SelectItem value="Transferred">Transferred</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -108,7 +160,7 @@ export function TeacherForm({ onSubmit, isSubmitting }: TeacherFormProps) {
         </div>
         <div className="flex justify-end pt-4 border-t pr-1">
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating Account..." : "Create Account"}
+            {isSubmitting ? "Creating..." : "Create Teacher Profile"}
           </Button>
         </div>
       </form>

@@ -1,10 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { TeacherManagement } from "@/components/dashboard/admin/teacher-management";
+import { StudentManagement } from "@/components/dashboard/admin/student-management";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { PlusCircle, MoreHorizontal } from "lucide-react";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 const dummyData = {
     degrees: [{id: 1, name: "B.Sc. Computer Science"}, {id: 2, name: "B.B.A."}, {id: 3, name: "B.A. Arts"}],
@@ -65,12 +66,13 @@ export function AdminPanel() {
          <div className="space-y-6">
             <div>
                 <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
-                <p className="text-muted-foreground">Manage academic structure and settings.</p>
+                <p className="text-muted-foreground">Manage academic structure and user accounts.</p>
             </div>
 
             <Tabs defaultValue="teachers" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
                     <TabsTrigger value="teachers">Teachers</TabsTrigger>
+                    <TabsTrigger value="students">Students</TabsTrigger>
                     <TabsTrigger value="degrees">Degrees</TabsTrigger>
                     <TabsTrigger value="streams">Streams</TabsTrigger>
                     <TabsTrigger value="years">Years</TabsTrigger>
@@ -78,6 +80,9 @@ export function AdminPanel() {
                 </TabsList>
                 <TabsContent value="teachers">
                     <TeacherManagement />
+                </TabsContent>
+                <TabsContent value="students">
+                    <StudentManagement />
                 </TabsContent>
                 <TabsContent value="degrees">
                     <AdminTable data={dummyData.degrees} title="Degrees" />

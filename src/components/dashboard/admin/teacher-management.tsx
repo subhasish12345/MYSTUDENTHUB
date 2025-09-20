@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { db, auth } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, setDoc, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, setDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -35,14 +35,7 @@ export interface UserData extends DocumentData {
   subjects?: string[];
   status?: 'Active' | 'Retired' | 'Transferred';
   phone?: string;
-  semesters?: number[];
-  years?: number[];
-  salary?: number;
-  gender?: string;
-  joiningDate?: string;
-  teacherId?: string;
 }
-
 
 export function TeacherManagement() {
   const [teachers, setTeachers] = useState<UserData[]>([]);
@@ -50,7 +43,6 @@ export function TeacherManagement() {
   const [loading, setLoading] = useState(true);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editingTeacher, setEditingTeacher] = useState<UserData | null>(null);
   const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
 
   const { toast } = useToast();
@@ -79,15 +71,7 @@ export function TeacherManagement() {
   }, [toast]);
 
   const handleAddClick = () => {
-    setEditingTeacher(null);
     setIsSheetOpen(true);
-  };
-
-  const handleEditClick = (teacher: UserData) => {
-    // This functionality will be different now. The admin can only edit certain fields.
-    // For now, we will just log it. A full edit implementation is a next step.
-    console.log("Editing teacher (next step):", teacher);
-    toast({ title: "Next Step", description: "Editing restricted fields like role and salary can be built here."})
   };
   
   const handleDeleteClick = (teacherId: string) => {
@@ -115,19 +99,33 @@ export function TeacherManagement() {
     }
   };
 
-  // This function ONLY creates the Auth user. It does not touch Firestore.
-  const handleCreateUserAccount = async (values: TeacherFormValues) => {
+  const handleCreateTeacher = async (values: TeacherFormValues) => {
     setIsSubmitting(true);
     const last4 = values.phone.slice(-4);
     const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
     
     try {
-      await createUserWithEmailAndPassword(auth, values.email, password);
+      // Step 1: Create the user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
+      const user = userCredential.user;
+
+      // Step 2: Create the user document in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+        department: values.department,
+        subjects: values.subjects,
+        status: values.status,
+        role: 'teacher',
+        createdAt: serverTimestamp(),
+      });
+
       toast({
           title: "Success",
-          description: `Account created for ${values.email}. The user can now log in and complete their profile.`,
+          description: `Account and profile created for ${values.email}.`,
       });
-      console.log(`Password for ${values.email} is ${password}. Please share this with the user.`);
       alert(`Password for ${values.email} is ${password}. Please share this with the user.`);
       setIsSheetOpen(false);
 
@@ -159,7 +157,6 @@ export function TeacherManagement() {
     }
   }
 
-
   return (
     <>
       <Card>
@@ -167,7 +164,7 @@ export function TeacherManagement() {
            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
               <div>
                   <CardTitle className="font-headline">Teacher Management</CardTitle>
-                  <CardDescription>View teacher records and create new login accounts.</CardDescription>
+                  <CardDescription>Create new teacher accounts and manage records.</CardDescription>
               </div>
               <div className="flex items-center gap-4">
                   <div className="text-sm text-muted-foreground text-right">
@@ -197,7 +194,7 @@ export function TeacherManagement() {
                   <TableRow key={index}>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
@@ -210,7 +207,7 @@ export function TeacherManagement() {
                     <TableCell>{teacher.department}</TableCell>
                     <TableCell>
                         <Badge variant={teacher.status ? getStatusVariant(teacher.status) : 'outline'}>
-                            {teacher.status || 'Pending Setup'}
+                            {teacher.status || 'N/A'}
                         </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -222,7 +219,7 @@ export function TeacherManagement() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEditClick(teacher)}>Edit Role/Salary</DropdownMenuItem>
+                          <DropdownMenuItem disabled>Edit (Coming Soon)</DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={() => handleDeleteClick(teacher.id)}
                             className="text-destructive focus:text-destructive-foreground focus:bg-destructive"
@@ -237,7 +234,7 @@ export function TeacherManagement() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center h-24">
-                    No teachers found. Click "Add Teacher" to create an account.
+                    No teachers found. Click "Add Teacher" to create one.
                   </TableCell>
                 </TableRow>
               )}
@@ -249,13 +246,13 @@ export function TeacherManagement() {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="sm:max-w-[480px]">
             <SheetHeader>
-                <SheetTitle>Create New User Account</SheetTitle>
+                <SheetTitle>Create New Teacher</SheetTitle>
                 <SheetDescription>
-                    This will create a new login account. The user will be prompted to complete their profile on first login.
+                    This creates a login account and a complete profile for the teacher.
                 </SheetDescription>
             </SheetHeader>
             <TeacherForm 
-              onSubmit={handleCreateUserAccount} 
+              onSubmit={handleCreateTeacher} 
               isSubmitting={isSubmitting}
             />
         </SheetContent>

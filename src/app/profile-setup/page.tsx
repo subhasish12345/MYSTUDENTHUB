@@ -25,19 +25,26 @@ export default function ProfileSetupPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Student specific fields
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState<Roles | ''>('');
+  const [degree, setDegree] = useState('');
+  const [stream, setStream] = useState('');
+  const [joiningYear, setJoiningYear] = useState('');
+  const [passingYear, setPassingYear] = useState('');
+  const [isHosteler, setIsHosteler] = useState('');
+  const [gender, setGender] = useState('');
+  const [marks10th, setMarks10th] = useState('');
+  const [marks12th, setMarks12th] = useState('');
+  const [linkedin, setLinkedin] = useState('');
+  const [github, setGithub] = useState('');
+
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
       toast({ title: "Error", description: "You must be logged in to create a profile.", variant: "destructive" });
-      return;
-    }
-     if (!role) {
-      toast({ title: "Error", description: "Please select your role.", variant: "destructive" });
       return;
     }
 
@@ -49,7 +56,17 @@ export default function ProfileSetupPage() {
         email: user.email,
         name,
         phone,
-        role,
+        role: 'student', // All users completing this form are students
+        degree,
+        stream,
+        joiningYear,
+        passingYear,
+        isHosteler: isHosteler === 'true',
+        gender,
+        marks10th,
+        marks12th,
+        linkedin,
+        github,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -79,13 +96,13 @@ export default function ProfileSetupPage() {
         <h1 className="font-headline text-4xl font-bold text-primary">Welcome to MyStudentHub</h1>
       </div>
       <form onSubmit={handleSubmit}>
-        <Card className="w-full max-w-md shadow-2xl">
+        <Card className="w-full max-w-2xl shadow-2xl">
           <CardHeader>
-            <CardTitle className="font-headline text-2xl">Complete Your Profile</CardTitle>
-            <CardDescription>Please fill in your details to continue.</CardDescription>
+            <CardTitle className="font-headline text-2xl">Complete Your Student Profile</CardTitle>
+            <CardDescription>Please fill in your academic details to continue.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" value={user.email || ''} disabled />
             </div>
@@ -98,16 +115,57 @@ export default function ProfileSetupPage() {
                 <Input id="phone" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g., 9876543210"/>
             </div>
              <div className="grid gap-2">
-                <Label htmlFor="role">I am a...</Label>
-                 <Select required onValueChange={(value: Roles) => setRole(value)} value={role}>
-                    <SelectTrigger id="role">
-                        <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
+                <Label htmlFor="degree">Degree</Label>
+                <Input id="degree" required value={degree} onChange={(e) => setDegree(e.target.value)} placeholder="e.g., B.Sc. Computer Science"/>
+            </div>
+            <div className="grid gap-2">
+                <Label htmlFor="stream">Stream</Label>
+                <Input id="stream" required value={stream} onChange={(e) => setStream(e.target.value)} placeholder="e.g., Software Engineering"/>
+            </div>
+             <div className="grid gap-2">
+                <Label htmlFor="joiningYear">Joining Year</Label>
+                <Input id="joiningYear" type="number" required value={joiningYear} onChange={(e) => setJoiningYear(e.target.value)} placeholder="e.g., 2023"/>
+            </div>
+             <div className="grid gap-2">
+                <Label htmlFor="passingYear">Passing Year</Label>
+                <Input id="passingYear" type="number" required value={passingYear} onChange={(e) => setPassingYear(e.target.value)} placeholder="e.g., 2027"/>
+            </div>
+            <div className="grid gap-2">
+                <Label htmlFor="gender">Gender</Label>
+                 <Select required onValueChange={(value) => setGender(value)} value={gender}>
+                    <SelectTrigger id="gender"><SelectValue placeholder="Select Gender" /></SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="student">Student</SelectItem>
-                        <SelectItem value="teacher">Teacher</SelectItem>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                         <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                 </Select>
+            </div>
+            <div className="grid gap-2">
+                <Label htmlFor="isHosteler">Are you a Hosteler?</Label>
+                 <Select required onValueChange={(value) => setIsHosteler(value)} value={isHosteler}>
+                    <SelectTrigger id="isHosteler"><SelectValue placeholder="Select one" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="true">Yes</SelectItem>
+                        <SelectItem value="false">No, Day Scholar</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+             <div className="grid gap-2">
+                <Label htmlFor="marks10th">10th Marks (%)</Label>
+                <Input id="marks10th" type="number" required value={marks10th} onChange={(e) => setMarks10th(e.target.value)} placeholder="e.g., 85.5"/>
+            </div>
+             <div className="grid gap-2">
+                <Label htmlFor="marks12th">12th Marks (%)</Label>
+                <Input id="marks12th" type="number" required value={marks12th} onChange={(e) => setMarks12th(e.target.value)} placeholder="e.g., 92.0"/>
+            </div>
+            <div className="grid gap-2">
+                <Label htmlFor="linkedin">LinkedIn Profile</Label>
+                <Input id="linkedin" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} placeholder="URL of your profile"/>
+            </div>
+             <div className="grid gap-2">
+                <Label htmlFor="github">GitHub Profile</Label>
+                <Input id="github" value={github} onChange={(e) => setGithub(e.target.value)} placeholder="URL of your profile"/>
             </div>
           </CardContent>
           <CardFooter>
