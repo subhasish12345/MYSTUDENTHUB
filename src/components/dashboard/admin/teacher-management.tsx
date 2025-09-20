@@ -49,6 +49,7 @@ export function TeacherManagement() {
   const [teacherCount, setTeacherCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<UserData | null>(null);
   const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
 
@@ -64,10 +65,18 @@ export function TeacherManagement() {
       setTeachers(teachersData);
       setTeacherCount(snapshot.size);
       setLoading(false);
+    }, (error) => {
+        console.error("Error fetching teachers:", error);
+        toast({
+            title: "Error",
+            description: "Failed to fetch teacher data. You may not have the required permissions.",
+            variant: "destructive",
+        });
+        setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [toast]);
 
   const handleAddClick = () => {
     setEditingTeacher(null);
@@ -75,8 +84,10 @@ export function TeacherManagement() {
   };
 
   const handleEditClick = (teacher: UserData) => {
-    setEditingTeacher(teacher);
-    setIsSheetOpen(true);
+    // This functionality will be different now. The admin can only edit certain fields.
+    // For now, we will just log it. A full edit implementation is a next step.
+    console.log("Editing teacher (next step):", teacher);
+    toast({ title: "Next Step", description: "Editing restricted fields like role and salary can be built here."})
   };
   
   const handleDeleteClick = (teacherId: string) => {
@@ -89,7 +100,7 @@ export function TeacherManagement() {
         await deleteDoc(doc(db, "users", deletingTeacherId));
         toast({
           title: "Success",
-          description: "Teacher record deleted. Remember to delete the user from the Firebase Authentication tab as well.",
+          description: "Teacher record deleted. Remember to delete the user from Firebase Authentication.",
         });
       } catch (error) {
         console.error("Error deleting teacher:", error);
@@ -104,106 +115,40 @@ export function TeacherManagement() {
     }
   };
 
-
-  const handleFormSubmit = async (values: TeacherFormValues) => {
-    const dataToSave = {
-        name: values.name,
-        email: values.email,
-        department: values.department,
-        status: values.status,
-        phone: values.phone,
-        teacherId: values.teacherId,
-        gender: values.gender,
-        joiningDate: values.joiningDate,
-        role: 'teacher' as const,
-        subjects: values.subjects.split(',').map(s => s.trim()).filter(Boolean),
-        semesters: values.semesters?.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)) || [],
-        years: values.years?.split(',').map(s => parseInt(s.trim())).filter(s => !isNaN(s)) || [],
-        salary: values.salary ? parseFloat(values.salary) : 0,
-    };
-
+  // This function ONLY creates the Auth user. It does not touch Firestore.
+  const handleCreateUserAccount = async (values: TeacherFormValues) => {
+    setIsSubmitting(true);
+    const last4 = values.phone.slice(-4);
+    const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
+    
     try {
-        if (editingTeacher) {
-            const teacherRef = doc(db, "users", editingTeacher.id);
-            await updateDoc(teacherRef, { ...dataToSave, updatedAt: serverTimestamp()});
-            toast({
-                title: "Success",
-                description: "Teacher record updated successfully.",
-            });
-        } else {
-            const tempAdminAuth = auth;
-            const last4 = values.phone ? values.phone.slice(-4) : '1234';
-            const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
-            
-            try {
-              const userCredential = await createUserWithEmailAndPassword(tempAdminAuth, values.email, password);
-              const uid = userCredential.user.uid;
+      await createUserWithEmailAndPassword(auth, values.email, password);
+      toast({
+          title: "Success",
+          description: `Account created for ${values.email}. The user can now log in and complete their profile.`,
+      });
+      console.log(`Password for ${values.email} is ${password}. Please share this with the user.`);
+      alert(`Password for ${values.email} is ${password}. Please share this with the user.`);
+      setIsSheetOpen(false);
 
-              await setDoc(doc(db, "users", uid), {
-                  ...dataToSave,
-                  createdAt: serverTimestamp(),
-                  updatedAt: serverTimestamp()
-              });
-
-              toast({
-                  title: "Success",
-                  description: "New teacher added and account created.",
-              });
-              console.log(`Password for ${values.email} is ${password}. Please share this with the user.`);
-              alert(`Password for ${values.email} is ${password}. Please share this with the user.`);
-
-            } catch (authError: any) {
-               if (authError.code === 'auth/email-already-in-use') {
-                 toast({
-                    title: "Creation Failed",
-                    description: "This email is already in use by another account.",
-                    variant: "destructive",
-                });
-               } else {
-                 throw authError; // Re-throw other auth errors
-               }
-            }
-        }
-        setIsSheetOpen(false);
-        setEditingTeacher(null);
-    } catch (error: any) {
-        console.error("Error saving teacher:", error);
-        if (error.code !== 'auth/email-already-in-use') { // Don't show generic error if it was the specific email error
-           toast({
-              title: "Error",
-              description: error.message || "Failed to save teacher record.",
-              variant: "destructive",
-          });
-        }
+    } catch (authError: any) {
+       if (authError.code === 'auth/email-already-in-use') {
+         toast({
+            title: "Creation Failed",
+            description: "This email is already in use by another account.",
+            variant: "destructive",
+        });
+       } else {
+         toast({
+            title: "Error",
+            description: authError.message || "Failed to create user account.",
+            variant: "destructive",
+        });
+       }
+    } finally {
+        setIsSubmitting(false);
     }
   };
-
-  const sheetTitle = editingTeacher ? "Edit Teacher" : "Add New Teacher";
-  const sheetDescription = editingTeacher ? "Update the details of the existing teacher." : "Fill in the details to add a new teacher and create their login.";
-
-  const defaultValues = useMemo(() => {
-    if (editingTeacher) {
-        return {
-            name: editingTeacher.name || '',
-            email: editingTeacher.email || '',
-            department: editingTeacher.department || '',
-            subjects: (editingTeacher.subjects || []).join(', '),
-            phone: editingTeacher.phone || '',
-            semesters: (editingTeacher.semesters || []).join(', '),
-            years: (editingTeacher.years || []).join(', '),
-            salary: (editingTeacher.salary || 0).toString(),
-            gender: editingTeacher.gender || '',
-            joiningDate: editingTeacher.joiningDate || '',
-            teacherId: editingTeacher.teacherId || '',
-            status: editingTeacher.status || 'Active',
-        };
-    }
-    return {
-        name: '', email: '', department: '', subjects: '', phone: '',
-        semesters: '', years: '', salary: '', gender: '', joiningDate: '', teacherId: '',
-        status: 'Active' as const,
-    };
-  }, [editingTeacher]);
   
   const getStatusVariant = (status: UserData['status']) => {
     switch (status) {
@@ -222,7 +167,7 @@ export function TeacherManagement() {
            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
               <div>
                   <CardTitle className="font-headline">Teacher Management</CardTitle>
-                  <CardDescription>View, add, edit, and remove teacher records.</CardDescription>
+                  <CardDescription>View teacher records and create new login accounts.</CardDescription>
               </div>
               <div className="flex items-center gap-4">
                   <div className="text-sm text-muted-foreground text-right">
@@ -240,8 +185,8 @@ export function TeacherManagement() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Subjects</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -251,8 +196,8 @@ export function TeacherManagement() {
                 Array.from({ length: 3 }).map((_, index) => (
                   <TableRow key={index}>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
@@ -260,20 +205,13 @@ export function TeacherManagement() {
               ) : teachers.length > 0 ? (
                 teachers.map((teacher) => (
                   <TableRow key={teacher.id}>
-                    <TableCell className="font-medium">
-                        <div>{teacher.name}</div>
-                        <div className="text-xs text-muted-foreground">{teacher.email}</div>
-                    </TableCell>
+                    <TableCell className="font-medium">{teacher.name}</TableCell>
+                     <TableCell>{teacher.email}</TableCell>
                     <TableCell>{teacher.department}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1 max-w-xs">
-                        {(teacher.subjects || []).map((subject) => (
-                          <Badge key={subject} variant="secondary">{subject}</Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                        <Badge variant={getStatusVariant(teacher.status)}>{teacher.status}</Badge>
+                        <Badge variant={teacher.status ? getStatusVariant(teacher.status) : 'outline'}>
+                            {teacher.status || 'Pending Setup'}
+                        </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -284,10 +222,9 @@ export function TeacherManagement() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEditClick(teacher)} disabled={!teacher.id}>Edit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditClick(teacher)}>Edit Role/Salary</DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={() => handleDeleteClick(teacher.id)}
-                            disabled={!teacher.id}
                             className="text-destructive focus:text-destructive-foreground focus:bg-destructive"
                           >
                             Delete
@@ -300,7 +237,7 @@ export function TeacherManagement() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center h-24">
-                    No teachers found. Click "Add Teacher" to start.
+                    No teachers found. Click "Add Teacher" to create an account.
                   </TableCell>
                 </TableRow>
               )}
@@ -310,15 +247,16 @@ export function TeacherManagement() {
       </Card>
       
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-[600px] overflow-y-auto">
+        <SheetContent className="sm:max-w-[480px]">
             <SheetHeader>
-                <SheetTitle>{sheetTitle}</SheetTitle>
-                <SheetDescription>{sheetDescription}</SheetDescription>
+                <SheetTitle>Create New User Account</SheetTitle>
+                <SheetDescription>
+                    This will create a new login account. The user will be prompted to complete their profile on first login.
+                </SheetDescription>
             </SheetHeader>
             <TeacherForm 
-              onSubmit={handleFormSubmit} 
-              defaultValues={defaultValues}
-              isEditing={!!editingTeacher}
+              onSubmit={handleCreateUserAccount} 
+              isSubmitting={isSubmitting}
             />
         </SheetContent>
       </Sheet>
@@ -328,7 +266,7 @@ export function TeacherManagement() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action only deletes the teacher's record from Firestore. It does not remove their authentication account, which must be done manually from the Firebase Console. This action cannot be undone.
+                    This action only deletes the user's record from Firestore. It does not remove their authentication account, which must be done manually from the Firebase Console. This action cannot be undone.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

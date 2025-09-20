@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function DashboardPage() {
   const { user, userRole, loading } = useAuth();
@@ -17,23 +19,33 @@ export default function DashboardPage() {
         return;
       }
 
-      // Redirect based on role
-      switch (userRole) {
-        case "admin":
-          router.replace("/dashboard/admin");
-          break;
-        case "teacher":
-          router.replace("/dashboard/teacher");
-          break;
-        case "student":
-          router.replace("/dashboard/student");
-          break;
-        default:
-          // If role is null or not recognized, maybe redirect to a generic page or show an error
-          // For now, redirecting to login
-          router.replace("/");
-          break;
-      }
+      // Check if user document exists in Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      getDoc(userDocRef).then((docSnap) => {
+        if (!docSnap.exists()) {
+          // If profile doesn't exist, redirect to setup page
+          router.replace("/profile-setup");
+        } else {
+          // Profile exists, proceed with role-based redirection
+          switch (userRole) {
+            case "admin":
+              router.replace("/dashboard/admin");
+              break;
+            case "teacher":
+              router.replace("/dashboard/teacher");
+              break;
+            case "student":
+              router.replace("/dashboard/student");
+              break;
+            default:
+              // If role is not yet set by admin, maybe stay here or a waiting page
+              // For now, students and teachers without a role will see a generic dashboard.
+              // We can create a dedicated student dashboard page later.
+               if(userRole === null) router.replace('/dashboard/student');
+              break;
+          }
+        }
+      });
     }
   }, [user, userRole, loading, router]);
 
