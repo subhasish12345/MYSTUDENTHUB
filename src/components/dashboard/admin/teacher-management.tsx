@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { db, auth } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, setDoc, updateDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -35,6 +35,7 @@ export interface UserData extends DocumentData {
   subjects?: string[];
   status?: 'Active' | 'Retired' | 'Transferred';
   phone?: string;
+  experienceYears?: number;
 }
 
 export function TeacherManagement() {
@@ -44,6 +45,7 @@ export function TeacherManagement() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
+  const [editingTeacher, setEditingTeacher] = useState<UserData | null>(null);
 
   const { toast } = useToast();
 
@@ -71,6 +73,12 @@ export function TeacherManagement() {
   }, [toast]);
 
   const handleAddClick = () => {
+    setEditingTeacher(null);
+    setIsSheetOpen(true);
+  };
+
+  const handleEditClick = (teacher: UserData) => {
+    setEditingTeacher(teacher);
     setIsSheetOpen(true);
   };
   
@@ -99,52 +107,72 @@ export function TeacherManagement() {
     }
   };
 
-  const handleCreateTeacher = async (values: TeacherFormValues) => {
+  const handleCreateOrUpdateTeacher = async (values: TeacherFormValues, teacherId?: string) => {
     setIsSubmitting(true);
-    const last4 = values.phone.slice(-4);
-    const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
     
-    try {
-      // Step 1: Create the user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
-      const user = userCredential.user;
-
-      // Step 2: Create the user document in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        name: values.name,
-        email: values.email,
-        phone: values.phone,
-        department: values.department,
-        subjects: values.subjects,
-        status: values.status,
-        role: 'teacher',
-        createdAt: serverTimestamp(),
-      });
-
-      toast({
+    if (teacherId) { // This is an update
+      try {
+        const teacherDocRef = doc(db, "users", teacherId);
+        await updateDoc(teacherDocRef, {
+          ...values,
+          updatedAt: serverTimestamp(),
+        });
+        toast({
           title: "Success",
-          description: `Account and profile created for ${values.email}.`,
-      });
-      alert(`Password for ${values.email} is ${password}. Please share this with the user.`);
-      setIsSheetOpen(false);
-
-    } catch (authError: any) {
-       if (authError.code === 'auth/email-already-in-use') {
-         toast({
-            title: "Creation Failed",
-            description: "This email is already in use by another account.",
-            variant: "destructive",
+          description: `Profile for ${values.name} has been updated.`,
         });
-       } else {
-         toast({
-            title: "Error",
-            description: authError.message || "Failed to create user account.",
-            variant: "destructive",
+        setIsSheetOpen(false);
+      } catch (error: any) {
+        toast({
+          title: "Update Failed",
+          description: error.message || "Failed to update teacher profile.",
+          variant: "destructive",
         });
-       }
-    } finally {
+      } finally {
         setIsSubmitting(false);
+      }
+    } else { // This is a new creation
+      const last4 = values.phone.slice(-4);
+      const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
+      
+      try {
+        // Step 1: Create the user in Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
+        const user = userCredential.user;
+
+        // Step 2: Create the user document in Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          ...values,
+          uid: user.uid,
+          role: 'teacher',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        toast({
+            title: "Success",
+            description: `Account and profile created for ${values.email}.`,
+        });
+        alert(`Password for ${values.email} is ${password}. Please share this with the user.`);
+        setIsSheetOpen(false);
+
+      } catch (authError: any) {
+         if (authError.code === 'auth/email-already-in-use') {
+           toast({
+              title: "Creation Failed",
+              description: "This email is already in use by another account.",
+              variant: "destructive",
+          });
+         } else {
+           toast({
+              title: "Error",
+              description: authError.message || "Failed to create user account.",
+              variant: "destructive",
+          });
+         }
+      } finally {
+          setIsSubmitting(false);
+      }
     }
   };
   
@@ -219,7 +247,7 @@ export function TeacherManagement() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem disabled>Edit (Coming Soon)</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditClick(teacher)}>Edit</DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={() => handleDeleteClick(teacher.id)}
                             className="text-destructive focus:text-destructive-foreground focus:bg-destructive"
@@ -244,16 +272,17 @@ export function TeacherManagement() {
       </Card>
       
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-[480px]">
+        <SheetContent className="sm:max-w-[540px] w-full">
             <SheetHeader>
-                <SheetTitle>Create New Teacher</SheetTitle>
+                <SheetTitle>{editingTeacher ? "Edit Teacher Profile" : "Create New Teacher"}</SheetTitle>
                 <SheetDescription>
-                    This creates a login account and a complete profile for the teacher.
+                    {editingTeacher ? "Update the teacher's profile information." : "This creates a login account and a complete profile for the teacher."}
                 </SheetDescription>
             </SheetHeader>
             <TeacherForm 
-              onSubmit={handleCreateTeacher} 
+              onSubmit={handleCreateOrUpdateTeacher} 
               isSubmitting={isSubmitting}
+              existingTeacherData={editingTeacher}
             />
         </SheetContent>
       </Sheet>
