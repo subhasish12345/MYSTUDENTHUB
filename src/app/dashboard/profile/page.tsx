@@ -2,64 +2,96 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { PenSquare, Mail, Phone, Building, GraduationCap, Briefcase, Link as LinkIcon, Linkedin, Github } from "lucide-react";
+import { PenSquare, Mail, Phone, Building, GraduationCap, Briefcase, Linkedin, Github } from "lucide-react";
 import { UserData } from "@/components/dashboard/admin/teacher-management";
 import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { EditProfileForm, ProfileFormValues } from "@/components/dashboard/profile/edit-profile-form";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [profileData, setProfileData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+  
+  const fetchUserData = async () => {
+    if (!user) return;
+    setLoading(true);
+    const userDocRef = doc(db, "users", user.uid);
+    const docSnap = await getDoc(userDocRef);
+    if (docSnap.exists()) {
+      setProfileData({ id: docSnap.id, ...docSnap.data() } as UserData);
+    } else {
+      console.error("No profile document found for UID:", user.uid);
+      setProfileData(null);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
     if (user && isClient) {
-      const fetchUserData = async () => {
-        setLoading(true);
-        const userDocRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(userDocRef);
-        if (docSnap.exists()) {
-          setProfileData(docSnap.data() as UserData);
-        } else {
-          console.error("No profile document found for UID:", user.uid);
-          setProfileData(null);
-        }
-        setLoading(false);
-      };
       fetchUserData();
     } else if (isClient) {
       setLoading(false);
     }
   }, [user, isClient]);
 
-  // if (!isClient || loading) {
-  //   return (
-  //     <div className="space-y-6">
-  //       <div className="flex items-center gap-6">
-  //           <Skeleton className="h-24 w-24 rounded-full" />
-  //           <div className="space-y-2">
-  //               <Skeleton className="h-8 w-48" />
-  //               <Skeleton className="h-5 w-32" />
-  //           </div>
-  //       </div>
-  //       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-  //           <Skeleton className="h-64 w-full" />
-  //           <Skeleton className="h-64 w-full" />
-  //           <Skeleton className="h-64 w-full" />
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  const handleProfileUpdate = async (values: ProfileFormValues) => {
+    if (!user) {
+        toast({ title: "Error", description: "You must be logged in to update your profile.", variant: "destructive" });
+        return;
+    }
+    setIsSubmitting(true);
+    try {
+        const userDocRef = doc(db, "users", user.uid);
+        await updateDoc(userDocRef, {
+            ...values,
+            updatedAt: serverTimestamp(),
+        });
+        toast({ title: "Success!", description: "Your profile has been updated." });
+        await fetchUserData(); // Re-fetch data to show updated info
+        setIsSheetOpen(false);
+    } catch (error: any) {
+        console.error("Error updating profile:", error);
+        toast({ title: "Error", description: error.message || "Failed to update profile.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+
+  if (!isClient || loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-6">
+            <Skeleton className="h-24 w-24 rounded-full" />
+            <div className="space-y-2">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-5 w-32" />
+            </div>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    );
+  }
 
   if (!profileData) {
     return <p className="text-center text-destructive">No profile data found. Please complete your profile setup or contact an administrator.</p>;
@@ -69,6 +101,7 @@ export default function ProfilePage() {
   const isStudent = profileData.role === 'student';
 
   return (
+    <>
     <div className="space-y-8">
       <Card className="shadow-lg">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6">
@@ -82,13 +115,13 @@ export default function ProfilePage() {
                     <CardTitle className="font-headline text-3xl">{profileData.name}</CardTitle>
                     <CardDescription className="text-lg">{isTeacher ? profileData.designation : profileData.degree}</CardDescription>
                 </div>
-                 <Button className="mt-4 sm:mt-0">
+                 <Button className="mt-4 sm:mt-0" onClick={() => setIsSheetOpen(true)}>
                     <PenSquare className="mr-2 h-4 w-4" /> Edit Profile
                 </Button>
             </div>
             <div className="flex items-center gap-4 mt-4 text-muted-foreground">
                 <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> {profileData.email}</div>
-                <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> {profileData.phone}</div>
+                {profileData.phone && <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> {profileData.phone}</div>}
             </div>
           </div>
         </CardHeader>
@@ -171,6 +204,22 @@ export default function ProfilePage() {
       )}
 
     </div>
+     <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="sm:max-w-2xl w-full">
+            <SheetHeader>
+                <SheetTitle>Edit Your Profile</SheetTitle>
+                <SheetDescription>
+                    Update your personal and professional information. Click save when you're done.
+                </SheetDescription>
+            </SheetHeader>
+            <EditProfileForm
+              onSubmit={handleProfileUpdate}
+              isSubmitting={isSubmitting}
+              existingData={profileData}
+            />
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
@@ -183,5 +232,3 @@ const InfoItem = ({ label, value, children }: { label: string; value?: string | 
         </div>
     )
 }
-
-    
