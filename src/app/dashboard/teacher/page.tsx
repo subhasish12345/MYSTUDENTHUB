@@ -1,10 +1,51 @@
 
 "use client";
+
 import { useAuth } from "@/hooks/use-auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useEffect, useState } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserData } from "@/components/dashboard/admin/teacher-management";
+import { BookOpen, Calendar, Users } from "lucide-react";
 
 export default function TeacherDashboardPage() {
   const { user } = useAuth();
-  const userName = user?.displayName || "Teacher";
+  const [teacherData, setTeacherData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      const fetchUserData = async () => {
+        const userDocRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+          setTeacherData(docSnap.data() as UserData);
+        }
+        setLoading(false);
+      };
+      fetchUserData();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-1/3" />
+        <Skeleton className="h-6 w-1/2" />
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-40 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  const userName = teacherData?.name || "Teacher";
 
   return (
     <div className="grid gap-8">
@@ -12,7 +53,44 @@ export default function TeacherDashboardPage() {
         <h1 className="font-headline text-3xl font-bold">Welcome, {userName}!</h1>
         <p className="text-muted-foreground">This is your dedicated dashboard to manage your courses and students.</p>
       </div>
-      {/* Teacher-specific components will go here */}
+
+       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="font-headline">My Courses</CardTitle>
+            <BookOpen className="h-6 w-6 text-primary" />
+          </CardHeader>
+          <CardContent>
+            {teacherData?.subjects && teacherData.subjects.length > 0 ? (
+                <ul className="space-y-2">
+                    {teacherData.subjects.map((subject, index) => (
+                        <li key={index} className="text-muted-foreground">{subject}</li>
+                    ))}
+                </ul>
+            ) : (
+                <p className="text-muted-foreground">No courses assigned.</p>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="font-headline">Upcoming Classes</CardTitle>
+            <Calendar className="h-6 w-6 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">Feature coming soon.</p>
+          </CardContent>
+        </Card>
+         <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="font-headline">My Students</CardTitle>
+            <Users className="h-6 w-6 text-primary" />
+          </CardHeader>
+          <CardContent>
+             <p className="text-muted-foreground">Feature coming soon.</p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
