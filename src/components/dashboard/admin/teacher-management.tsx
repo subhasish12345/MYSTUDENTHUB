@@ -130,6 +130,11 @@ export function TeacherManagement() {
           ...values,
           updatedAt: serverTimestamp(),
         });
+        
+        // Also update the status in the /users collection if it has changed
+        const userDocRef = doc(db, "users", teacherId);
+        await updateDoc(userDocRef, { status: values.status });
+
         toast({
           title: "Success",
           description: `Profile for ${values.name} has been updated.`,
@@ -160,6 +165,7 @@ export function TeacherManagement() {
           role: 'teacher',
           createdAt: serverTimestamp(),
           status: 'Active',
+          name: values.name,
         });
         
         // Step 3: Create the full teacher profile in /teachers
@@ -175,7 +181,7 @@ export function TeacherManagement() {
             title: "Success",
             description: `Account and profile created for ${values.email}.`,
         });
-        alert(`Password for ${values.email} is ${password}. Please share this with the user.`);
+        alert(`IMPORTANT: Password for ${values.email} is ${password}. Please share this with the user.`);
         setIsSheetOpen(false);
 
       } catch (authError: any) {
@@ -326,3 +332,5 @@ export function TeacherManagement() {
     </>
   );
 }
+
+    

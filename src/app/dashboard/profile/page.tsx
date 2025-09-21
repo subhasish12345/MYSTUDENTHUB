@@ -45,7 +45,13 @@ export default function ProfilePage() {
         setProfileData({ id: docSnap.id, ...docSnap.data() } as ProfileData);
       } else {
         console.error("No profile document found for UID:", user.uid, "in collection:", collectionName);
-        setProfileData(null);
+        // If the main profile doesn't exist, try the 'users' collection as a fallback for basic info.
+        const baseUserDoc = await getDoc(doc(db, 'users', user.uid));
+        if(baseUserDoc.exists()){
+            setProfileData({ id: baseUserDoc.id, ...baseUserDoc.data() } as ProfileData)
+        } else {
+            setProfileData(null);
+        }
       }
     } catch (error) {
        console.error("Error fetching user data:", error);
@@ -242,3 +248,5 @@ const InfoItem = ({ label, value, children }: { label: string; value?: string | 
         </div>
     )
 }
+
+    
