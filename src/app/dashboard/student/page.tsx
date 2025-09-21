@@ -9,10 +9,59 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
+import { UserData } from "@/components/dashboard/admin/teacher-management";
+import { useState, useEffect } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
-  const userName = user?.displayName || "Student";
+  const [studentData, setStudentData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (user && isClient) {
+      const fetchUserData = async () => {
+        setLoading(true);
+        const userDocRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+          setStudentData(docSnap.data() as UserData);
+        } else {
+          setStudentData(null);
+        }
+        setLoading(false);
+      };
+      fetchUserData();
+    } else if (isClient) {
+      setLoading(false);
+    }
+  }, [user, isClient]);
+
+  if (!isClient || loading) {
+    return (
+       <div className="space-y-6">
+        <Skeleton className="h-10 w-1/3" />
+        <Skeleton className="h-6 w-1/2" />
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-64 w-full lg:col-span-2" />
+            <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!studentData) {
+      return <p className="text-center text-destructive">No student profile found. Please contact an administrator or complete your profile setup.</p>;
+  }
+
+  const userName = studentData?.name || "Student";
 
   return (
     <div className="grid gap-8">
