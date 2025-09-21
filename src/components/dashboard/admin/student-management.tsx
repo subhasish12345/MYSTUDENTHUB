@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { db, auth } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, setDoc, serverTimestamp, where } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -63,8 +64,8 @@ export function StudentManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Queries the /students collection now
-    const q = query(collection(db, "students"));
+    // **FIX**: Query the 'users' collection and filter by role 'student'
+    const q = query(collection(db, "users"), where("role", "==", "student"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const studentsData = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -97,10 +98,7 @@ export function StudentManagement() {
   const confirmDelete = async () => {
     if (deletingStudentId) {
       try {
-        // Must delete from both students and users collections
-        await deleteDoc(doc(db, "students", deletingStudentId));
         await deleteDoc(doc(db, "users", deletingStudentId));
-
         toast({
           title: "Success",
           description: "Student record deleted. Remember to delete the user from Firebase Authentication manually if needed.",
@@ -133,22 +131,10 @@ export function StudentManagement() {
         const uid = userCredential.user.uid;
         console.log("Step 1 Success: Auth user created with UID:", uid);
 
-        // 2. Create /users/{uid} doc
+        // 2. Create user document in /users collection
         console.log("Step 2: Attempting to create doc in /users collection...");
         const userDocRef = doc(db, "users", uid);
         await setDoc(userDocRef, {
-            uid,
-            email: values.email,
-            role: "student",
-            createdAt: serverTimestamp(),
-            status: "Active",
-        });
-        console.log("Step 2 Success: /users doc created.");
-
-        // 3. Create /students/{uid} doc
-        console.log("Step 3: Attempting to create doc in /students collection...");
-        const studentDocRef = doc(db, "students", uid);
-        await setDoc(studentDocRef, {
             uid,
             name: values.name,
             email: values.email,
@@ -169,15 +155,14 @@ export function StudentManagement() {
             photoURL: "",
             bio: "",
         });
-        console.log("Step 3 Success: /students doc created.");
+        console.log("Step 2 Success: /users doc created for student.");
 
-
-      toast({
-        title: "Success",
-        description: `Student account created for ${values.email}.`,
-      });
-      alert(`IMPORTANT: Password for ${values.email} is ${password}. Please share this with the student.`);
-      setIsSheetOpen(false);
+        toast({
+            title: "Success",
+            description: `Student account created for ${values.email}.`,
+        });
+        alert(`IMPORTANT: Password for ${values.email} is ${password}. Please share this with the student.`);
+        setIsSheetOpen(false);
 
     } catch (error: any) {
       console.error("Student Creation Failed:", error);
@@ -190,7 +175,7 @@ export function StudentManagement() {
       } else if (error.code === 'permission-denied') {
          toast({
           title: "Permission Denied",
-          description: "Your security rules are blocking this action. Please ensure the admin has permission to create users and profiles.",
+          description: "Your security rules are blocking this action. Please ensure the admin has permission to create users.",
           variant: "destructive",
         });
       }
@@ -312,7 +297,7 @@ export function StudentManagement() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action deletes the student's profile from both /users and /students collections. It does not remove their authentication account from Firebase Auth. This must be done manually.
+                    This action deletes the student's profile from the /users collection. It does not remove their authentication account from Firebase Auth. This must be done manually.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -324,3 +309,5 @@ export function StudentManagement() {
     </>
   );
 }
+
+    

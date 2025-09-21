@@ -59,9 +59,8 @@ export function TeacherManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // This query now correctly fetches all documents from the /teachers collection.
-    // The security rules MUST allow the admin to 'list' this collection.
-    const q = query(collection(db, "teachers"));
+    // **FIX**: Query the 'users' collection and filter by role 'teacher'
+    const q = query(collection(db, "users"), where("role", "==", "teacher"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const teachersData = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -74,7 +73,7 @@ export function TeacherManagement() {
         console.error("Error fetching teachers:", error);
         toast({
             title: "Error",
-            description: "Failed to fetch teacher data. Check Firestore security rules for 'list' permissions.",
+            description: "Failed to fetch teacher data. Check Firestore security rules.",
             variant: "destructive",
         });
         setLoading(false);
@@ -100,7 +99,7 @@ export function TeacherManagement() {
   const confirmDelete = async () => {
     if (deletingTeacherId) {
       try {
-        await deleteDoc(doc(db, "teachers", deletingTeacherId));
+        // A teacher record is just a user doc with role 'teacher'
         await deleteDoc(doc(db, "users", deletingTeacherId));
         
         toast({
@@ -125,15 +124,12 @@ export function TeacherManagement() {
     
     if (teacherId) { // This is an update
       try {
-        const teacherDocRef = doc(db, "teachers", teacherId);
-        await updateDoc(teacherDocRef, {
+        const userDocRef = doc(db, "users", teacherId);
+        await updateDoc(userDocRef, {
           ...values,
           updatedAt: serverTimestamp(),
         });
         
-        const userDocRef = doc(db, "users", teacherId);
-        await updateDoc(userDocRef, { status: values.status, name: values.name });
-
         toast({
           title: "Success",
           description: `Profile for ${values.name} has been updated.`,
@@ -156,16 +152,8 @@ export function TeacherManagement() {
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
         const user = userCredential.user;
 
+        // Create the single user document with role 'teacher' and all data
         await setDoc(doc(db, "users", user.uid), {
-          uid: user.uid,
-          email: user.email,
-          role: 'teacher',
-          createdAt: serverTimestamp(),
-          status: 'Active',
-          name: values.name,
-        });
-        
-        await setDoc(doc(db, "teachers", user.uid), {
           ...values,
           uid: user.uid,
           role: 'teacher',
@@ -316,7 +304,7 @@ export function TeacherManagement() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action deletes the teacher's profile from both /users and /teachers collections. It does not remove their authentication account, which must be done manually.
+                    This action deletes the teacher's profile from the users collection. It does not remove their authentication account, which must be done manually.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -328,3 +316,5 @@ export function TeacherManagement() {
     </>
   );
 }
+
+    
