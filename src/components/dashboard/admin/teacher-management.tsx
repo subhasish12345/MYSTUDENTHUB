@@ -59,7 +59,8 @@ export function TeacherManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Correctly fetches from the /teachers collection now
+    // This query now correctly fetches all documents from the /teachers collection.
+    // The security rules MUST allow the admin to 'list' this collection.
     const q = query(collection(db, "teachers"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const teachersData = snapshot.docs.map((doc) => ({
@@ -73,7 +74,7 @@ export function TeacherManagement() {
         console.error("Error fetching teachers:", error);
         toast({
             title: "Error",
-            description: "Failed to fetch teacher data. Check Firestore rules.",
+            description: "Failed to fetch teacher data. Check Firestore security rules for 'list' permissions.",
             variant: "destructive",
         });
         setLoading(false);
@@ -99,7 +100,6 @@ export function TeacherManagement() {
   const confirmDelete = async () => {
     if (deletingTeacherId) {
       try {
-        // Must delete from all relevant collections
         await deleteDoc(doc(db, "teachers", deletingTeacherId));
         await deleteDoc(doc(db, "users", deletingTeacherId));
         
@@ -131,9 +131,8 @@ export function TeacherManagement() {
           updatedAt: serverTimestamp(),
         });
         
-        // Also update the status in the /users collection if it has changed
         const userDocRef = doc(db, "users", teacherId);
-        await updateDoc(userDocRef, { status: values.status });
+        await updateDoc(userDocRef, { status: values.status, name: values.name });
 
         toast({
           title: "Success",
@@ -154,11 +153,9 @@ export function TeacherManagement() {
       const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
       
       try {
-        // Step 1: Create the user in Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
         const user = userCredential.user;
 
-        // Step 2: Create the user document in /users for role management
         await setDoc(doc(db, "users", user.uid), {
           uid: user.uid,
           email: user.email,
@@ -168,7 +165,6 @@ export function TeacherManagement() {
           name: values.name,
         });
         
-        // Step 3: Create the full teacher profile in /teachers
         await setDoc(doc(db, "teachers", user.uid), {
           ...values,
           uid: user.uid,
@@ -332,5 +328,3 @@ export function TeacherManagement() {
     </>
   );
 }
-
-    
