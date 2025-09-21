@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import type { UserData } from "./teacher-management";
 import { useEffect } from "react";
+import { Textarea } from "@/components/ui/textarea";
 
 const formSchema = z.object({
   // Basic Info
@@ -43,8 +44,8 @@ const formSchema = z.object({
 
   // Optional Extras
   photoURL: z.string().url().optional().or(z.literal('')),
-  bio: z.string().optional(),
-  linkedIn: z.string().url().optional().or(z.literal('')),
+  bio: z.string().max(500, "Bio should be less than 500 characters.").optional(),
+  linkedIn: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
 });
 
 export type TeacherFormValues = z.infer<typeof formSchema>;
@@ -89,6 +90,15 @@ export function TeacherForm({ onSubmit, isSubmitting, existingTeacherData }: Tea
         ...existingTeacherData,
         subjects: Array.isArray(existingTeacherData.subjects) ? existingTeacherData.subjects.join(', ') : '',
         experienceYears: existingTeacherData.experienceYears || 0,
+        // Ensure optional fields that might be undefined are handled
+        specialization: existingTeacherData.specialization || "",
+        campus: existingTeacherData.campus || "",
+        building: existingTeacherData.building || "",
+        roomNo: existingTeacherData.roomNo || "",
+        universityId: existingTeacherData.universityId || "",
+        photoURL: existingTeacherData.photoURL || "",
+        bio: existingTeacherData.bio || "",
+        linkedIn: existingTeacherData.linkedIn || "",
       });
     }
   }, [existingTeacherData, form]);
@@ -112,6 +122,7 @@ export function TeacherForm({ onSubmit, isSubmitting, existingTeacherData }: Tea
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8 py-4">
         <div className="space-y-6 px-1 max-h-[75vh] overflow-y-auto pr-4">
+             <h3 className="font-headline text-lg font-semibold">Basic Information</h3>
              <FormField
                 control={form.control}
                 name="name"
@@ -155,6 +166,30 @@ export function TeacherForm({ onSubmit, isSubmitting, existingTeacherData }: Tea
                     </FormItem>
                 )}
             />
+            <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                         <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="Active">Active</SelectItem>
+                            <SelectItem value="Retired">Retired</SelectItem>
+                            <SelectItem value="Transferred">Transferred</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+
+            <h3 className="font-headline text-lg font-semibold border-t pt-6">Professional Details</h3>
              <FormField
                 control={form.control}
                 name="department"
@@ -236,24 +271,84 @@ export function TeacherForm({ onSubmit, isSubmitting, existingTeacherData }: Tea
                     </FormItem>
                 )}
             />
-            <FormField
+             <FormField
                 control={form.control}
-                name="status"
+                name="specialization"
                 render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                         <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            <SelectItem value="Active">Active</SelectItem>
-                            <SelectItem value="Retired">Retired</SelectItem>
-                            <SelectItem value="Transferred">Transferred</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <FormLabel>Specialization</FormLabel>
+                    <FormControl>
+                        <Input placeholder="e.g., Artificial Intelligence" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+            
+            <h3 className="font-headline text-lg font-semibold border-t pt-6">University Data</h3>
+            <FormField
+                control={form.control}
+                name="campus"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Campus</FormLabel>
+                    <FormControl>
+                        <Input placeholder="e.g., Main Campus" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="building"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Building</FormLabel>
+                    <FormControl>
+                        <Input placeholder="e.g., Block A" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="roomNo"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Room No.</FormLabel>
+                    <FormControl>
+                        <Input placeholder="e.g., 205" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="universityId"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>University ID</FormLabel>
+                    <FormControl>
+                        <Input placeholder="e.g., U-2025-CS-011" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+
+            <h3 className="font-headline text-lg font-semibold border-t pt-6">Optional Extras</h3>
+             <FormField
+                control={form.control}
+                name="photoURL"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Photo URL</FormLabel>
+                    <FormControl>
+                        <Input placeholder="https://example.com/photo.jpg" {...field} />
+                    </FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
@@ -265,7 +360,7 @@ export function TeacherForm({ onSubmit, isSubmitting, existingTeacherData }: Tea
                     <FormItem>
                     <FormLabel>Bio</FormLabel>
                     <FormControl>
-                        <Input placeholder="A short biography..." {...field} />
+                        <Textarea placeholder="A short biography about the teacher..." {...field} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>

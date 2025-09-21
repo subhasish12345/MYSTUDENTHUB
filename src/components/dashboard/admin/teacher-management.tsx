@@ -36,6 +36,14 @@ export interface UserData extends DocumentData {
   status?: 'Active' | 'Retired' | 'Transferred';
   phone?: string;
   experienceYears?: number;
+  specialization?: string;
+  campus?: string;
+  building?: string;
+  roomNo?: string;
+  universityId?: string;
+  photoURL?: string;
+  bio?: string;
+  linkedIn?: string;
 }
 
 export function TeacherManagement() {
@@ -272,7 +280,7 @@ export function TeacherManagement() {
       </Card>
       
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-[540px] w-full">
+        <SheetContent className="sm:max-w-2xl w-full">
             <SheetHeader>
                 <SheetTitle>{editingTeacher ? "Edit Teacher Profile" : "Create New Teacher"}</SheetTitle>
                 <SheetDescription>
