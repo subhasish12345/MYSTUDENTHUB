@@ -59,7 +59,8 @@ export function TeacherManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "users"), where("role", "==", "teacher"));
+    // Correctly fetches from the /teachers collection now
+    const q = query(collection(db, "teachers"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const teachersData = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -72,7 +73,7 @@ export function TeacherManagement() {
         console.error("Error fetching teachers:", error);
         toast({
             title: "Error",
-            description: "Failed to fetch teacher data. You may not have the required permissions.",
+            description: "Failed to fetch teacher data. Check Firestore rules.",
             variant: "destructive",
         });
         setLoading(false);
@@ -98,10 +99,13 @@ export function TeacherManagement() {
   const confirmDelete = async () => {
     if (deletingTeacherId) {
       try {
+        // Must delete from all relevant collections
+        await deleteDoc(doc(db, "teachers", deletingTeacherId));
         await deleteDoc(doc(db, "users", deletingTeacherId));
+        
         toast({
           title: "Success",
-          description: "Teacher record deleted. Remember to delete the user from Firebase Authentication.",
+          description: "Teacher record deleted. Remember to delete from Firebase Auth manually.",
         });
       } catch (error) {
         console.error("Error deleting teacher:", error);
@@ -121,7 +125,7 @@ export function TeacherManagement() {
     
     if (teacherId) { // This is an update
       try {
-        const teacherDocRef = doc(db, "users", teacherId);
+        const teacherDocRef = doc(db, "teachers", teacherId);
         await updateDoc(teacherDocRef, {
           ...values,
           updatedAt: serverTimestamp(),
@@ -149,8 +153,17 @@ export function TeacherManagement() {
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
         const user = userCredential.user;
 
-        // Step 2: Create the user document in Firestore
+        // Step 2: Create the user document in /users for role management
         await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          email: user.email,
+          role: 'teacher',
+          createdAt: serverTimestamp(),
+          status: 'Active',
+        });
+        
+        // Step 3: Create the full teacher profile in /teachers
+        await setDoc(doc(db, "teachers", user.uid), {
           ...values,
           uid: user.uid,
           role: 'teacher',
@@ -301,7 +314,7 @@ export function TeacherManagement() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action only deletes the user's record from Firestore. It does not remove their authentication account, which must be done manually from the Firebase Console. This action cannot be undone.
+                    This action deletes the teacher's profile from both /users and /teachers collections. It does not remove their authentication account, which must be done manually.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
