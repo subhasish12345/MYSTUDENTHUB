@@ -25,11 +25,14 @@ export default function TeacherDashboardPage() {
     if (user && isClient) {
       const fetchUserData = async () => {
         setLoading(true);
+        console.log("Fetching data for user UID:", user.uid);
         const userDocRef = doc(db, "users", user.uid);
         const docSnap = await getDoc(userDocRef);
         if (docSnap.exists()) {
+          console.log("Teacher document found:", docSnap.data());
           setTeacherData(docSnap.data() as UserData);
         } else {
+          console.error("No teacher document found for UID:", user.uid);
           // Explicitly set teacherData to null if doc doesn't exist
           setTeacherData(null);
         }
@@ -38,6 +41,7 @@ export default function TeacherDashboardPage() {
       fetchUserData();
     } else if (isClient) {
       // If there's no user on the client, stop loading
+      console.log("No user found on client-side.");
       setLoading(false);
     }
   }, [user, isClient]);
