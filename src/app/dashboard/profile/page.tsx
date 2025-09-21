@@ -1,0 +1,185 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { PenSquare, Mail, Phone, Building, GraduationCap, Briefcase, Link as LinkIcon, Linkedin, Github } from "lucide-react";
+import { UserData } from "@/components/dashboard/admin/teacher-management";
+import { Badge } from "@/components/ui/badge";
+
+export default function ProfilePage() {
+  const { user } = useAuth();
+  const [profileData, setProfileData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (user && isClient) {
+      const fetchUserData = async () => {
+        setLoading(true);
+        const userDocRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(userDocRef);
+        if (docSnap.exists()) {
+          setProfileData(docSnap.data() as UserData);
+        } else {
+          console.error("No profile document found for UID:", user.uid);
+          setProfileData(null);
+        }
+        setLoading(false);
+      };
+      fetchUserData();
+    } else if (isClient) {
+      setLoading(false);
+    }
+  }, [user, isClient]);
+
+  if (!isClient || loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-6">
+            <Skeleton className="h-24 w-24 rounded-full" />
+            <div className="space-y-2">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-5 w-32" />
+            </div>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!profileData) {
+    return <p className="text-center text-destructive">No profile data found. Please complete your profile setup or contact an administrator.</p>;
+  }
+
+  const isTeacher = profileData.role === 'teacher';
+  const isStudent = profileData.role === 'student';
+
+  return (
+    <div className="space-y-8">
+      <Card className="shadow-lg">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6">
+          <Avatar className="h-24 w-24 border-4 border-primary">
+            <AvatarImage src={profileData.photoURL} alt={profileData.name} data-ai-hint="person face" />
+            <AvatarFallback className="text-3xl">{profileData.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center">
+                 <div>
+                    <CardTitle className="font-headline text-3xl">{profileData.name}</CardTitle>
+                    <CardDescription className="text-lg">{isTeacher ? profileData.designation : profileData.degree}</CardDescription>
+                </div>
+                 <Button className="mt-4 sm:mt-0">
+                    <PenSquare className="mr-2 h-4 w-4" /> Edit Profile
+                </Button>
+            </div>
+            <div className="flex items-center gap-4 mt-4 text-muted-foreground">
+                <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> {profileData.email}</div>
+                <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> {profileData.phone}</div>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Professional/Academic Info */}
+        <Card className="lg:col-span-2 shadow-lg">
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2">
+                    {isTeacher ? <Briefcase/> : <GraduationCap/>}
+                    {isTeacher ? 'Professional Information' : 'Academic Details'}
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                {isTeacher && <>
+                    <InfoItem label="Department" value={profileData.department} />
+                    <InfoItem label="Qualification" value={profileData.qualification} />
+                    <InfoItem label="Specialization" value={profileData.specialization} />
+                    <InfoItem label="Experience" value={`${profileData.experienceYears} years`} />
+                    <InfoItem label="Employee ID" value={profileData.employeeId} />
+                     <InfoItem label="Status">
+                        <Badge variant={profileData.status === 'Active' ? 'default' : 'secondary'}>{profileData.status}</Badge>
+                    </InfoItem>
+                    <div className="md:col-span-2">
+                         <InfoItem label="Subjects" value={profileData.subjects?.join(', ')} />
+                    </div>
+                </>}
+                 {isStudent && <>
+                    <InfoItem label="Stream" value={profileData.stream} />
+                    <InfoItem label="Joining Year" value={profileData.joiningYear} />
+                    <InfoItem label="Passing Year" value={profileData.passingYear} />
+                    <InfoItem label="Gender" value={profileData.gender} />
+                    <InfoItem label="10th Marks" value={`${profileData.marks10th}%`} />
+                    <InfoItem label="12th Marks" value={`${profileData.marks12th}%`} />
+                    <InfoItem label="Residency">
+                        <Badge variant={profileData.isHosteler ? 'secondary' : 'outline'}>
+                            {profileData.isHosteler ? 'Hosteler' : 'Day Scholar'}
+                        </Badge>
+                    </InfoItem>
+                </>}
+            </CardContent>
+        </Card>
+        
+        {/* Contact/University Info */}
+        <Card className="shadow-lg">
+             <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2"><Building/> University Info</CardTitle>
+            </CardHeader>
+             <CardContent className="space-y-4 text-sm">
+                <InfoItem label="Campus" value={profileData.campus} />
+                <InfoItem label="Building" value={profileData.building} />
+                <InfoItem label="Room No." value={profileData.roomNo} />
+                <InfoItem label="University ID" value={profileData.universityId} />
+                <div className="border-t pt-4 mt-4 space-y-2">
+                    {profileData.linkedin && 
+                        <a href={profileData.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
+                            <Linkedin className="h-4 w-4" /> LinkedIn Profile
+                        </a>
+                    }
+                    {profileData.github && 
+                         <a href={profileData.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
+                            <Github className="h-4 w-4" /> GitHub Profile
+                        </a>
+                    }
+                </div>
+            </CardContent>
+        </Card>
+      </div>
+
+       {profileData.bio && (
+        <Card className="shadow-lg">
+            <CardHeader>
+                <CardTitle className="font-headline">Bio</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground">{profileData.bio}</p>
+            </CardContent>
+        </Card>
+      )}
+
+    </div>
+  );
+}
+
+const InfoItem = ({ label, value, children }: { label: string; value?: string | number | null; children?: React.ReactNode }) => {
+    if (!value && !children) return null;
+    return (
+        <div className="grid grid-cols-2 items-center">
+            <p className="font-semibold text-muted-foreground">{label}</p>
+            {value ? <p>{value}</p> : children}
+        </div>
+    )
+}
