@@ -14,24 +14,36 @@ export default function TeacherDashboardPage() {
   const { user } = useAuth();
   const [teacherData, setTeacherData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
+
+  // Ensure this component only renders on the client to avoid hydration mismatches
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user && isClient) {
       const fetchUserData = async () => {
+        setLoading(true);
         const userDocRef = doc(db, "users", user.uid);
         const docSnap = await getDoc(userDocRef);
         if (docSnap.exists()) {
           setTeacherData(docSnap.data() as UserData);
+        } else {
+          // Explicitly set teacherData to null if doc doesn't exist
+          setTeacherData(null);
         }
         setLoading(false);
       };
       fetchUserData();
-    } else {
+    } else if (isClient) {
+      // If there's no user on the client, stop loading
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isClient]);
 
-  if (loading) {
+  // While waiting for client-side render and data fetching, show skeletons
+  if (!isClient || loading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-1/3" />
@@ -44,6 +56,17 @@ export default function TeacherDashboardPage() {
       </div>
     );
   }
+  
+  // After loading, if there's no user, prompt login (though routing should handle this)
+  if (!user) {
+    return <p className="text-center text-muted-foreground">Please log in to view your dashboard.</p>;
+  }
+
+  // If user is logged in but profile data doesn't exist in Firestore
+  if (!teacherData) {
+      return <p className="text-center text-destructive">No teacher profile found. Please contact an administrator.</p>;
+  }
+
 
   const userName = teacherData?.name || "Teacher";
 
@@ -94,4 +117,3 @@ export default function TeacherDashboardPage() {
     </div>
   );
 }
-
