@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { doc, getDoc, serverTimestamp, updateDoc, DocumentData } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -34,25 +34,18 @@ export default function ProfilePage() {
   }, []);
   
   const fetchUserData = async () => {
-    if (!user || !userRole) return;
+    if (!user) return;
     setLoading(true);
 
-    const collectionName = userRole === 'teacher' ? 'teachers' : 'students';
-    const userDocRef = doc(db, collectionName, user.uid);
+    const userDocRef = doc(db, "users", user.uid);
     
     try {
       const docSnap = await getDoc(userDocRef);
       if (docSnap.exists()) {
         setProfileData({ id: docSnap.id, ...docSnap.data() } as ProfileData);
       } else {
-        console.error("No profile document found for UID:", user.uid, "in collection:", collectionName);
-        // Fallback to 'users' collection if specific profile doesn't exist
-        const baseUserDoc = await getDoc(doc(db, 'users', user.uid));
-        if(baseUserDoc.exists()){
-            setProfileData({ id: baseUserDoc.id, ...baseUserDoc.data() } as ProfileData)
-        } else {
-            setProfileData(null);
-        }
+        console.error("No profile document found for UID:", user.uid, "in collection: users");
+        setProfileData(null);
       }
     } catch (error) {
        console.error("Error fetching user data:", error);
@@ -63,22 +56,21 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    if (user && userRole && isClient) {
+    if (user && isClient) {
       fetchUserData();
     } else if (isClient && !user) {
       setLoading(false);
     }
-  }, [user, userRole, isClient]);
+  }, [user, isClient]);
 
   const handleProfileUpdate = async (values: ProfileFormValues) => {
-    if (!user || !userRole) {
+    if (!user) {
         toast({ title: "Error", description: "You must be logged in to update your profile.", variant: "destructive" });
         return;
     }
     setIsSubmitting(true);
     try {
-        const collectionName = userRole === 'teacher' ? 'teachers' : 'students';
-        const userDocRef = doc(db, collectionName, user.uid);
+        const userDocRef = doc(db, "users", user.uid);
         
         // Transform comma-separated strings to arrays
         const updateValues: DocumentData = { ...values };
@@ -89,10 +81,10 @@ export default function ProfilePage() {
             updateValues.courses = (values.courses as unknown as string).split(',').map(s => s.trim()).filter(Boolean);
         }
 
-        await updateDoc(userDocRef, {
+        await setDoc(userDocRef, {
             ...updateValues,
             updatedAt: serverTimestamp(),
-        });
+        }, { merge: true });
         
         toast({ title: "Success!", description: "Your profile has been updated." });
         await fetchUserData(); // Re-fetch data to show updated info

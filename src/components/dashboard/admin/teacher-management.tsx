@@ -59,7 +59,6 @@ export function TeacherManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // **FIX**: Query the 'users' collection and filter by role 'teacher'
     const q = query(collection(db, "users"), where("role", "==", "teacher"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const teachersData = snapshot.docs.map((doc) => ({
@@ -99,9 +98,7 @@ export function TeacherManagement() {
   const confirmDelete = async () => {
     if (deletingTeacherId) {
       try {
-        // A teacher record is just a user doc with role 'teacher'
         await deleteDoc(doc(db, "users", deletingTeacherId));
-        
         toast({
           title: "Success",
           description: "Teacher record deleted. Remember to delete from Firebase Auth manually.",
@@ -152,7 +149,6 @@ export function TeacherManagement() {
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
         const user = userCredential.user;
 
-        // Create the single user document with role 'teacher' and all data
         await setDoc(doc(db, "users", user.uid), {
           ...values,
           uid: user.uid,
