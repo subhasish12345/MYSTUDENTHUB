@@ -15,11 +15,18 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const formSchema = z.object({
+  name: z.string().min(2, "Name is required."),
   email: z.string().email("Invalid email address."),
   phone: z.string().min(10, "Phone number must be at least 10 digits."),
-  name: z.string().min(2, "Name is required to generate a password."),
+  reg_no: z.string().min(1, "Registration number is required."),
+  degree: z.string().min(2, "Degree is required."),
+  stream: z.string().min(2, "Stream is required."),
+  batch: z.string().min(4, "Batch is required, e.g., 2022-2026."),
+  start_year: z.coerce.number().min(2000),
+  end_year: z.coerce.number().min(2000),
 });
 
 export type StudentFormValues = z.infer<typeof formSchema>;
@@ -34,9 +41,15 @@ export function StudentForm({ onSubmit, isSubmitting }: StudentFormProps) {
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: "",
       email: "",
       phone: "",
-      name: "",
+      reg_no: "",
+      degree: "B.Tech",
+      stream: "Computer Science",
+      batch: "2024-2028",
+      start_year: new Date().getFullYear(),
+      end_year: new Date().getFullYear() + 4,
     },
   });
 
@@ -59,7 +72,7 @@ export function StudentForm({ onSubmit, isSubmitting }: StudentFormProps) {
         onSubmit={form.handleSubmit(handleFormSubmit)}
         className="space-y-8 py-4"
       >
-        <div className="space-y-6 px-1">
+        <div className="space-y-4 px-1 max-h-[75vh] overflow-y-auto pr-4">
           <FormField
             control={form.control}
             name="name"
@@ -69,9 +82,6 @@ export function StudentForm({ onSubmit, isSubmitting }: StudentFormProps) {
                 <FormControl>
                   <Input placeholder="e.g., Priya Sharma" {...field} />
                 </FormControl>
-                <FormDescription>
-                  Used for generating the initial password.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -89,9 +99,6 @@ export function StudentForm({ onSubmit, isSubmitting }: StudentFormProps) {
                     {...field}
                   />
                 </FormControl>
-                <FormDescription>
-                  The student will use this email to log in.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -105,9 +112,84 @@ export function StudentForm({ onSubmit, isSubmitting }: StudentFormProps) {
                 <FormControl>
                   <Input placeholder="e.g., 9876543210" {...field} />
                 </FormControl>
-                <FormDescription>
-                  Also used for generating the initial password.
-                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="reg_no"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Registration Number</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., 2024001" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="degree"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Degree</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., B.Tech" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="stream"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Stream</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., Computer Science" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="batch"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Batch</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., 2024-2028" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="start_year"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Start Year</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="e.g., 2024" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+           <FormField
+            control={form.control}
+            name="end_year"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>End Year</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="e.g., 2028" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

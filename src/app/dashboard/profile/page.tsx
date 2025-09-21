@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, updateDoc, DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -15,10 +15,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { EditProfileForm, ProfileFormValues } from "@/components/dashboard/profile/edit-profile-form";
 import { useToast } from "@/hooks/use-toast";
 
+type ProfileData = DocumentData & { id: string };
+
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
   const { toast } = useToast();
-  const [profileData, setProfileData] = useState<UserData | null>(null);
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -29,39 +31,52 @@ export default function ProfilePage() {
   }, []);
   
   const fetchUserData = async () => {
-    if (!user) return;
+    if (!user || !userRole) return;
     setLoading(true);
-    const userDocRef = doc(db, "users", user.uid);
-    const docSnap = await getDoc(userDocRef);
-    if (docSnap.exists()) {
-      setProfileData({ id: docSnap.id, ...docSnap.data() } as UserData);
-    } else {
-      console.error("No profile document found for UID:", user.uid);
-      setProfileData(null);
+
+    // Determine which collection to query based on role
+    const collectionName = userRole === 'teacher' ? 'teachers' : 'students';
+    const userDocRef = doc(db, collectionName, user.uid);
+    
+    try {
+      const docSnap = await getDoc(userDocRef);
+      if (docSnap.exists()) {
+        setProfileData({ id: docSnap.id, ...docSnap.data() } as ProfileData);
+      } else {
+        console.error("No profile document found for UID:", user.uid, "in collection:", collectionName);
+        setProfileData(null);
+      }
+    } catch (error) {
+       console.error("Error fetching user data:", error);
+       setProfileData(null);
+    } finally {
+        setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
-    if (user && isClient) {
+    if (user && userRole && isClient) {
       fetchUserData();
     } else if (isClient) {
       setLoading(false);
     }
-  }, [user, isClient]);
+  }, [user, userRole, isClient]);
 
   const handleProfileUpdate = async (values: ProfileFormValues) => {
-    if (!user) {
+    if (!user || !userRole) {
         toast({ title: "Error", description: "You must be logged in to update your profile.", variant: "destructive" });
         return;
     }
     setIsSubmitting(true);
     try {
-        const userDocRef = doc(db, "users", user.uid);
+        const collectionName = userRole === 'teacher' ? 'teachers' : 'students';
+        const userDocRef = doc(db, collectionName, user.uid);
+        
         await updateDoc(userDocRef, {
             ...values,
             updatedAt: serverTimestamp(),
         });
+        
         toast({ title: "Success!", description: "Your profile has been updated." });
         await fetchUserData(); // Re-fetch data to show updated info
         setIsSheetOpen(false);
@@ -97,8 +112,8 @@ export default function ProfilePage() {
     return <p className="text-center text-destructive">No profile data found. Please complete your profile setup or contact an administrator.</p>;
   }
 
-  const isTeacher = profileData.role === 'teacher';
-  const isStudent = profileData.role === 'student';
+  const isTeacher = userRole === 'teacher';
+  const isStudent = userRole === 'student';
 
   return (
     <>
@@ -128,7 +143,6 @@ export default function ProfilePage() {
       </Card>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Professional/Academic Info */}
         <Card className="lg:col-span-2 shadow-lg">
             <CardHeader>
                 <CardTitle className="font-headline flex items-center gap-2">
@@ -151,22 +165,16 @@ export default function ProfilePage() {
                     </div>
                 </>}
                  {isStudent && <>
+                    <InfoItem label="Registration No." value={profileData.reg_no} />
+                    <InfoItem label="Degree" value={profileData.degree} />
                     <InfoItem label="Stream" value={profileData.stream} />
-                    <InfoItem label="Joining Year" value={profileData.joiningYear} />
-                    <InfoItem label="Passing Year" value={profileData.passingYear} />
-                    <InfoItem label="Gender" value={profileData.gender} />
-                    <InfoItem label="10th Marks" value={`${profileData.marks10th}%`} />
-                    <InfoItem label="12th Marks" value={`${profileData.marks12th}%`} />
-                    <InfoItem label="Residency">
-                        <Badge variant={profileData.isHosteler ? 'secondary' : 'outline'}>
-                            {profileData.isHosteler ? 'Hosteler' : 'Day Scholar'}
-                        </Badge>
-                    </InfoItem>
+                    <InfoItem label="Batch" value={profileData.batch} />
+                    <InfoItem label="Start Year" value={profileData.start_year} />
+                    <InfoItem label="End Year" value={profileData.end_year} />
                 </>}
             </CardContent>
         </Card>
         
-        {/* Contact/University Info */}
         <Card className="shadow-lg">
              <CardHeader>
                 <CardTitle className="font-headline flex items-center gap-2"><Building/> University Info</CardTitle>
@@ -216,6 +224,7 @@ export default function ProfilePage() {
               onSubmit={handleProfileUpdate}
               isSubmitting={isSubmitting}
               existingData={profileData}
+              userRole={userRole!}
             />
         </SheetContent>
       </Sheet>

@@ -14,44 +14,32 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import type { UserData } from "@/components/dashboard/admin/teacher-management";
 import { useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { Roles } from "@/lib/roles";
+import { DocumentData } from "firebase/firestore";
 
-// Combine schemas for both students and teachers, making most fields optional
-// as they will be conditionally rendered.
+
 const formSchema = z.object({
-  // Common fields
+  // Common editable fields
   name: z.string().min(2, "Name must be at least 2 characters."),
   phone: z.string().min(10, "Phone number must be at least 10 digits."),
   photoURL: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
   bio: z.string().max(500, "Bio should be less than 500 characters.").optional(),
+  linkedin: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
+  github: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
   
-  // University fields
+  // University fields (student/teacher editable)
   campus: z.string().optional(),
   building: z.string().optional(),
   roomNo: z.string().optional(),
   
-  // Social links
-  linkedin: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
-  github: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
-  
-  // Teacher-specific
-  department: z.string().optional(),
-  subjects: z.string().transform(val => val.split(',').map(s => s.trim()).filter(s => s.length > 0)).optional(),
-  designation: z.string().optional(),
-  qualification: z.string().optional(),
+  // Teacher-specific editable fields
   specialization: z.string().optional(),
+  qualification: z.string().optional(),
 
-  // Student-specific
-  degree: z.string().optional(),
-  stream: z.string().optional(),
-  gender: z.string().optional(),
-  isHosteler: z.boolean().optional(),
-  marks10th: z.coerce.number().optional(),
-  marks12th: z.coerce.number().optional(),
 });
 
 
@@ -60,12 +48,13 @@ export type ProfileFormValues = z.infer<typeof formSchema>;
 interface EditProfileFormProps {
   onSubmit: (values: ProfileFormValues) => Promise<void>;
   isSubmitting: boolean;
-  existingData: UserData;
+  existingData: DocumentData;
+  userRole: Roles;
 }
 
-export function EditProfileForm({ onSubmit, isSubmitting, existingData }: EditProfileFormProps) {
+export function EditProfileForm({ onSubmit, isSubmitting, existingData, userRole }: EditProfileFormProps) {
   const { toast } = useToast();
-  const isTeacher = existingData.role === 'teacher';
+  const isTeacher = userRole === 'teacher';
   
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(formSchema),
@@ -74,11 +63,14 @@ export function EditProfileForm({ onSubmit, isSubmitting, existingData }: EditPr
 
   useEffect(() => {
     if (existingData) {
-      form.reset({
-        ...existingData,
-        // Ensure array is converted to comma-separated string for the input
-        subjects: Array.isArray(existingData.subjects) ? existingData.subjects.join(', ') : '',
+      // Only reset the fields that are part of the form schema
+      const defaultVals: Partial<ProfileFormValues> = {};
+      Object.keys(formSchema.shape).forEach(key => {
+          if (key in existingData) {
+              (defaultVals as any)[key] = existingData[key];
+          }
       });
+      form.reset(defaultVals);
     }
   }, [existingData, form]);
 
@@ -144,45 +136,9 @@ export function EditProfileForm({ onSubmit, isSubmitting, existingData }: EditPr
                 )}
             />
             
-            {/* Teacher Specific Fields */}
+            {/* Teacher Specific Editable Fields */}
             {isTeacher && <>
                 <h3 className="font-headline text-lg font-semibold border-t pt-6">Professional Details</h3>
-                 <FormField
-                    control={form.control}
-                    name="department"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Department</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="subjects"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Subjects</FormLabel>
-                        <FormControl>
-                           <Input {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value} />
-                        </FormControl>
-                        <FormDescription>Comma-separated list.</FormDescription>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="designation"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Designation</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
                 <FormField
                     control={form.control}
                     name="qualification"
@@ -201,73 +157,6 @@ export function EditProfileForm({ onSubmit, isSubmitting, existingData }: EditPr
                         <FormItem>
                         <FormLabel>Specialization</FormLabel>
                         <FormControl><Input {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            </>}
-
-            {/* Student Specific Fields */}
-            {!isTeacher && <>
-                <h3 className="font-headline text-lg font-semibold border-t pt-6">Academic Details</h3>
-                 <FormField
-                    control={form.control}
-                    name="degree"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Degree</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="stream"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Stream</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="gender"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Gender</FormLabel>
-                         <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Select Gender" /></SelectTrigger></FormControl>
-                            <SelectContent>
-                                <SelectItem value="male">Male</SelectItem>
-                                <SelectItem value="female">Female</SelectItem>
-                                <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="marks10th"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>10th Marks (%)</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="marks12th"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>12th Marks (%)</FormLabel>
-                        <FormControl><Input type="number" {...field} /></FormControl>
                         <FormMessage />
                         </FormItem>
                     )}

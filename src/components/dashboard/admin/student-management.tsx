@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { db, auth } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, where } from "firebase/firestore";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, setDoc, serverTimestamp } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,20 +23,37 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Roles } from "@/lib/roles";
 import { StudentForm, StudentFormValues } from "./student-form";
+import { useAuth } from "@/hooks/use-auth";
 
-export interface UserData extends DocumentData {
-  id: string;
+
+export interface StudentData extends DocumentData {
+  id: string; // This will be the UID
+  uid: string;
   name: string;
   email: string;
-  role: Roles;
-  degree?: string;
-  stream?: string;
+  phone: string;
+  role: "student";
+  reg_no: string;
+  degree: string;
+  stream: string;
+  batch: string;
+  start_year: number;
+  end_year: number;
+  status: "Active" | "Suspended" | "Graduated";
+  createdBy: string;
+  createdAt: any;
+  // Optional student-editable fields
+  linkedin?: string;
+  github?: string;
+  photoURL?: string;
+  bio?: string;
 }
 
+
 export function StudentManagement() {
-  const [students, setStudents] = useState<UserData[]>([]);
+  const { user: adminUser } = useAuth();
+  const [students, setStudents] = useState<StudentData[]>([]);
   const [studentCount, setStudentCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -46,12 +63,13 @@ export function StudentManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "users"), where("role", "==", "student"));
+    // Queries the /students collection now
+    const q = query(collection(db, "students"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const studentsData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      } as UserData));
+      } as StudentData));
       setStudents(studentsData);
       setStudentCount(snapshot.size);
       setLoading(false);
@@ -79,10 +97,13 @@ export function StudentManagement() {
   const confirmDelete = async () => {
     if (deletingStudentId) {
       try {
+        // Must delete from both students and users collections
+        await deleteDoc(doc(db, "students", deletingStudentId));
         await deleteDoc(doc(db, "users", deletingStudentId));
+
         toast({
           title: "Success",
-          description: "Student record deleted. Remember to delete the user from Firebase Authentication.",
+          description: "Student record deleted. Remember to delete the user from Firebase Authentication manually if needed.",
         });
       } catch (error) {
         toast({
@@ -96,19 +117,64 @@ export function StudentManagement() {
     }
   };
 
-  const handleCreateStudentAuth = async (values: StudentFormValues) => {
+  const handleCreateStudent = async (values: StudentFormValues) => {
+    if (!adminUser) {
+        toast({ title: "Authentication Error", description: "Admin user not found.", variant: "destructive" });
+        return;
+    }
     setIsSubmitting(true);
     const last4 = values.phone.slice(-4);
     const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
 
     try {
-      await createUserWithEmailAndPassword(auth, values.email, password);
+        // 1. Create Auth user
+        const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
+        const uid = userCredential.user.uid;
+
+        // 2. Create /users/{uid} doc
+        const userDocRef = doc(db, "users", uid);
+        await setDoc(userDocRef, {
+            uid,
+            email: values.email,
+            role: "student",
+            createdAt: serverTimestamp(),
+            status: "Active",
+        });
+
+        // 3. Create /students/{uid} doc
+        const studentDocRef = doc(db, "students", uid);
+        await setDoc(studentDocRef, {
+            uid,
+            name: values.name,
+            email: values.email,
+            phone: values.phone,
+            role: "student",
+            reg_no: values.reg_no,
+            degree: values.degree,
+            stream: values.stream,
+            batch: values.batch,
+            start_year: values.start_year,
+            end_year: values.end_year,
+            status: "Active",
+            createdBy: adminUser.uid,
+            createdAt: serverTimestamp(),
+            // Empty editable fields
+            linkedin: "",
+            github: "",
+            photoURL: "",
+            bio: "",
+        });
+
+      // 4. TODO: Add reference to /degrees/.../batches/.../studentsRefs/{uid}
+      // 5. TODO: Increment studentCount in a transaction
+
       toast({
         title: "Success",
-        description: `Student account created for ${values.email}. They will complete their profile on first login.`,
+        description: `Student account created for ${values.email}.`,
       });
-      alert(`Password for ${values.email} is ${password}. Please share this with the student.`);
+      alert(`IMPORTANT: Password for ${values.email} is ${password}. Please share this with the student.`);
       setIsSheetOpen(false);
+
     } catch (authError: any) {
       if (authError.code === 'auth/email-already-in-use') {
         toast({
@@ -136,7 +202,7 @@ export function StudentManagement() {
             <div>
               <CardTitle className="font-headline">Student Management</CardTitle>
               <CardDescription>
-                Create new student accounts and view their records.
+                Create new student accounts and manage their records.
               </CardDescription>
             </div>
             <div className="flex items-center gap-4">
@@ -159,7 +225,7 @@ export function StudentManagement() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Degree</TableHead>
-                <TableHead>Profile Status</TableHead>
+                <TableHead>Batch</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -170,21 +236,17 @@ export function StudentManagement() {
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-24 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
                 ))
               ) : students.length > 0 ? (
                 students.map((student) => (
                   <TableRow key={student.id}>
-                    <TableCell className="font-medium">{student.name || "Pending Setup"}</TableCell>
+                    <TableCell className="font-medium">{student.name}</TableCell>
                     <TableCell>{student.email}</TableCell>
-                    <TableCell>{student.degree || "N/A"}</TableCell>
-                    <TableCell>
-                      <Badge variant={student.name ? "default" : "secondary"}>
-                        {student.name ? "Completed" : "Pending"}
-                      </Badge>
-                    </TableCell>
+                    <TableCell>{student.degree}</TableCell>
+                    <TableCell>{student.batch}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -223,12 +285,11 @@ export function StudentManagement() {
           <SheetHeader>
             <SheetTitle>Create New Student Account</SheetTitle>
             <SheetDescription>
-              This only creates a login account. The student will be prompted to
-              complete their profile on their first login.
+              This will create the student's auth account and their full profile record.
             </SheetDescription>
           </SheetHeader>
           <StudentForm
-            onSubmit={handleCreateStudentAuth}
+            onSubmit={handleCreateStudent}
             isSubmitting={isSubmitting}
           />
         </SheetContent>
@@ -239,7 +300,7 @@ export function StudentManagement() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action only deletes the user's record from Firestore. It does not remove their authentication account, which must be done manually from the Firebase Console. This action cannot be undone.
+                    This action deletes the student's profile from both /users and /students collections. It does not remove their authentication account from Firebase Auth. This must be done manually.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
