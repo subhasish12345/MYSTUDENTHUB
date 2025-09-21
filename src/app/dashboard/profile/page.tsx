@@ -42,24 +42,24 @@ export default function ProfilePage() {
     }
   }, [user, isClient]);
 
-  if (!isClient || loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-6">
-            <Skeleton className="h-24 w-24 rounded-full" />
-            <div className="space-y-2">
-                <Skeleton className="h-8 w-48" />
-                <Skeleton className="h-5 w-32" />
-            </div>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-64 w-full" />
-        </div>
-      </div>
-    );
-  }
+  // if (!isClient || loading) {
+  //   return (
+  //     <div className="space-y-6">
+  //       <div className="flex items-center gap-6">
+  //           <Skeleton className="h-24 w-24 rounded-full" />
+  //           <div className="space-y-2">
+  //               <Skeleton className="h-8 w-48" />
+  //               <Skeleton className="h-5 w-32" />
+  //           </div>
+  //       </div>
+  //       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+  //           <Skeleton className="h-64 w-full" />
+  //           <Skeleton className="h-64 w-full" />
+  //           <Skeleton className="h-64 w-full" />
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   if (!profileData) {
     return <p className="text-center text-destructive">No profile data found. Please complete your profile setup or contact an administrator.</p>;
