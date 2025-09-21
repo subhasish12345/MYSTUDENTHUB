@@ -64,8 +64,8 @@ export function StudentManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // **FIX**: Query the 'users' collection and filter by role 'student'
-    const q = query(collection(db, "users"), where("role", "==", "student"));
+    // **FIX**: Query the 'students' collection which holds the full profiles
+    const q = query(collection(db, "students"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const studentsData = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -98,6 +98,8 @@ export function StudentManagement() {
   const confirmDelete = async () => {
     if (deletingStudentId) {
       try {
+        // When deleting, we need to remove from both collections
+        await deleteDoc(doc(db, "students", deletingStudentId));
         await deleteDoc(doc(db, "users", deletingStudentId));
         toast({
           title: "Success",
@@ -125,17 +127,29 @@ export function StudentManagement() {
     const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
 
     try {
-        // 1. Create Auth user
         console.log("Step 1: Attempting to create user in Firebase Auth...");
+        // This will temporarily log the admin out and log the new user in. This is a known issue with the client SDK.
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
         const uid = userCredential.user.uid;
         console.log("Step 1 Success: Auth user created with UID:", uid);
 
-        // 2. Create user document in /users collection
-        console.log("Step 2: Attempting to create doc in /users collection...");
+        // Step 2: Create the /users document (source of truth for role)
+        console.log("Step 2: Creating doc in /users collection...");
         const userDocRef = doc(db, "users", uid);
         await setDoc(userDocRef, {
-            uid,
+            uid: uid,
+            email: values.email,
+            role: 'student',
+            createdAt: serverTimestamp(),
+            status: "Active",
+        });
+        console.log("Step 2 Success: /users doc created.");
+
+        // Step 3: Create the /students document with the full profile
+        console.log("Step 3: Creating doc in /students collection...");
+        const studentDocRef = doc(db, "students", uid);
+        await setDoc(studentDocRef, {
+            uid: uid,
             name: values.name,
             email: values.email,
             phone: values.phone,
@@ -155,13 +169,14 @@ export function StudentManagement() {
             photoURL: "",
             bio: "",
         });
-        console.log("Step 2 Success: /users doc created for student.");
+        console.log("Step 3 Success: /students doc created.");
+
 
         toast({
             title: "Success",
             description: `Student account created for ${values.email}.`,
         });
-        alert(`IMPORTANT: Password for ${values.email} is ${password}. Please share this with the student.`);
+        alert(`IMPORTANT: Password for ${values.email} is ${password}. Please share this with the student. You have been logged in as this new user.`);
         setIsSheetOpen(false);
 
     } catch (error: any) {
@@ -297,7 +312,7 @@ export function StudentManagement() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action deletes the student's profile from the /users collection. It does not remove their authentication account from Firebase Auth. This must be done manually.
+                    This action deletes the student's profile from the /users and /students collections. It does not remove their authentication account from Firebase Auth. This must be done manually.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -309,5 +324,3 @@ export function StudentManagement() {
     </>
   );
 }
-
-    
