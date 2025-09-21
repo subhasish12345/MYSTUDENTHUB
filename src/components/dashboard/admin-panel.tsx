@@ -10,8 +10,6 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLab
 const dummyData = {
     degrees: [{id: 1, name: "B.Sc. Computer Science"}, {id: 2, name: "B.B.A."}, {id: 3, name: "B.A. Arts"}],
     streams: [{id: 1, name: "Software Engineering"}, {id: 2, name: "Data Science"}, {id: 3, name: "Marketing"}],
-    years: [{id: 1, name: "First Year"}, {id: 2, name: "Second Year"}, {id: 3, name: "Third Year"}],
-    batches: [{id: 1, name: "2024-2028"}, {id: 2, name: "2023-2027"}, {id: 3, name: "2022-2026"}],
 };
 
 const AdminTable = ({ data, title }: { data: {id: number, name: string}[], title: string }) => (
@@ -19,9 +17,9 @@ const AdminTable = ({ data, title }: { data: {id: number, name: string}[], title
         <CardHeader className="flex flex-row justify-between items-center">
              <div>
                 <CardTitle className="font-headline">{title}</CardTitle>
-                <CardDescription>Manage all {title.toLowerCase()} in the system.</CardDescription>
+                <CardDescription>Manage all {title.toLowerCase()} in the system. (Coming Soon)</CardDescription>
             </div>
-            <Button>
+            <Button disabled>
                 <PlusCircle className="mr-2 h-4 w-4" /> Add New
             </Button>
         </CardHeader>
@@ -42,14 +40,14 @@ const AdminTable = ({ data, title }: { data: {id: number, name: string}[], title
                             <TableCell className="text-right">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon">
+                                        <Button variant="ghost" size="icon" disabled>
                                             <MoreHorizontal className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent>
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                                        <DropdownMenuItem className="text-destructive focus:text-destructive-foreground focus:bg-destructive">Delete</DropdownMenuItem>
+                                        <DropdownMenuItem disabled>Edit</DropdownMenuItem>
+                                        <DropdownMenuItem disabled className="text-destructive focus:text-destructive-foreground focus:bg-destructive">Delete</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>
@@ -70,13 +68,11 @@ export function AdminPanel() {
             </div>
 
             <Tabs defaultValue="teachers" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
                     <TabsTrigger value="teachers">Teachers</TabsTrigger>
                     <TabsTrigger value="students">Students</TabsTrigger>
                     <TabsTrigger value="degrees">Degrees</TabsTrigger>
                     <TabsTrigger value="streams">Streams</TabsTrigger>
-                    <TabsTrigger value="years">Years</TabsTrigger>
-                    <TabsTrigger value="batches">Batches</TabsTrigger>
                 </TabsList>
                 <TabsContent value="teachers">
                     <TeacherManagement />
@@ -89,12 +85,6 @@ export function AdminPanel() {
                 </TabsContent>
                 <TabsContent value="streams">
                     <AdminTable data={dummyData.streams} title="Streams" />
-                </TabsContent>
-                <TabsContent value="years">
-                     <AdminTable data={dummyData.years} title="Years" />
-                </TabsContent>
-                 <TabsContent value="batches">
-                    <AdminTable data={dummyData.batches} title="Batches" />
                 </TabsContent>
             </Tabs>
         </div>
