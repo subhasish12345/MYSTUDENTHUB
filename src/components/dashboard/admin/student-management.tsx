@@ -128,10 +128,13 @@ export function StudentManagement() {
 
     try {
         // 1. Create Auth user
+        console.log("Step 1: Attempting to create user in Firebase Auth...");
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
         const uid = userCredential.user.uid;
+        console.log("Step 1 Success: Auth user created with UID:", uid);
 
         // 2. Create /users/{uid} doc
+        console.log("Step 2: Attempting to create doc in /users collection...");
         const userDocRef = doc(db, "users", uid);
         await setDoc(userDocRef, {
             uid,
@@ -140,8 +143,10 @@ export function StudentManagement() {
             createdAt: serverTimestamp(),
             status: "Active",
         });
+        console.log("Step 2 Success: /users doc created.");
 
         // 3. Create /students/{uid} doc
+        console.log("Step 3: Attempting to create doc in /students collection...");
         const studentDocRef = doc(db, "students", uid);
         await setDoc(studentDocRef, {
             uid,
@@ -164,9 +169,8 @@ export function StudentManagement() {
             photoURL: "",
             bio: "",
         });
+        console.log("Step 3 Success: /students doc created.");
 
-      // 4. TODO: Add reference to /degrees/.../batches/.../studentsRefs/{uid}
-      // 5. TODO: Increment studentCount in a transaction
 
       toast({
         title: "Success",
@@ -175,17 +179,25 @@ export function StudentManagement() {
       alert(`IMPORTANT: Password for ${values.email} is ${password}. Please share this with the student.`);
       setIsSheetOpen(false);
 
-    } catch (authError: any) {
-      if (authError.code === 'auth/email-already-in-use') {
+    } catch (error: any) {
+      console.error("Student Creation Failed:", error);
+      if (error.code === 'auth/email-already-in-use') {
         toast({
           title: "Creation Failed",
           description: "This email is already in use by another account.",
           variant: "destructive",
         });
-      } else {
+      } else if (error.code === 'permission-denied') {
+         toast({
+          title: "Permission Denied",
+          description: "Your security rules are blocking this action. Please ensure the admin has permission to create users and profiles.",
+          variant: "destructive",
+        });
+      }
+      else {
         toast({
           title: "Error",
-          description: authError.message || "Failed to create student account.",
+          description: error.message || "Failed to create student account.",
           variant: "destructive",
         });
       }
