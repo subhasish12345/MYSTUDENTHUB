@@ -15,35 +15,43 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import type { UserData } from "@/components/dashboard/admin/teacher-management";
 import { useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Roles } from "@/lib/roles";
 import { DocumentData } from "firebase/firestore";
 
-
-const formSchema = z.object({
-  // Common editable fields
+// Base schema for fields common to both students and teachers
+const baseSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   phone: z.string().min(10, "Phone number must be at least 10 digits."),
   photoURL: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
   bio: z.string().max(500, "Bio should be less than 500 characters.").optional(),
   linkedin: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
   github: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
-  
-  // University fields (student/teacher editable)
   campus: z.string().optional(),
   building: z.string().optional(),
   roomNo: z.string().optional(),
-  
-  // Teacher-specific editable fields
+});
+
+// Schema for student-specific editable fields
+const studentSchema = baseSchema.extend({
+  address: z.string().optional(),
+  portfolio: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
+  emergencyContact: z.string().optional(),
+  // For form handling, we'll take these as strings and convert them
+  internships: z.string().optional(),
+  courses: z.string().optional(),
+});
+
+// Schema for teacher-specific editable fields
+const teacherSchema = baseSchema.extend({
   specialization: z.string().optional(),
   qualification: z.string().optional(),
-
+  // Add other teacher-specific editable fields here if any
 });
 
 
-export type ProfileFormValues = z.infer<typeof formSchema>;
+export type ProfileFormValues = z.infer<typeof studentSchema> | z.infer<typeof teacherSchema>;
 
 interface EditProfileFormProps {
   onSubmit: (values: ProfileFormValues) => Promise<void>;
@@ -54,8 +62,9 @@ interface EditProfileFormProps {
 
 export function EditProfileForm({ onSubmit, isSubmitting, existingData, userRole }: EditProfileFormProps) {
   const { toast } = useToast();
-  const isTeacher = userRole === 'teacher';
-  
+  const isStudent = userRole === 'student';
+  const formSchema = isStudent ? studentSchema : teacherSchema;
+
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {},
@@ -63,16 +72,21 @@ export function EditProfileForm({ onSubmit, isSubmitting, existingData, userRole
 
   useEffect(() => {
     if (existingData) {
-      // Only reset the fields that are part of the form schema
-      const defaultVals: Partial<ProfileFormValues> = {};
+      const defaultVals: { [key: string]: any } = {};
       Object.keys(formSchema.shape).forEach(key => {
           if (key in existingData) {
-              (defaultVals as any)[key] = existingData[key];
+              const value = existingData[key];
+              // Convert arrays back to comma-separated strings for the form
+              if (Array.isArray(value)) {
+                  defaultVals[key] = value.join(', ');
+              } else {
+                  defaultVals[key] = value;
+              }
           }
       });
       form.reset(defaultVals);
     }
-  }, [existingData, form]);
+  }, [existingData, form, formSchema]);
 
   const handleFormSubmit = async (values: ProfileFormValues) => {
     try {
@@ -136,8 +150,73 @@ export function EditProfileForm({ onSubmit, isSubmitting, existingData, userRole
                 )}
             />
             
-            {/* Teacher Specific Editable Fields */}
-            {isTeacher && <>
+            {/* --- STUDENT SPECIFIC FIELDS --- */}
+            {isStudent && (
+                <>
+                 <h3 className="font-headline text-lg font-semibold border-t pt-6">Contact & Career</h3>
+                 <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Address</FormLabel>
+                        <FormControl><Textarea placeholder="Your current address" {...field as any} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="emergencyContact"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Emergency Contact</FormLabel>
+                        <FormControl><Input placeholder="Name and phone number" {...field as any} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="portfolio"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Portfolio URL</FormLabel>
+                        <FormControl><Input placeholder="https://my-portfolio.com" {...field as any} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="courses"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Additional Courses</FormLabel>
+                        <FormControl><Textarea placeholder="e.g., Advanced Python, UI/UX Design" {...field as any} /></FormControl>
+                         <FormDescription>Comma-separated list of courses.</FormDescription>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="internships"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Internships</FormLabel>
+                        <FormControl><Textarea placeholder="e.g., Software Intern at Google, PM Intern at Microsoft" {...field as any} /></FormControl>
+                        <FormDescription>Comma-separated list of internships.</FormDescription>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                </>
+            )}
+
+            
+            {/* --- TEACHER SPECIFIC FIELDS --- */}
+            {!isStudent && <>
                 <h3 className="font-headline text-lg font-semibold border-t pt-6">Professional Details</h3>
                 <FormField
                     control={form.control}

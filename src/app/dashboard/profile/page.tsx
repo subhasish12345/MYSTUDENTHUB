@@ -9,14 +9,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { PenSquare, Mail, Phone, Building, GraduationCap, Briefcase, Linkedin, Github } from "lucide-react";
+import { PenSquare, Mail, Phone, Building, GraduationCap, Briefcase, Linkedin, Github, Home, FileText, BriefcaseBusiness, ShieldAlert } from "lucide-react";
+import { StudentData } from "@/components/dashboard/admin/student-management";
 import { UserData } from "@/components/dashboard/admin/teacher-management";
+
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { EditProfileForm, ProfileFormValues } from "@/components/dashboard/profile/edit-profile-form";
 import { useToast } from "@/hooks/use-toast";
 
-type ProfileData = DocumentData & { id: string };
+type ProfileData = (StudentData | UserData) & { id: string };
 
 export default function ProfilePage() {
   const { user, userRole } = useAuth();
@@ -35,7 +37,6 @@ export default function ProfilePage() {
     if (!user || !userRole) return;
     setLoading(true);
 
-    // Determine which collection to query based on role
     const collectionName = userRole === 'teacher' ? 'teachers' : 'students';
     const userDocRef = doc(db, collectionName, user.uid);
     
@@ -45,7 +46,7 @@ export default function ProfilePage() {
         setProfileData({ id: docSnap.id, ...docSnap.data() } as ProfileData);
       } else {
         console.error("No profile document found for UID:", user.uid, "in collection:", collectionName);
-        // If the main profile doesn't exist, try the 'users' collection as a fallback for basic info.
+        // Fallback to 'users' collection if specific profile doesn't exist
         const baseUserDoc = await getDoc(doc(db, 'users', user.uid));
         if(baseUserDoc.exists()){
             setProfileData({ id: baseUserDoc.id, ...baseUserDoc.data() } as ProfileData)
@@ -64,7 +65,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user && userRole && isClient) {
       fetchUserData();
-    } else if (isClient) {
+    } else if (isClient && !user) {
       setLoading(false);
     }
   }, [user, userRole, isClient]);
@@ -79,8 +80,17 @@ export default function ProfilePage() {
         const collectionName = userRole === 'teacher' ? 'teachers' : 'students';
         const userDocRef = doc(db, collectionName, user.uid);
         
+        // Transform comma-separated strings to arrays
+        const updateValues: DocumentData = { ...values };
+        if (values.internships) {
+            updateValues.internships = (values.internships as unknown as string).split(',').map(s => s.trim()).filter(Boolean);
+        }
+        if (values.courses) {
+            updateValues.courses = (values.courses as unknown as string).split(',').map(s => s.trim()).filter(Boolean);
+        }
+
         await updateDoc(userDocRef, {
-            ...values,
+            ...updateValues,
             updatedAt: serverTimestamp(),
         });
         
@@ -94,7 +104,6 @@ export default function ProfilePage() {
         setIsSubmitting(false);
     }
   };
-
 
   if (!isClient || loading) {
     return (
@@ -121,6 +130,7 @@ export default function ProfilePage() {
 
   const isTeacher = userRole === 'teacher';
   const isStudent = userRole === 'student';
+  const studentProfile = isStudent ? profileData as StudentData : null;
 
   return (
     <>
@@ -135,7 +145,7 @@ export default function ProfilePage() {
             <div className="flex flex-col sm:flex-row justify-between sm:items-center">
                  <div>
                     <CardTitle className="font-headline text-3xl">{profileData.name}</CardTitle>
-                    <CardDescription className="text-lg">{isTeacher ? profileData.designation : profileData.degree}</CardDescription>
+                    <CardDescription className="text-lg">{isTeacher ? (profileData as UserData).designation : (profileData as StudentData).degree}</CardDescription>
                 </div>
                  <Button className="mt-4 sm:mt-0" onClick={() => setIsSheetOpen(true)}>
                     <PenSquare className="mr-2 h-4 w-4" /> Edit Profile
@@ -150,6 +160,7 @@ export default function ProfilePage() {
       </Card>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* --- ACADEMIC / PROFESSIONAL INFO --- */}
         <Card className="lg:col-span-2 shadow-lg">
             <CardHeader>
                 <CardTitle className="font-headline flex items-center gap-2">
@@ -159,66 +170,111 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
                 {isTeacher && <>
-                    <InfoItem label="Department" value={profileData.department} />
-                    <InfoItem label="Qualification" value={profileData.qualification} />
-                    <InfoItem label="Specialization" value={profileData.specialization} />
-                    <InfoItem label="Experience" value={`${profileData.experienceYears} years`} />
-                    <InfoItem label="Employee ID" value={profileData.employeeId} />
+                    <InfoItem label="Department" value={(profileData as UserData).department} />
+                    <InfoItem label="Qualification" value={(profileData as UserData).qualification} />
+                    <InfoItem label="Specialization" value={(profileData as UserData).specialization} />
+                    <InfoItem label="Experience" value={`${(profileData as UserData).experienceYears} years`} />
+                    <InfoItem label="Employee ID" value={(profileData as UserData).employeeId} />
                      <InfoItem label="Status">
                         <Badge variant={profileData.status === 'Active' ? 'default' : 'secondary'}>{profileData.status}</Badge>
                     </InfoItem>
                     <div className="md:col-span-2">
-                         <InfoItem label="Subjects" value={profileData.subjects?.join(', ')} />
+                         <InfoItem label="Subjects" value={(profileData as UserData).subjects?.join(', ')} />
                     </div>
                 </>}
                  {isStudent && <>
-                    <InfoItem label="Registration No." value={profileData.reg_no} />
-                    <InfoItem label="Degree" value={profileData.degree} />
-                    <InfoItem label="Stream" value={profileData.stream} />
-                    <InfoItem label="Batch" value={profileData.batch} />
-                    <InfoItem label="Start Year" value={profileData.start_year} />
-                    <InfoItem label="End Year" value={profileData.end_year} />
+                    <InfoItem label="Registration No." value={studentProfile?.reg_no} />
+                    <InfoItem label="Degree" value={studentProfile?.degree} />
+                    <InfoItem label="Stream" value={studentProfile?.stream} />
+                    <InfoItem label="Batch" value={studentProfile?.batch} />
+                    <InfoItem label="Start Year" value={studentProfile?.start_year} />
+                    <InfoItem label="End Year" value={studentProfile?.end_year} />
                 </>}
             </CardContent>
         </Card>
         
-        <Card className="shadow-lg">
+        {/* --- UNIVERSITY & SOCIALS --- */}
+        <div className="space-y-8">
+          <Card className="shadow-lg">
+              <CardHeader>
+                  <CardTitle className="font-headline flex items-center gap-2"><Building/> University Info</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                  <InfoItem label="Campus" value={profileData.campus} />
+                  <InfoItem label="Building" value={profileData.building} />
+                  <InfoItem label="Room No." value={profileData.roomNo} />
+                  <InfoItem label="University ID" value={profileData.universityId} />
+              </CardContent>
+          </Card>
+           <Card className="shadow-lg">
              <CardHeader>
-                <CardTitle className="font-headline flex items-center gap-2"><Building/> University Info</CardTitle>
+                <CardTitle className="font-headline flex items-center gap-2"><Linkedin/> Social & Links</CardTitle>
             </CardHeader>
-             <CardContent className="space-y-4 text-sm">
-                <InfoItem label="Campus" value={profileData.campus} />
-                <InfoItem label="Building" value={profileData.building} />
-                <InfoItem label="Room No." value={profileData.roomNo} />
-                <InfoItem label="University ID" value={profileData.universityId} />
-                <div className="border-t pt-4 mt-4 space-y-2">
-                    {profileData.linkedin && 
-                        <a href={profileData.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
-                            <Linkedin className="h-4 w-4" /> LinkedIn Profile
-                        </a>
-                    }
-                    {profileData.github && 
-                         <a href={profileData.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
-                            <Github className="h-4 w-4" /> GitHub Profile
-                        </a>
-                    }
-                </div>
+             <CardContent className="space-y-2 text-sm">
+                 {profileData.linkedin ? 
+                    <a href={profileData.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
+                        <Linkedin className="h-4 w-4" /> LinkedIn Profile
+                    </a>
+                    : <InfoItem label="LinkedIn" value="Not provided" />
+                }
+                {profileData.github ? 
+                      <a href={profileData.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
+                        <Github className="h-4 w-4" /> GitHub Profile
+                    </a>
+                    : <InfoItem label="GitHub" value="Not provided" />
+                }
+                 {studentProfile?.portfolio ? 
+                      <a href={studentProfile.portfolio} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
+                        <BriefcaseBusiness className="h-4 w-4" /> Portfolio
+                    </a>
+                    : isStudent && <InfoItem label="Portfolio" value="Not provided" />
+                }
             </CardContent>
-        </Card>
+          </Card>
+        </div>
       </div>
+      
+       {/* --- STUDENT-ONLY EXPANDED INFO --- */}
+      {isStudent && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+             <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="font-headline flex items-center gap-2"><Home /> Contact Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                    <InfoItem label="Address" value={studentProfile?.address || "Not provided"} />
+                    <InfoItem label="Emergency Contact" value={studentProfile?.emergencyContact || "Not provided"} />
+                </CardContent>
+              </Card>
 
-       {profileData.bio && (
+              <div className="space-y-8">
+                <Card className="shadow-lg">
+                    <CardHeader>
+                      <CardTitle className="font-headline flex items-center gap-2"><GraduationCap /> Courses & Internships</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4 text-sm">
+                        <InfoItem label="Courses" value={studentProfile?.courses?.join(', ') || "Not provided"} />
+                        <InfoItem label="Internships" value={studentProfile?.internships?.join(', ') || "Not provided"} />
+                    </CardContent>
+                </Card>
+              </div>
+          </div>
+      )}
+
+      {/* --- BIO --- */}
+      {profileData.bio && (
         <Card className="shadow-lg">
             <CardHeader>
-                <CardTitle className="font-headline">Bio</CardTitle>
+                <CardTitle className="font-headline flex items-center gap-2"><FileText /> Bio</CardTitle>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground">{profileData.bio}</p>
+                <p className="text-muted-foreground whitespace-pre-wrap">{profileData.bio}</p>
             </CardContent>
         </Card>
       )}
 
     </div>
+
      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="sm:max-w-2xl w-full">
             <SheetHeader>
@@ -242,9 +298,9 @@ export default function ProfilePage() {
 const InfoItem = ({ label, value, children }: { label: string; value?: string | number | null; children?: React.ReactNode }) => {
     if (!value && !children) return null;
     return (
-        <div className="grid grid-cols-2 items-center">
+        <div className="grid grid-cols-2 items-start">
             <p className="font-semibold text-muted-foreground">{label}</p>
-            {value ? <p>{value}</p> : children}
+            {value ? <p className="whitespace-pre-wrap">{value}</p> : children}
         </div>
     )
 }

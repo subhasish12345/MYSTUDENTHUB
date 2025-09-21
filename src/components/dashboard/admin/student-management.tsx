@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -10,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +33,7 @@ export interface StudentData extends DocumentData {
   email: string;
   phone: string;
   role: "student";
+  // Admin-only fields
   reg_no: string;
   degree: string;
   stream: string;
@@ -44,11 +43,16 @@ export interface StudentData extends DocumentData {
   status: "Active" | "Suspended" | "Graduated";
   createdBy: string;
   createdAt: any;
-  // Optional student-editable fields
+  // Student-editable fields
   linkedin?: string;
   github?: string;
   photoURL?: string;
   bio?: string;
+  address?: string;
+  internships?: string[];
+  portfolio?: string;
+  courses?: string[];
+  emergencyContact?: string;
 }
 
 
@@ -64,7 +68,7 @@ export function StudentManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // **FIX**: Query the 'students' collection which holds the full profiles
+    // Query the 'students' collection which holds the full profiles
     const q = query(collection(db, "students"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const studentsData = snapshot.docs.map((doc) => ({
@@ -163,11 +167,16 @@ export function StudentManagement() {
             status: "Active",
             createdBy: adminUser.uid,
             createdAt: serverTimestamp(),
-            // Empty editable fields
+            // Empty student-editable fields
             linkedin: "",
             github: "",
             photoURL: "",
             bio: "",
+            address: "",
+            internships: [],
+            portfolio: "",
+            courses: [],
+            emergencyContact: "",
         });
         console.log("Step 3 Success: /students doc created.");
 
@@ -324,3 +333,5 @@ export function StudentManagement() {
     </>
   );
 }
+
+    
