@@ -45,6 +45,9 @@ export interface UserData extends DocumentData {
   photoURL?: string;
   bio?: string;
   linkedIn?: string;
+  designation?: string;
+  employeeId?: string;
+  qualification?: string;
 }
 
 export function TeacherManagement() {
@@ -60,7 +63,6 @@ export function TeacherManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Correctly query the /teachers collection
     const q = query(collection(db, "teachers"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const teachersData = snapshot.docs.map((doc) => ({
@@ -73,8 +75,8 @@ export function TeacherManagement() {
     }, (error) => {
         console.error("Error fetching teachers:", error);
         toast({
-            title: "Error",
-            description: "Failed to fetch teacher data. Check Firestore security rules.",
+            title: "Error Fetching Teachers",
+            description: "You may not have permission to view this data. Please check your Firestore security rules.",
             variant: "destructive",
         });
         setLoading(false);
@@ -100,7 +102,6 @@ export function TeacherManagement() {
   const confirmDelete = async () => {
     if (deletingTeacherId) {
       try {
-        // As per the hybrid model, we delete from both collections.
         await deleteDoc(doc(db, "teachers", deletingTeacherId));
         await deleteDoc(doc(db, "users", deletingTeacherId));
 
@@ -126,7 +127,6 @@ export function TeacherManagement() {
     
     if (teacherId) { // This is an update
       try {
-        // For updates, we write to the /teachers collection
         const teacherDocRef = doc(db, "teachers", teacherId);
         await updateDoc(teacherDocRef, {
           ...values,

@@ -53,6 +53,9 @@ export interface StudentData extends DocumentData {
   portfolio?: string;
   courses?: string[];
   emergencyContact?: string;
+  campus?: string;
+  building?: string;
+  roomNo?: string;
 }
 
 
@@ -69,7 +72,6 @@ export function StudentManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Correctly query the /students collection
     const q = query(collection(db, "students"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const studentsData = snapshot.docs.map((doc) => ({
@@ -82,8 +84,8 @@ export function StudentManagement() {
     }, (error) => {
       console.error("Error fetching students:", error);
       toast({
-        title: "Error",
-        description: "Failed to fetch student data.",
+        title: "Error Fetching Students",
+        description: "You may not have permission to view this data. Please check your Firestore security rules.",
         variant: "destructive",
       });
       setLoading(false);
@@ -109,7 +111,6 @@ export function StudentManagement() {
   const confirmDelete = async () => {
     if (deletingStudentId) {
       try {
-        // Delete from both collections
         await deleteDoc(doc(db, "students", deletingStudentId));
         await deleteDoc(doc(db, "users", deletingStudentId));
         toast({
@@ -169,7 +170,6 @@ export function StudentManagement() {
             role: 'student',
             initialProfile: {
               ...values,
-              // Initialize all student-editable fields as empty strings or arrays
               linkedin: "",
               github: "",
               photoURL: "",
