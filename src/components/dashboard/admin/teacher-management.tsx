@@ -120,7 +120,7 @@ export function TeacherManagement() {
         console.error("Error fetching teachers:", error);
         toast({
             title: "Error Fetching Teachers",
-            description: error.message || "Could not fetch teacher data.",
+            description: "Missing or insufficient permissions. Check Firestore rules.",
             variant: "destructive",
         });
         setLoading(false);
@@ -378,3 +378,5 @@ export function TeacherManagement() {
     </>
   );
 }
+
+    
