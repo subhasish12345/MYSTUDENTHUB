@@ -15,7 +15,6 @@ service cloud.firestore {
     }
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email == 'sadmisn@gmail.com' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
       );
@@ -23,32 +22,36 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      // Admins can create users, students can create their own doc during profile setup
+      // Admins can create users, and users can create their own doc during profile setup.
       allow create: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
       allow read:   if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Only admins can update role/status or delete the core user record.
       allow update, delete: if isAdmin();
     }
 
     match /teachers/{teacherId} {
       allow read: if isSignedIn();
       allow list: if isAdmin();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || request.auth.uid == teacherId;
+      allow create: if isAdmin(); // Only admins can create new teachers
+      allow update: if isAdmin() || request.auth.uid == teacherId; // Admin or the teacher themselves
+      allow delete: if isAdmin();
     }
 
     match /students/{studentId} {
       allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin());
       allow list: if isAdmin();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (request.auth.uid == studentId);
+      // Allow creation by admin OR by a user creating their own profile
+      allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
+      allow update: if isAdmin() || request.auth.uid == studentId; // Admin or the student themselves
+      allow delete: if isAdmin();
     }
 
     match /students/{studentId}/semesters/{semesterId} {
       allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin());
-      allow write: if isAdmin();
+      allow write: if isAdmin(); // Only admins can add/edit/delete semesters
     }
 
-    // ACADEMIC STRUCTURE COLLECTIONS
+    // ACADEMIC STRUCTURE COLLECTIONS (Admin-only write access)
     match /degrees/{degreeId} {
       allow read: if isSignedIn();
       allow list, write: if isAdmin();

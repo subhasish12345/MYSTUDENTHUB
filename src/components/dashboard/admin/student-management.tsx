@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -90,38 +91,8 @@ export function StudentManagement() {
 
   const fetchStudents = async () => {
       setLoading(true);
-      try {
-        const usersQuery = query(collection(db, "users"), where("role", "==", "student"));
-        const userDocs = await getDocs(usersQuery);
-
-        for (const userDoc of userDocs.docs) {
-            const userData = userDoc.data();
-            const studentDocRef = doc(db, "students", userDoc.id);
-            const studentDocSnap = await getDoc(studentDocRef);
-
-            if (!studentDocSnap.exists()) {
-                await setDoc(studentDocRef, {
-                    uid: userData.uid,
-                    email: userData.email,
-                    name: userData.name || "N/A",
-                    role: 'student',
-                    status: userData.status || "Active",
-                    createdAt: userData.createdAt || serverTimestamp(),
-                    phone: userData.phone || "",
-                    reg_no: userData.reg_no || "",
-                    degree: userData.degree || "",
-                    stream: userData.stream || "",
-                    batch_id: userData.batch_id || "",
-                    start_year: userData.start_year || 0,
-                    end_year: userData.end_year || 0,
-                    createdBy: userData.createdBy || 'migration',
-                }, { merge: true });
-            }
-        }
-      } catch (error) {
-          console.error("Error during student data migration:", error);
-      }
-
+      
+      // The onSnapshot listener will handle fetching and real-time updates.
       const q = query(collection(db, "students"));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const studentsData = snapshot.docs.map((doc) => ({
@@ -134,7 +105,7 @@ export function StudentManagement() {
         console.error("Error fetching students:", error);
         toast({
           title: "Error Fetching Students",
-          description: error.message || "Could not fetch student data.",
+          description: error.message || "Could not fetch student data. Check permissions.",
           variant: "destructive",
         });
         setLoading(false);
@@ -159,18 +130,18 @@ export function StudentManagement() {
       setBatchMap(data.reduce((acc, curr) => ({...acc, [curr.id]: curr.batch_name}), {}));
     });
 
-    let unsubscribe: (() => void) | undefined;
+    let unsubscribeStudents: (() => void) | undefined;
     fetchStudents().then(unsub => {
       if (unsub) {
-        unsubscribe = unsub;
+        unsubscribeStudents = unsub;
       }
     });
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubscribeStudents) unsubscribeStudents();
       unsubDegrees();
       unsubStreams();
-      unsubBatches();
+unsubBatches();
     };
 
   }, [toast]);
@@ -454,7 +425,7 @@ export function StudentManagement() {
                   />
                 </TabsContent>
                 <TabsContent value="semesters">
-                   <SemesterManagement studentId={editingStudent.id} onSemesterUpdate={fetchStudents}/>
+                   <SemesterManagement studentId={editingStudent.id} onSemesterUpdate={() => {}}/>
                 </TabsContent>
               </Tabs>
             ) : (
