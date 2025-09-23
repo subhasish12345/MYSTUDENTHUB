@@ -4,6 +4,13 @@ import { StudentManagement } from "@/components/dashboard/admin/student-manageme
 import { DegreeManagement } from "@/components/dashboard/admin/degree-management";
 import { StreamManagement } from "@/components/dashboard/admin/stream-management";
 import { BatchManagement } from "@/components/dashboard/admin/batch-management";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { FirestoreRules } from "@/components/dashboard/admin/firestore-rules";
 
 
 export function AdminPanel() {
@@ -15,12 +22,13 @@ export function AdminPanel() {
             </div>
 
             <Tabs defaultValue="teachers" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
                     <TabsTrigger value="teachers">Teachers</TabsTrigger>
                     <TabsTrigger value="students">Students</TabsTrigger>
                     <TabsTrigger value="degrees">Degrees</TabsTrigger>
                     <TabsTrigger value="streams">Streams</TabsTrigger>
                     <TabsTrigger value="batches">Batches</TabsTrigger>
+                    <TabsTrigger value="rules">Rules</TabsTrigger>
                 </TabsList>
                 <TabsContent value="teachers">
                     <TeacherManagement />
@@ -36,6 +44,17 @@ export function AdminPanel() {
                 </TabsContent>
                 <TabsContent value="batches">
                     <BatchManagement />
+                </TabsContent>
+                 <TabsContent value="rules">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Firestore Security Rules</CardTitle>
+                            <CardDescription>
+                                For the application to work correctly, your Firestore database must have the following security rules. Please copy and paste these into the Rules tab in your Firebase Console.
+                            </CardDescription>
+                        </CardHeader>
+                        <FirestoreRules />
+                    </Card>
                 </TabsContent>
             </Tabs>
         </div>

@@ -99,11 +99,6 @@ export function TeacherManagement() {
         }
       } catch (error) {
           console.error("Error during teacher data migration:", error);
-          toast({
-            title: "Migration Error",
-            description: "Could not sync all teacher profiles. Some may be missing.",
-            variant: "destructive",
-          });
       }
 
       // Now, set up the real-time listener on the /teachers collection
@@ -231,6 +226,7 @@ export function TeacherManagement() {
         setIsSheetOpen(false);
 
       } catch (error: any) {
+         console.error("Teacher Creation Failed:", error);
          if (error.code === 'auth/email-already-in-use') {
            toast({
               title: "Creation Failed",
@@ -378,5 +374,3 @@ export function TeacherManagement() {
     </>
   );
 }
-
-    
