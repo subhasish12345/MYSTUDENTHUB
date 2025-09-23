@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Roles } from "@/lib/roles";
 import { DocumentData } from "firebase/firestore";
 
-// Base schema for fields common to both students and teachers
+// Base schema for fields absolutely common to all roles
 const baseSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   phone: z.string().min(10, "Phone number must be at least 10 digits."),
@@ -28,9 +28,6 @@ const baseSchema = z.object({
   bio: z.string().max(500, "Bio should be less than 500 characters.").optional(),
   linkedin: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
   github: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
-  campus: z.string().optional(),
-  building: z.string().optional(),
-  roomNo: z.string().optional(),
 });
 
 // Schema for student-specific editable fields
@@ -41,13 +38,20 @@ const studentSchema = baseSchema.extend({
   // For form handling, we'll take these as strings and convert them
   internships: z.string().optional(),
   courses: z.string().optional(),
+  // Student-specific university info
+  campus: z.string().optional(),
+  building: z.string().optional(),
+  roomNo: z.string().optional(),
 });
 
 // Schema for teacher-specific editable fields
 const teacherSchema = baseSchema.extend({
   specialization: z.string().optional(),
   qualification: z.string().optional(),
-  // Add other teacher-specific editable fields here if any
+  // Teacher-specific university info
+  campus: z.string().optional(),
+  building: z.string().optional(),
+  roomNo: z.string().optional(),
 });
 
 
@@ -80,8 +84,10 @@ export function EditProfileForm({ onSubmit, isSubmitting, existingData, userRole
               if (Array.isArray(value)) {
                   defaultVals[key] = value.join(', ');
               } else {
-                  defaultVals[key] = value;
+                  defaultVals[key] = value ?? ""; // Fallback to empty string if value is null/undefined
               }
+          } else {
+              defaultVals[key] = ""; // Initialize missing fields
           }
       });
       form.reset(defaultVals);
@@ -90,7 +96,13 @@ export function EditProfileForm({ onSubmit, isSubmitting, existingData, userRole
 
   const handleFormSubmit = async (values: ProfileFormValues) => {
     try {
-      await onSubmit(values);
+      // Ensure no undefined values are sent to Firestore
+      const sanitizedValues: { [key: string]: any } = {};
+      for (const key in values) {
+        const value = (values as any)[key];
+        sanitizedValues[key] = value === undefined ? "" : value;
+      }
+      await onSubmit(sanitizedValues as ProfileFormValues);
     } catch (error: any) {
        toast({
         title: "Submission Error",
