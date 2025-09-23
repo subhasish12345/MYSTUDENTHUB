@@ -29,8 +29,8 @@ const formSchema = z.object({
   email: z.string().email("Invalid email address."),
   phone: z.string().min(10, "Phone number must be at least 10 digits."),
   reg_no: z.string().min(1, "Registration number is required."),
-  degree: z.string().min(2, "Degree is required."),
-  stream: z.string().min(2, "Stream is required."),
+  degree: z.string().min(1, "Degree is required."),
+  stream: z.string().min(1, "Stream is required."),
   batch: z.string().min(1, "Batch is required."),
   start_year: z.coerce.number().min(2000),
   end_year: z.coerce.number().min(2000),
@@ -88,8 +88,27 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
   useEffect(() => {
     if (existingStudentData) {
       form.reset({
-        ...existingStudentData,
-        batch: existingStudentData.batch_id, // Map batch_id to batch field
+        name: existingStudentData.name,
+        email: existingStudentData.email,
+        phone: existingStudentData.phone,
+        reg_no: existingStudentData.reg_no,
+        degree: existingStudentData.degree,
+        stream: existingStudentData.stream,
+        batch: existingStudentData.batch_id,
+        start_year: existingStudentData.start_year,
+        end_year: existingStudentData.end_year,
+      });
+    } else {
+      form.reset({
+        name: "",
+        email: "",
+        phone: "",
+        reg_no: "",
+        degree: "",
+        stream: "",
+        batch: "",
+        start_year: new Date().getFullYear(),
+        end_year: new Date().getFullYear() + 4,
       });
     }
   }, [existingStudentData, form]);
@@ -97,15 +116,7 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
 
   const handleFormSubmit = async (values: StudentFormValues) => {
     try {
-      // Map form `batch` (which is batch_id) to `batch_id` before submitting
-      const submissionValues = {
-        ...values,
-        batch_id: values.batch,
-      };
-      // @ts-ignore
-      delete submissionValues.batch;
-      // @ts-ignore
-      await onSubmit(submissionValues, existingStudentData?.id);
+      await onSubmit(values, existingStudentData?.id);
       if (!isEditMode) {
         form.reset();
       }
@@ -117,6 +128,9 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
       });
     }
   };
+  
+  const watchedDegree = form.watch("degree");
+
 
   return (
     <Form {...form}>
@@ -189,7 +203,7 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Degree</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                <Select onValueChange={(value) => { field.onChange(value); form.setValue('stream', ''); }} value={field.value} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a degree" />
@@ -211,7 +225,7 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Stream</FormLabel>
-                 <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                 <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!watchedDegree}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a stream" />
@@ -219,7 +233,7 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
                   </FormControl>
                   <SelectContent>
                      {streams
-                      .filter(s => form.watch('degree') ? s.degreeId === form.watch('degree') : true)
+                      .filter(s => s.degreeId === watchedDegree)
                       .map(stream => (
                         <SelectItem key={stream.id} value={stream.id}>{stream.name}</SelectItem>
                       ))

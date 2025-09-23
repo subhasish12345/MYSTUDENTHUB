@@ -24,6 +24,11 @@ import {
 import { StudentForm, StudentFormValues } from "./student-form";
 import { useAuth } from "@/hooks/use-auth";
 import { createUserAndProfile } from "@/lib/createUserAndProfile";
+import { Degree } from "./degree-management";
+import { Stream } from "./stream-management";
+import { Batch } from "./batch-management";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 export interface StudentData extends DocumentData {
@@ -37,7 +42,7 @@ export interface StudentData extends DocumentData {
   reg_no: string;
   degree: string;
   stream: string;
-  batch: string;
+  batch_id: string;
   start_year: number;
   end_year: number;
   status: "Active" | "Suspended" | "Graduated";
@@ -62,17 +67,43 @@ export interface StudentData extends DocumentData {
 export function StudentManagement() {
   const { user: adminUser } = useAuth();
   const [students, setStudents] = useState<StudentData[]>([]);
-  const [studentCount, setStudentCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
   const [editingStudent, setEditingStudent] = useState<StudentData | null>(null);
 
+  const [degrees, setDegrees] = useState<Degree[]>([]);
+  const [streams, setStreams] = useState<Stream[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [degreeMap, setDegreeMap] = useState<Record<string, string>>({});
+  const [streamMap, setStreamMap] = useState<Record<string, string>>({});
+  const [batchMap, setBatchMap] = useState<Record<string, string>>({});
+
+  const [filteredStudents, setFilteredStudents] = useState<StudentData[]>([]);
+  const [filters, setFilters] = useState({ degree: '', stream: '', batch: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+
   const { toast } = useToast();
 
   useEffect(() => {
-    // This is a one-time migration logic to ensure data consistency
+    // Fetch academic structure for filter dropdowns
+    const unsubDegrees = onSnapshot(collection(db, 'degrees'), snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Degree));
+      setDegrees(data);
+      setDegreeMap(data.reduce((acc, curr) => ({...acc, [curr.id]: curr.name}), {}));
+    });
+    const unsubStreams = onSnapshot(collection(db, 'streams'), snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Stream));
+      setStreams(data);
+      setStreamMap(data.reduce((acc, curr) => ({...acc, [curr.id]: curr.name}), {}));
+    });
+    const unsubBatches = onSnapshot(collection(db, 'batches'), snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Batch));
+      setBatches(data);
+      setBatchMap(data.reduce((acc, curr) => ({...acc, [curr.id]: curr.batch_name}), {}));
+    });
+
     const migrateAndFetchStudents = async () => {
       setLoading(true);
       try {
@@ -85,7 +116,6 @@ export function StudentManagement() {
             const studentDocSnap = await getDoc(studentDocRef);
 
             if (!studentDocSnap.exists()) {
-                // If student profile doesn't exist, create it from user data
                 await setDoc(studentDocRef, {
                     uid: userData.uid,
                     email: userData.email,
@@ -93,29 +123,21 @@ export function StudentManagement() {
                     role: 'student',
                     status: userData.status || "Active",
                     createdAt: userData.createdAt || serverTimestamp(),
-                    // Add default empty values for other fields
                     phone: userData.phone || "",
                     reg_no: userData.reg_no || "",
                     degree: userData.degree || "",
                     stream: userData.stream || "",
-                    batch: userData.batch || "",
+                    batch_id: userData.batch_id || "",
                     start_year: userData.start_year || 0,
                     end_year: userData.end_year || 0,
                     createdBy: userData.createdBy || 'migration',
                 }, { merge: true });
-                console.log(`Migrated student: ${userDoc.id}`);
             }
         }
       } catch (error) {
           console.error("Error during student data migration:", error);
-          toast({
-            title: "Migration Error",
-            description: "Could not sync all student profiles. Some may be missing.",
-            variant: "destructive",
-          });
       }
 
-      // Now, set up the real-time listener on the /students collection
       const q = query(collection(db, "students"));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const studentsData = snapshot.docs.map((doc) => ({
@@ -123,7 +145,6 @@ export function StudentManagement() {
           ...doc.data(),
         } as StudentData));
         setStudents(studentsData);
-        setStudentCount(snapshot.size);
         setLoading(false);
       }, (error) => {
         console.error("Error fetching students:", error);
@@ -145,12 +166,44 @@ export function StudentManagement() {
     });
 
     return () => {
-        if (unsubscribe) {
-          unsubscribe();
-        }
+      if (unsubscribe) unsubscribe();
+      unsubDegrees();
+      unsubStreams();
+      unsubBatches();
     };
 
   }, [toast]);
+
+  useEffect(() => {
+    let result = students;
+    if (filters.degree) {
+      result = result.filter(s => s.degree === filters.degree);
+    }
+    if (filters.stream) {
+      result = result.filter(s => s.stream === filters.stream);
+    }
+    if (filters.batch) {
+      result = result.filter(s => s.batch_id === filters.batch);
+    }
+    if (searchTerm) {
+      const lowercasedTerm = searchTerm.toLowerCase();
+      result = result.filter(s => 
+        s.name.toLowerCase().includes(lowercasedTerm) || 
+        s.reg_no.toLowerCase().includes(lowercasedTerm)
+      );
+    }
+    setFilteredStudents(result);
+  }, [filters, searchTerm, students]);
+
+  const handleFilterChange = (filterName: 'degree' | 'stream' | 'batch', value: string) => {
+    const newFilters = { ...filters, [filterName]: value };
+    // Reset child filters if parent changes
+    if (filterName === 'degree') {
+      newFilters.stream = '';
+    }
+    setFilters(newFilters);
+  };
+
 
   const handleAddClick = () => {
     setEditingStudent(null);
@@ -194,11 +247,18 @@ export function StudentManagement() {
     }
     setIsSubmitting(true);
 
-    if (studentId) { // This is an update
+    const profileData = {
+      ...values,
+      batch_id: values.batch,
+    };
+    // @ts-ignore
+    delete profileData.batch;
+
+    if (studentId) {
       try {
         const studentDocRef = doc(db, "students", studentId);
         await updateDoc(studentDocRef, {
-          ...values,
+          ...profileData,
           updatedAt: serverTimestamp(),
         });
         
@@ -217,7 +277,7 @@ export function StudentManagement() {
       } finally {
         setIsSubmitting(false);
       }
-    } else { // This is a new creation
+    } else {
       const last4 = values.phone.slice(-4);
       const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
 
@@ -226,21 +286,7 @@ export function StudentManagement() {
             email: values.email,
             password: password,
             role: 'student',
-            initialProfile: {
-              ...values,
-              linkedin: "",
-              github: "",
-              photoURL: "",
-              bio: "",
-              address: "",
-              internships: [],
-              portfolio: "",
-              courses: [],
-              emergencyContact: "",
-              campus: "",
-              building: "",
-              roomNo: "",
-            },
+            initialProfile: profileData,
             adminUid: adminUser.uid,
           });
 
@@ -272,14 +318,14 @@ export function StudentManagement() {
             <div>
               <CardTitle className="font-headline">Student Management</CardTitle>
               <CardDescription>
-                Create new student accounts and manage their records.
+                Create, view, and manage all student records.
               </CardDescription>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-muted-foreground text-right">
+             <div className="flex items-center gap-4">
+               <div className="text-sm text-muted-foreground text-right">
                 Total Students
                 <p className="font-bold text-2xl text-foreground">
-                  {loading ? "..." : studentCount}
+                  {loading ? "..." : students.length}
                 </p>
               </div>
               <Button onClick={handleAddClick}>
@@ -289,6 +335,41 @@ export function StudentManagement() {
           </div>
         </CardHeader>
         <CardContent>
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+                <Input 
+                    placeholder="Search by name or reg no..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                />
+                <Select value={filters.degree} onValueChange={(value) => handleFilterChange('degree', value)}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                        <SelectValue placeholder="Filter by Degree" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">All Degrees</SelectItem>
+                        {degrees.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                 <Select value={filters.stream} onValueChange={(value) => handleFilterChange('stream', value)} disabled={!filters.degree}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                        <SelectValue placeholder="Filter by Stream" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">All Streams</SelectItem>
+                        {streams.filter(s => s.degreeId === filters.degree).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <Select value={filters.batch} onValueChange={(value) => handleFilterChange('batch', value)}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                        <SelectValue placeholder="Filter by Batch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">All Batches</SelectItem>
+                        {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.batch_name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+            </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -310,13 +391,13 @@ export function StudentManagement() {
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : students.length > 0 ? (
-                students.map((student) => (
+              ) : filteredStudents.length > 0 ? (
+                filteredStudents.map((student) => (
                   <TableRow key={student.id}>
                     <TableCell className="font-medium">{student.name}</TableCell>
                     <TableCell>{student.email}</TableCell>
-                    <TableCell>{student.degree}</TableCell>
-                    <TableCell>{student.batch}</TableCell>
+                    <TableCell>{degreeMap[student.degree] || 'N/A'}</TableCell>
+                    <TableCell>{batchMap[student.batch_id] || 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -341,7 +422,7 @@ export function StudentManagement() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center h-24">
-                    No students found. Click "Add Student" to create an account.
+                    No students found matching your criteria.
                   </TableCell>
                 </TableRow>
               )}
