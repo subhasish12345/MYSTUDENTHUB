@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -74,11 +75,11 @@ export default function ProfilePage() {
         
         // Transform comma-separated strings to arrays
         const updateValues: DocumentData = { ...values };
-        if (values.internships) {
-            updateValues.internships = (values.internships as unknown as string).split(',').map(s => s.trim()).filter(Boolean);
+        if (typeof values.internships === 'string') {
+            updateValues.internships = values.internships.split(',').map(s => s.trim()).filter(Boolean);
         }
-        if (values.courses) {
-            updateValues.courses = (values.courses as unknown as string).split(',').map(s => s.trim()).filter(Boolean);
+        if (typeof values.courses === 'string') {
+            updateValues.courses = values.courses.split(',').map(s => s.trim()).filter(Boolean);
         }
 
         await setDoc(userDocRef, {
@@ -245,8 +246,8 @@ export default function ProfilePage() {
                       <CardTitle className="font-headline flex items-center gap-2"><GraduationCap /> Courses & Internships</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4 text-sm">
-                        <InfoItem label="Courses" value={studentProfile?.courses?.join(', ') || "Not provided"} />
-                        <InfoItem label="Internships" value={studentProfile?.internships?.join(', ') || "Not provided"} />
+                        <InfoItem label="Courses" value={Array.isArray(studentProfile?.courses) ? studentProfile?.courses.join(', ') : studentProfile?.courses || "Not provided"} />
+                        <InfoItem label="Internships" value={Array.isArray(studentProfile?.internships) ? studentProfile?.internships.join(', ') : studentProfile?.internships || "Not provided"} />
                     </CardContent>
                 </Card>
               </div>
@@ -296,5 +297,7 @@ const InfoItem = ({ label, value, children }: { label: string; value?: string | 
         </div>
     )
 }
+
+    
 
     
