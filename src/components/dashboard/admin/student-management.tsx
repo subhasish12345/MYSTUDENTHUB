@@ -10,6 +10,7 @@ import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -29,6 +30,7 @@ import { Stream } from "./stream-management";
 import { Batch } from "./batch-management";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SemesterManagement } from "../profile/semester-management";
 
 
 export interface StudentData extends DocumentData {
@@ -86,25 +88,7 @@ export function StudentManagement() {
 
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Fetch academic structure for filter dropdowns
-    const unsubDegrees = onSnapshot(collection(db, 'degrees'), snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Degree));
-      setDegrees(data);
-      setDegreeMap(data.reduce((acc, curr) => ({...acc, [curr.id]: curr.name}), {}));
-    });
-    const unsubStreams = onSnapshot(collection(db, 'streams'), snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Stream));
-      setStreams(data);
-      setStreamMap(data.reduce((acc, curr) => ({...acc, [curr.id]: curr.name}), {}));
-    });
-    const unsubBatches = onSnapshot(collection(db, 'batches'), snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Batch));
-      setBatches(data);
-      setBatchMap(data.reduce((acc, curr) => ({...acc, [curr.id]: curr.batch_name}), {}));
-    });
-
-    const migrateAndFetchStudents = async () => {
+  const fetchStudents = async () => {
       setLoading(true);
       try {
         const usersQuery = query(collection(db, "users"), where("role", "==", "student"));
@@ -158,8 +142,25 @@ export function StudentManagement() {
       return unsubscribe;
     };
 
+  useEffect(() => {
+    const unsubDegrees = onSnapshot(collection(db, 'degrees'), snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Degree));
+      setDegrees(data);
+      setDegreeMap(data.reduce((acc, curr) => ({...acc, [curr.id]: curr.name}), {}));
+    });
+    const unsubStreams = onSnapshot(collection(db, 'streams'), snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Stream));
+      setStreams(data);
+      setStreamMap(data.reduce((acc, curr) => ({...acc, [curr.id]: curr.name}), {}));
+    });
+    const unsubBatches = onSnapshot(collection(db, 'batches'), snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Batch));
+      setBatches(data);
+      setBatchMap(data.reduce((acc, curr) => ({...acc, [curr.id]: curr.batch_name}), {}));
+    });
+
     let unsubscribe: (() => void) | undefined;
-    migrateAndFetchStudents().then(unsub => {
+    fetchStudents().then(unsub => {
       if (unsub) {
         unsubscribe = unsub;
       }
@@ -199,7 +200,6 @@ export function StudentManagement() {
     const finalValue = value === 'all' ? '' : value;
     const newFilters = { ...filters, [filterName]: finalValue };
     
-    // Reset child filters if parent changes
     if (filterName === 'degree') {
       newFilters.stream = '';
     }
@@ -268,8 +268,7 @@ export function StudentManagement() {
           title: "Success",
           description: `Profile for ${values.name} has been updated.`,
         });
-        setIsSheetOpen(false);
-
+        // Do not close sheet on update, admin might want to manage semesters
       } catch (error: any) {
         toast({
           title: "Update Failed",
@@ -409,7 +408,7 @@ export function StudentManagement() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEditClick(student)}>Edit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditClick(student)}>Edit / Manage</DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDeleteClick(student.id)}
                             className="text-destructive focus:text-destructive-foreground focus:bg-destructive"
@@ -434,18 +433,37 @@ export function StudentManagement() {
       </Card>
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-[480px]">
+        <SheetContent className="sm:max-w-[480px] w-full">
           <SheetHeader>
-            <SheetTitle>{editingStudent ? 'Edit Student Profile' : 'Create New Student Profile'}</SheetTitle>
-            <SheetDescription>
-              {editingStudent ? "Update the student's profile information." : "This will create a student profile and auth account."}
+            <SheetTitle>{editingStudent ? 'Edit Student' : 'Create New Student Profile'}</SheetTitle>
+             <SheetDescription>
+              {editingStudent ? `Manage profile and academic details for ${editingStudent.name}.` : "This will create a student profile and auth account."}
             </SheetDescription>
           </SheetHeader>
-          <StudentForm
-            onSubmit={handleCreateOrUpdateStudent}
-            isSubmitting={isSubmitting}
-            existingStudentData={editingStudent}
-          />
+            {editingStudent ? (
+              <Tabs defaultValue="profile" className="mt-4">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="profile">Edit Profile</TabsTrigger>
+                  <TabsTrigger value="semesters">Manage Semesters</TabsTrigger>
+                </TabsList>
+                <TabsContent value="profile">
+                   <StudentForm
+                    onSubmit={handleCreateOrUpdateStudent}
+                    isSubmitting={isSubmitting}
+                    existingStudentData={editingStudent}
+                  />
+                </TabsContent>
+                <TabsContent value="semesters">
+                   <SemesterManagement studentId={editingStudent.id} onSemesterUpdate={fetchStudents}/>
+                </TabsContent>
+              </Tabs>
+            ) : (
+               <StudentForm
+                onSubmit={handleCreateOrUpdateStudent}
+                isSubmitting={isSubmitting}
+                existingStudentData={editingStudent}
+              />
+            )}
         </SheetContent>
       </Sheet>
 
