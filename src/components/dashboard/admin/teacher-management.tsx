@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, updateDoc, getDocs, getDoc, setDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -63,26 +63,83 @@ export function TeacherManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "teachers"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const teachersData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      } as UserData));
-      setTeachers(teachersData);
-      setTeacherCount(snapshot.size);
-      setLoading(false);
-    }, (error) => {
+    // This is a one-time migration logic to ensure data consistency
+    const migrateAndFetchTeachers = async () => {
+      setLoading(true);
+      try {
+        const usersQuery = query(collection(db, "users"), where("role", "==", "teacher"));
+        const userDocs = await getDocs(usersQuery);
+
+        for (const userDoc of userDocs.docs) {
+            const userData = userDoc.data();
+            const teacherDocRef = doc(db, "teachers", userDoc.id);
+            const teacherDocSnap = await getDoc(teacherDocRef);
+
+            if (!teacherDocSnap.exists()) {
+                // If teacher profile doesn't exist, create it from user data
+                 await setDoc(teacherDocRef, {
+                    uid: userData.uid,
+                    email: userData.email,
+                    name: userData.name || "N/A",
+                    role: 'teacher',
+                    status: userData.status || "Active",
+                    createdAt: userData.createdAt || serverTimestamp(),
+                    // Add default empty values for other fields
+                    phone: userData.phone || "",
+                    department: userData.department || "",
+                    subjects: userData.subjects || [],
+                    designation: userData.designation || "",
+                    employeeId: userData.employeeId || "",
+                    experienceYears: userData.experienceYears || 0,
+                    qualification: userData.qualification || "",
+                    createdBy: userData.createdBy || 'migration',
+                }, { merge: true });
+                console.log(`Migrated teacher: ${userDoc.id}`);
+            }
+        }
+      } catch (error) {
+          console.error("Error during teacher data migration:", error);
+          toast({
+            title: "Migration Error",
+            description: "Could not sync all teacher profiles. Some may be missing.",
+            variant: "destructive",
+          });
+      }
+
+      // Now, set up the real-time listener on the /teachers collection
+      const q = query(collection(db, "teachers"));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const teachersData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        } as UserData));
+        setTeachers(teachersData);
+        setTeacherCount(snapshot.size);
+        setLoading(false);
+      }, (error) => {
         console.error("Error fetching teachers:", error);
         toast({
             title: "Error Fetching Teachers",
-            description: "You may not have permission to view this data. Please check your Firestore security rules.",
+            description: error.message || "Could not fetch teacher data.",
             variant: "destructive",
         });
         setLoading(false);
     });
+      return unsubscribe;
+    };
 
-    return () => unsubscribe();
+    let unsubscribe: (() => void) | undefined;
+    migrateAndFetchTeachers().then(unsub => {
+      if (unsub) {
+        unsubscribe = unsub;
+      }
+    });
+
+    return () => {
+        if (unsubscribe) {
+          unsubscribe();
+        }
+    };
   }, [toast]);
 
   const handleAddClick = () => {
