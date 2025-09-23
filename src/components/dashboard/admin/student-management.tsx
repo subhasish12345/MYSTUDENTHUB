@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, setDoc, serverTimestamp, where, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, setDoc, serverTimestamp, where, updateDoc, getDocs, getDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -72,26 +72,84 @@ export function StudentManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "students"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const studentsData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      } as StudentData));
-      setStudents(studentsData);
-      setStudentCount(snapshot.size);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching students:", error);
-      toast({
-        title: "Error Fetching Students",
-        description: "You may not have permission to view this data. Please check your Firestore security rules.",
-        variant: "destructive",
+    // This is a one-time migration logic to ensure data consistency
+    const migrateAndFetchStudents = async () => {
+      setLoading(true);
+      try {
+        const usersQuery = query(collection(db, "users"), where("role", "==", "student"));
+        const userDocs = await getDocs(usersQuery);
+
+        for (const userDoc of userDocs.docs) {
+            const userData = userDoc.data();
+            const studentDocRef = doc(db, "students", userDoc.id);
+            const studentDocSnap = await getDoc(studentDocRef);
+
+            if (!studentDocSnap.exists()) {
+                // If student profile doesn't exist, create it from user data
+                await setDoc(studentDocRef, {
+                    uid: userData.uid,
+                    email: userData.email,
+                    name: userData.name || "N/A",
+                    role: 'student',
+                    status: userData.status || "Active",
+                    createdAt: userData.createdAt || serverTimestamp(),
+                    // Add default empty values for other fields
+                    phone: userData.phone || "",
+                    reg_no: userData.reg_no || "",
+                    degree: userData.degree || "",
+                    stream: userData.stream || "",
+                    batch: userData.batch || "",
+                    start_year: userData.start_year || 0,
+                    end_year: userData.end_year || 0,
+                    createdBy: userData.createdBy || 'migration',
+                }, { merge: true });
+                console.log(`Migrated student: ${userDoc.id}`);
+            }
+        }
+      } catch (error) {
+          console.error("Error during student data migration:", error);
+          toast({
+            title: "Migration Error",
+            description: "Could not sync all student profiles. Some may be missing.",
+            variant: "destructive",
+          });
+      }
+
+      // Now, set up the real-time listener on the /students collection
+      const q = query(collection(db, "students"));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const studentsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        } as StudentData));
+        setStudents(studentsData);
+        setStudentCount(snapshot.size);
+        setLoading(false);
+      }, (error) => {
+        console.error("Error fetching students:", error);
+        toast({
+          title: "Error Fetching Students",
+          description: error.message || "Could not fetch student data.",
+          variant: "destructive",
+        });
+        setLoading(false);
       });
-      setLoading(false);
+      return unsubscribe;
+    };
+
+    let unsubscribe: (() => void) | undefined;
+    migrateAndFetchStudents().then(unsub => {
+      if (unsub) {
+        unsubscribe = unsub;
+      }
     });
 
-    return () => unsubscribe();
+    return () => {
+        if (unsubscribe) {
+          unsubscribe();
+        }
+    };
+
   }, [toast]);
 
   const handleAddClick = () => {
