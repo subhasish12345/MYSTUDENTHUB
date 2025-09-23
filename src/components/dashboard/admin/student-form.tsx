@@ -15,8 +15,14 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { StudentData } from "./student-management";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Degree } from "./degree-management";
+import { Stream } from "./stream-management";
+import { Batch } from "./batch-management";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name is required."),
@@ -25,7 +31,7 @@ const formSchema = z.object({
   reg_no: z.string().min(1, "Registration number is required."),
   degree: z.string().min(2, "Degree is required."),
   stream: z.string().min(2, "Stream is required."),
-  batch: z.string().min(4, "Batch is required, e.g., 2022-2026."),
+  batch: z.string().min(1, "Batch is required."),
   start_year: z.coerce.number().min(2000),
   end_year: z.coerce.number().min(2000),
 });
@@ -41,6 +47,28 @@ interface StudentFormProps {
 export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: StudentFormProps) {
   const { toast } = useToast();
   const isEditMode = !!existingStudentData;
+  
+  const [degrees, setDegrees] = useState<Degree[]>([]);
+  const [streams, setStreams] = useState<Stream[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
+
+  useEffect(() => {
+    const unsubDegrees = onSnapshot(collection(db, 'degrees'), snapshot => {
+      setDegrees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Degree)));
+    });
+    const unsubStreams = onSnapshot(collection(db, 'streams'), snapshot => {
+      setStreams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Stream)));
+    });
+    const unsubBatches = onSnapshot(collection(db, 'batches'), snapshot => {
+      setBatches(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Batch)));
+    });
+
+    return () => {
+      unsubDegrees();
+      unsubStreams();
+      unsubBatches();
+    }
+  }, []);
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(formSchema),
@@ -49,9 +77,9 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
       email: "",
       phone: "",
       reg_no: "",
-      degree: "B.Tech",
-      stream: "Computer Science",
-      batch: "2024-2028",
+      degree: "",
+      stream: "",
+      batch: "",
       start_year: new Date().getFullYear(),
       end_year: new Date().getFullYear() + 4,
     },
@@ -59,14 +87,25 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
 
   useEffect(() => {
     if (existingStudentData) {
-      form.reset(existingStudentData);
+      form.reset({
+        ...existingStudentData,
+        batch: existingStudentData.batch_id, // Map batch_id to batch field
+      });
     }
   }, [existingStudentData, form]);
 
 
   const handleFormSubmit = async (values: StudentFormValues) => {
     try {
-      await onSubmit(values, existingStudentData?.id);
+      // Map form `batch` (which is batch_id) to `batch_id` before submitting
+      const submissionValues = {
+        ...values,
+        batch_id: values.batch,
+      };
+      // @ts-ignore
+      delete submissionValues.batch;
+      // @ts-ignore
+      await onSubmit(submissionValues, existingStudentData?.id);
       if (!isEditMode) {
         form.reset();
       }
@@ -144,28 +183,49 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
               </FormItem>
             )}
           />
-          <FormField
+           <FormField
             control={form.control}
             name="degree"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Degree</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., B.Tech" {...field} />
-                </FormControl>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a degree" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {degrees.map(degree => (
+                      <SelectItem key={degree.id} value={degree.id}>{degree.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <FormField
+           <FormField
             control={form.control}
             name="stream"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Stream</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Computer Science" {...field} />
-                </FormControl>
+                 <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a stream" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                     {streams
+                      .filter(s => form.watch('degree') ? s.degreeId === form.watch('degree') : true)
+                      .map(stream => (
+                        <SelectItem key={stream.id} value={stream.id}>{stream.name}</SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -176,9 +236,18 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Batch</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., 2024-2028" {...field} />
-                </FormControl>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a batch" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {batches.map(batch => (
+                      <SelectItem key={batch.id} value={batch.id}>{batch.batch_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
