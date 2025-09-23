@@ -38,7 +38,6 @@ const studentSchema = baseSchema.extend({
   // For form handling, we'll take these as strings and convert them
   internships: z.string().optional(),
   courses: z.string().optional(),
-  // Student-specific university info
   campus: z.string().optional(),
   building: z.string().optional(),
   roomNo: z.string().optional(),
@@ -84,7 +83,8 @@ export function EditProfileForm({ onSubmit, isSubmitting, existingData, userRole
               if (Array.isArray(value)) {
                   defaultVals[key] = value.join(', ');
               } else {
-                  defaultVals[key] = value ?? ""; // Fallback to empty string if value is null/undefined
+                  // FIX: Use `?? ""` to ensure value is never null/undefined
+                  defaultVals[key] = value ?? "";
               }
           } else {
               defaultVals[key] = ""; // Initialize missing fields
