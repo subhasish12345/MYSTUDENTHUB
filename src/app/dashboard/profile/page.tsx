@@ -46,6 +46,7 @@ export default function ProfilePage() {
       if (docSnap.exists()) {
         const data = { id: docSnap.id, ...docSnap.data() } as ProfileData
         setProfileData(data);
+        // *** KEY SECTION 1: Fetch semesters only if the user is a student ***
         if (data.role === 'student') {
             await fetchSemesters(data.uid);
         }
@@ -279,8 +280,10 @@ export default function ProfilePage() {
               </Card>
             </div>
             
+            {/* *** KEY SECTION 2: The SemesterManagement component is rendered here ONLY FOR ADMINS *** */}
             {userRole === 'admin' && <SemesterManagement studentId={studentProfile.uid} onSemesterUpdate={fetchUserData} />}
 
+            {/* *** KEY SECTION 3: The fetched semesters are displayed here for ALL to see *** */}
             {semesters.length > 0 && (
                 <Card className="shadow-lg">
                     <CardHeader>

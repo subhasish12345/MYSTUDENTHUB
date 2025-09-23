@@ -86,6 +86,7 @@ export function SemesterManagement({ studentId, onSemesterUpdate }: { studentId:
 
     return (
         <>
+            {/* This is the card that only admins see */}
             <Card className="shadow-lg bg-secondary/50">
                 <CardHeader>
                     <CardTitle className="font-headline">Manage Semesters</CardTitle>
@@ -98,6 +99,7 @@ export function SemesterManagement({ studentId, onSemesterUpdate }: { studentId:
                 </CardFooter>
             </Card>
 
+            {/* This Sheet (slide-out form) is triggered by the button above */}
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                 <SheetContent>
                     <SheetHeader>
