@@ -16,7 +16,11 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { EditProfileForm, ProfileFormValues } from "@/components/dashboard/profile/edit-profile-form";
 import { useToast } from "@/hooks/use-toast";
-import { Semester, SemesterManagement } from "@/components/dashboard/profile/semester-management";
+import { Semester } from "@/components/dashboard/profile/semester-management";
+import { Degree } from "@/components/dashboard/admin/degree-management";
+import { Stream } from "@/components/dashboard/admin/stream-management";
+import { Batch } from "@/components/dashboard/admin/batch-management";
+
 
 type ProfileData = (StudentData | UserData) & { id: string };
 
@@ -29,6 +33,10 @@ export default function ProfilePage() {
   const [isClient, setIsClient] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [degreeMap, setDegreeMap] = useState<Record<string, string>>({});
+  const [streamMap, setStreamMap] = useState<Record<string, string>>({});
+  const [batchMap, setBatchMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setIsClient(true);
@@ -48,6 +56,7 @@ export default function ProfilePage() {
         setProfileData(data);
         if (data.role === 'student') {
             await fetchSemesters(data.uid);
+            await fetchAcademicData();
         }
       } else {
         console.error("No profile document found for UID:", user.uid, "in collection:", collectionName);
@@ -67,6 +76,25 @@ export default function ProfilePage() {
         setLoading(false);
     }
   };
+
+  const fetchAcademicData = async () => {
+    try {
+        const [degreeSnap, streamSnap, batchSnap] = await Promise.all([
+            getDocs(collection(db, 'degrees')),
+            getDocs(collection(db, 'streams')),
+            getDocs(collection(db, 'batches'))
+        ]);
+
+        setDegreeMap(degreeSnap.docs.reduce((acc, doc) => ({ ...acc, [doc.id]: doc.data().name }), {}));
+        setStreamMap(streamSnap.docs.reduce((acc, doc) => ({ ...acc, [doc.id]: doc.data().name }), {}));
+        setBatchMap(batchSnap.docs.reduce((acc, doc) => ({ ...acc, [doc.id]: doc.data().batch_name }), {}));
+
+    } catch (error) {
+        console.error("Error fetching academic data maps:", error);
+        toast({ title: "Error", description: "Could not load complete academic details.", variant: "destructive" });
+    }
+  };
+
 
   const fetchSemesters = async (studentId: string) => {
     try {
@@ -154,6 +182,7 @@ export default function ProfilePage() {
 
   const displayName = profileData.name || "User";
   const displayEmail = profileData.email || user?.email || "No email";
+  const displayDegree = isStudent ? (degreeMap[(profileData as StudentData).degree] || (profileData as StudentData).degree) : (profileData as UserData).designation;
 
   return (
     <>
@@ -168,7 +197,7 @@ export default function ProfilePage() {
             <div className="flex flex-col sm:flex-row justify-between sm:items-center">
                  <div>
                     <CardTitle className="font-headline text-3xl">{displayName}</CardTitle>
-                    <CardDescription className="text-lg">{isTeacher ? (profileData as UserData).designation : (profileData as StudentData).degree}</CardDescription>
+                    <CardDescription className="text-lg">{displayDegree}</CardDescription>
                 </div>
                  <Button className="mt-4 sm:mt-0" onClick={() => setIsSheetOpen(true)}>
                     <PenSquare className="mr-2 h-4 w-4" /> Edit Profile
@@ -206,9 +235,9 @@ export default function ProfilePage() {
                 </>}
                  {isStudent && studentProfile && <>
                     <InfoItem label="Registration No." value={studentProfile.reg_no} />
-                    <InfoItem label="Degree" value={studentProfile.degree} />
-                    <InfoItem label="Stream" value={studentProfile.stream} />
-                    <InfoItem label="Batch" value={studentProfile.batch} />
+                    <InfoItem label="Degree" value={degreeMap[studentProfile.degree] || studentProfile.degree} />
+                    <InfoItem label="Stream" value={streamMap[studentProfile.stream] || studentProfile.stream} />
+                    <InfoItem label="Batch" value={batchMap[studentProfile.batch_id] || studentProfile.batch_id} />
                     <InfoItem label="Start Year" value={studentProfile.start_year} />
                     <InfoItem label="End Year" value={studentProfile.end_year} />
                 </>}
