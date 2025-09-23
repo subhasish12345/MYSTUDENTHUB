@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -22,8 +23,8 @@ import { DocumentData } from "firebase/firestore";
 
 // Base schema for fields absolutely common to all roles
 const baseSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters."),
-  phone: z.string().min(10, "Phone number must be at least 10 digits."),
+  name: z.string().min(2, "Name must be at least 2 characters.").optional(),
+  phone: z.string().min(10, "Phone number must be at least 10 digits.").optional(),
   photoURL: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
   bio: z.string().max(500, "Bio should be less than 500 characters.").optional(),
   linkedin: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
@@ -35,9 +36,8 @@ const studentSchema = baseSchema.extend({
   address: z.string().optional(),
   portfolio: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
   emergencyContact: z.string().optional(),
-  // For form handling, we'll take these as strings and convert them
-  internships: z.string().optional(),
-  courses: z.string().optional(),
+  internships: z.string().optional(), // In form, it's a string, converted on submit
+  courses: z.string().optional(), // In form, it's a string, converted on submit
   campus: z.string().optional(),
   building: z.string().optional(),
   roomNo: z.string().optional(),
@@ -47,7 +47,6 @@ const studentSchema = baseSchema.extend({
 const teacherSchema = baseSchema.extend({
   specialization: z.string().optional(),
   qualification: z.string().optional(),
-  // Teacher-specific university info
   campus: z.string().optional(),
   building: z.string().optional(),
   roomNo: z.string().optional(),
@@ -77,17 +76,12 @@ export function EditProfileForm({ onSubmit, isSubmitting, existingData, userRole
     if (existingData) {
       const defaultVals: { [key: string]: any } = {};
       Object.keys(formSchema.shape).forEach(key => {
-          if (key in existingData) {
-              const value = existingData[key];
-              // Convert arrays back to comma-separated strings for the form
-              if (Array.isArray(value)) {
-                  defaultVals[key] = value.join(', ');
-              } else {
-                  // FIX: Use `?? ""` to ensure value is never null/undefined
-                  defaultVals[key] = value ?? "";
-              }
+          const value = existingData[key];
+          if (Array.isArray(value)) {
+              defaultVals[key] = value.join(', ');
           } else {
-              defaultVals[key] = ""; // Initialize missing fields
+              // Ensure value is never null/undefined for form inputs
+              defaultVals[key] = value ?? ""; 
           }
       });
       form.reset(defaultVals);

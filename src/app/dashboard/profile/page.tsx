@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 type ProfileData = (StudentData | UserData) & { id: string };
 
 export default function ProfilePage() {
-  const { user, userRole } = useAuth();
+  const { user, userRole, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,21 +35,29 @@ export default function ProfilePage() {
   }, []);
   
   const fetchUserData = async () => {
-    if (!user) return;
+    if (!user || !userRole) return;
     setLoading(true);
 
-    const userDocRef = doc(db, "users", user.uid);
+    const collectionName = userRole === 'student' ? 'students' : 'teachers';
+    const userDocRef = doc(db, collectionName, user.uid);
     
     try {
       const docSnap = await getDoc(userDocRef);
       if (docSnap.exists()) {
         setProfileData({ id: docSnap.id, ...docSnap.data() } as ProfileData);
       } else {
-        console.error("No profile document found for UID:", user.uid, "in collection: users");
-        setProfileData(null);
+        console.error("No profile document found for UID:", user.uid, "in collection:", collectionName);
+        // Let's create a scaffold doc if one doesn't exist
+        await setDoc(userDocRef, { uid: user.uid, email: user.email, createdAt: serverTimestamp() }, { merge: true });
+        const newDocSnap = await getDoc(userDocRef);
+        if(newDocSnap.exists()) {
+          setProfileData({ id: newDocSnap.id, ...newDocSnap.data() } as ProfileData);
+          toast({ title: "Profile Initialized", description: "Your profile was created. Please fill in your details."});
+        }
       }
     } catch (error) {
        console.error("Error fetching user data:", error);
+       toast({ title: "Error", description: "Could not fetch your profile data.", variant: "destructive" });
        setProfileData(null);
     } finally {
         setLoading(false);
@@ -57,21 +65,25 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    if (user && isClient) {
-      fetchUserData();
-    } else if (isClient && !user) {
-      setLoading(false);
+    if (isClient && !authLoading) {
+      if (user && userRole) {
+        fetchUserData();
+      } else {
+        // If there's no user or role after auth has loaded, we can stop loading.
+        setLoading(false);
+      }
     }
-  }, [user, isClient]);
+  }, [user, userRole, isClient, authLoading]);
 
   const handleProfileUpdate = async (values: ProfileFormValues) => {
-    if (!user) {
+    if (!user || !userRole) {
         toast({ title: "Error", description: "You must be logged in to update your profile.", variant: "destructive" });
         return;
     }
     setIsSubmitting(true);
     try {
-        const userDocRef = doc(db, "users", user.uid);
+        const collectionName = userRole === 'student' ? 'students' : 'teachers';
+        const userDocRef = doc(db, collectionName, user.uid);
         
         // Transform comma-separated strings to arrays
         const updateValues: DocumentData = { ...values };
@@ -98,7 +110,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (!isClient || loading) {
+  if (!isClient || authLoading || loading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-6">
@@ -125,19 +137,23 @@ export default function ProfilePage() {
   const isStudent = userRole === 'student';
   const studentProfile = isStudent ? profileData as StudentData : null;
 
+  // Make sure we have a fallback for name to avoid crashes
+  const displayName = profileData.name || "User";
+  const displayEmail = profileData.email || user?.email || "No email";
+
   return (
     <>
     <div className="space-y-8">
       <Card className="shadow-lg">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6">
           <Avatar className="h-24 w-24 border-4 border-primary">
-            <AvatarImage src={profileData.photoURL} alt={profileData.name} data-ai-hint="person face" />
-            <AvatarFallback className="text-3xl">{profileData.name?.substring(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarImage src={profileData.photoURL} alt={displayName} data-ai-hint="person face" />
+            <AvatarFallback className="text-3xl">{displayName?.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="flex-1">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center">
                  <div>
-                    <CardTitle className="font-headline text-3xl">{profileData.name}</CardTitle>
+                    <CardTitle className="font-headline text-3xl">{displayName}</CardTitle>
                     <CardDescription className="text-lg">{isTeacher ? (profileData as UserData).designation : (profileData as StudentData).degree}</CardDescription>
                 </div>
                  <Button className="mt-4 sm:mt-0" onClick={() => setIsSheetOpen(true)}>
@@ -145,7 +161,7 @@ export default function ProfilePage() {
                 </Button>
             </div>
             <div className="flex items-center gap-4 mt-4 text-muted-foreground">
-                <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> {profileData.email}</div>
+                <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> {displayEmail}</div>
                 {profileData.phone && <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> {profileData.phone}</div>}
             </div>
           </div>
@@ -166,10 +182,10 @@ export default function ProfilePage() {
                     <InfoItem label="Department" value={(profileData as UserData).department} />
                     <InfoItem label="Qualification" value={(profileData as UserData).qualification} />
                     <InfoItem label="Specialization" value={(profileData as UserData).specialization} />
-                    <InfoItem label="Experience" value={`${(profileData as UserData).experienceYears} years`} />
+                    <InfoItem label="Experience" value={(profileData as UserData).experienceYears ? `${(profileData as UserData).experienceYears} years` : undefined} />
                     <InfoItem label="Employee ID" value={(profileData as UserData).employeeId} />
                      <InfoItem label="Status">
-                        <Badge variant={profileData.status === 'Active' ? 'default' : 'secondary'}>{profileData.status}</Badge>
+                        {profileData.status && <Badge variant={profileData.status === 'Active' ? 'default' : 'secondary'}>{profileData.status}</Badge>}
                     </InfoItem>
                     <div className="md:col-span-2">
                          <InfoItem label="Subjects" value={(profileData as UserData).subjects?.join(', ')} />
@@ -246,8 +262,8 @@ export default function ProfilePage() {
                       <CardTitle className="font-headline flex items-center gap-2"><GraduationCap /> Courses & Internships</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4 text-sm">
-                        <InfoItem label="Courses" value={Array.isArray(studentProfile?.courses) ? studentProfile?.courses.join(', ') : studentProfile?.courses || "Not provided"} />
-                        <InfoItem label="Internships" value={Array.isArray(studentProfile?.internships) ? studentProfile?.internships.join(', ') : studentProfile?.internships || "Not provided"} />
+                        <InfoItem label="Courses" value={Array.isArray(studentProfile?.courses) ? studentProfile.courses.join(', ') : studentProfile?.courses || "Not provided"} />
+                        <InfoItem label="Internships" value={Array.isArray(studentProfile?.internships) ? studentProfile.internships.join(', ') : studentProfile?.internships || "Not provided"} />
                     </CardContent>
                 </Card>
               </div>
@@ -289,15 +305,11 @@ export default function ProfilePage() {
 }
 
 const InfoItem = ({ label, value, children }: { label: string; value?: string | number | null; children?: React.ReactNode }) => {
-    if (!value && !children) return null;
+    if (value === undefined && !children) return null;
     return (
         <div className="grid grid-cols-2 items-start">
             <p className="font-semibold text-muted-foreground">{label}</p>
-            {value ? <p className="whitespace-pre-wrap">{value}</p> : children}
+            {value ? <p className="whitespace-pre-wrap">{value}</p> : (children || <p className="text-muted-foreground/70 italic">Not provided</p>)}
         </div>
     )
 }
-
-    
-
-    
