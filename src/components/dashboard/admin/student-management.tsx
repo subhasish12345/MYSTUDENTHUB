@@ -3,9 +3,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db, auth } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, setDoc, serverTimestamp, where, updateDoc } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StudentForm, StudentFormValues } from "./student-form";
 import { useAuth } from "@/hooks/use-auth";
+import { createUserAndProfile } from "@/lib/createUserAndProfile";
 
 
 export interface StudentData extends DocumentData {
@@ -71,7 +71,8 @@ export function StudentManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "users"), where("role", "==", "student"));
+    // Correctly query the /students collection
+    const q = query(collection(db, "students"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const studentsData = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -110,7 +111,8 @@ export function StudentManagement() {
   const confirmDelete = async () => {
     if (deletingStudentId) {
       try {
-        // We only delete from the /users collection as that's our single source of truth
+        // Delete from both collections
+        await deleteDoc(doc(db, "students", deletingStudentId));
         await deleteDoc(doc(db, "users", deletingStudentId));
         toast({
           title: "Success",
@@ -137,8 +139,8 @@ export function StudentManagement() {
 
     if (studentId) { // This is an update
       try {
-        const userDocRef = doc(db, "users", studentId);
-        await updateDoc(userDocRef, {
+        const studentDocRef = doc(db, "students", studentId);
+        await updateDoc(studentDocRef, {
           ...values,
           updatedAt: serverTimestamp(),
         });
@@ -163,30 +165,13 @@ export function StudentManagement() {
       const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
 
       try {
-          console.log("Step 1: Attempting to create user in Firebase Auth...");
-          // We don't create an auth user anymore in this flow to avoid complexities.
-          // We will create the user doc and they can be invited or sign up separately.
-          const tempId = doc(collection(db, "temp")).id; // Temporary ID for the document
-          const uid = tempId; // In a real app, this would come from Auth.
-          console.log("Step 1 Skipped: Manual auth creation needed. Using temp UID:", uid);
-
-          const userDocRef = doc(db, "users", uid);
-          await setDoc(userDocRef, {
-              uid: uid,
-              role: "student",
-              email: values.email, // This will be the primary key for lookup later
-              name: values.name,
-              phone: values.phone,
-              reg_no: values.reg_no,
-              degree: values.degree,
-              stream: values.stream,
-              batch: values.batch,
-              start_year: values.start_year,
-              end_year: values.end_year,
-              status: "Active",
-              createdBy: adminUser.uid,
-              createdAt: serverTimestamp(),
-              // Empty student-editable fields
+          await createUserAndProfile({
+            email: values.email,
+            password: password,
+            role: 'student',
+            initialProfile: {
+              ...values,
+              // Initialize all student-editable fields as empty strings or arrays
               linkedin: "",
               github: "",
               photoURL: "",
@@ -199,15 +184,15 @@ export function StudentManagement() {
               campus: "",
               building: "",
               roomNo: "",
+            },
+            adminUid: adminUser.uid,
           });
-          console.log("Step 2 Success: /users doc created.");
-
 
           toast({
               title: "Success",
               description: `Student profile created for ${values.email}.`,
           });
-           alert(`IMPORTANT: A profile for ${values.email} has been created, but not an authentication account. The user must sign up with this exact email to link their account.`);
+           alert(`IMPORTANT: A password for ${values.email} has been generated: ${password}. Please share this with the user securely.`);
           setIsSheetOpen(false);
 
       } catch (error: any) {
@@ -314,7 +299,7 @@ export function StudentManagement() {
           <SheetHeader>
             <SheetTitle>{editingStudent ? 'Edit Student Profile' : 'Create New Student Profile'}</SheetTitle>
             <SheetDescription>
-              {editingStudent ? "Update the student's profile information." : "This will create a student profile. The student needs to sign up separately."}
+              {editingStudent ? "Update the student's profile information." : "This will create a student profile and auth account."}
             </SheetDescription>
           </SheetHeader>
           <StudentForm
@@ -330,7 +315,7 @@ export function StudentManagement() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action deletes the student's profile from the /users collection. It does not remove their authentication account from Firebase Auth. This must be done manually.
+                    This action deletes the student's profile from the /students and /users collections. It does not remove their authentication account, which must be done manually.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

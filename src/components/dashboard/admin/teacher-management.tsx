@@ -2,9 +2,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db, auth } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, setDoc, updateDoc } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, updateDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Roles } from "@/lib/roles";
+import { useAuth } from "@/hooks/use-auth";
+import { createUserAndProfile } from "@/lib/createUserAndProfile";
 
 export interface UserData extends DocumentData {
   id: string;
@@ -48,6 +49,7 @@ export interface UserData extends DocumentData {
 }
 
 export function TeacherManagement() {
+  const { user: adminUser } = useAuth();
   const [teachers, setTeachers] = useState<UserData[]>([]);
   const [teacherCount, setTeacherCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,8 @@ export function TeacherManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "users"), where("role", "==", "teacher"));
+    // Correctly query the /teachers collection
+    const q = query(collection(db, "teachers"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const teachersData = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -98,7 +101,10 @@ export function TeacherManagement() {
   const confirmDelete = async () => {
     if (deletingTeacherId) {
       try {
+        // As per the hybrid model, we delete from both collections.
+        await deleteDoc(doc(db, "teachers", deletingTeacherId));
         await deleteDoc(doc(db, "users", deletingTeacherId));
+
         toast({
           title: "Success",
           description: "Teacher record deleted. Remember to delete from Firebase Auth manually.",
@@ -121,8 +127,9 @@ export function TeacherManagement() {
     
     if (teacherId) { // This is an update
       try {
-        const userDocRef = doc(db, "users", teacherId);
-        await updateDoc(userDocRef, {
+        // For updates, we write to the /teachers collection
+        const teacherDocRef = doc(db, "teachers", teacherId);
+        await updateDoc(teacherDocRef, {
           ...values,
           updatedAt: serverTimestamp(),
         });
@@ -142,19 +149,22 @@ export function TeacherManagement() {
         setIsSubmitting(false);
       }
     } else { // This is a new creation
+      if (!adminUser) {
+        toast({ title: "Authentication Error", description: "Admin user not found.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+      
       const last4 = values.phone.slice(-4);
       const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
       
       try {
-        const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
-        const user = userCredential.user;
-
-        await setDoc(doc(db, "users", user.uid), {
-          ...values,
-          uid: user.uid,
+        await createUserAndProfile({
+          email: values.email,
+          password: password,
           role: 'teacher',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          initialProfile: values,
+          adminUid: adminUser.uid,
         });
 
         toast({
@@ -164,8 +174,8 @@ export function TeacherManagement() {
         alert(`IMPORTANT: Password for ${values.email} is ${password}. Please share this with the user.`);
         setIsSheetOpen(false);
 
-      } catch (authError: any) {
-         if (authError.code === 'auth/email-already-in-use') {
+      } catch (error: any) {
+         if (error.code === 'auth/email-already-in-use') {
            toast({
               title: "Creation Failed",
               description: "This email is already in use by another account.",
@@ -174,7 +184,7 @@ export function TeacherManagement() {
          } else {
            toast({
               title: "Error",
-              description: authError.message || "Failed to create user account.",
+              description: error.message || "Failed to create user account.",
               variant: "destructive",
           });
          }
@@ -300,7 +310,7 @@ export function TeacherManagement() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action deletes the teacher's profile from the users collection. It does not remove their authentication account, which must be done manually.
+                    This action deletes the teacher's profile from the /teachers and /users collections. It does not remove their authentication account, which must be done manually.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -312,5 +322,3 @@ export function TeacherManagement() {
     </>
   );
 }
-
-    
