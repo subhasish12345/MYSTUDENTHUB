@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEffect } from "react";
+import type { StudentData } from "./student-management";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name is required."),
@@ -32,12 +33,15 @@ const formSchema = z.object({
 export type StudentFormValues = z.infer<typeof formSchema>;
 
 interface StudentFormProps {
-  onSubmit: (values: StudentFormValues) => Promise<void>;
+  onSubmit: (values: StudentFormValues, studentId?: string) => Promise<void>;
   isSubmitting: boolean;
+  existingStudentData?: StudentData | null;
 }
 
-export function StudentForm({ onSubmit, isSubmitting }: StudentFormProps) {
+export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: StudentFormProps) {
   const { toast } = useToast();
+  const isEditMode = !!existingStudentData;
+
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -53,10 +57,19 @@ export function StudentForm({ onSubmit, isSubmitting }: StudentFormProps) {
     },
   });
 
+  useEffect(() => {
+    if (existingStudentData) {
+      form.reset(existingStudentData);
+    }
+  }, [existingStudentData, form]);
+
+
   const handleFormSubmit = async (values: StudentFormValues) => {
     try {
-      await onSubmit(values);
-      form.reset();
+      await onSubmit(values, existingStudentData?.id);
+      if (!isEditMode) {
+        form.reset();
+      }
     } catch (error: any) {
       toast({
         title: "Submission Error",
@@ -97,8 +110,10 @@ export function StudentForm({ onSubmit, isSubmitting }: StudentFormProps) {
                     type="email"
                     placeholder="e.g., priya.sharma@student.college.edu"
                     {...field}
+                    disabled={isEditMode}
                   />
                 </FormControl>
+                <FormDescription>The student will use this to log in. Cannot be changed after creation.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -197,7 +212,7 @@ export function StudentForm({ onSubmit, isSubmitting }: StudentFormProps) {
         </div>
         <div className="flex justify-end pt-4 border-t pr-1">
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating Account..." : "Create Student Account"}
+             {isSubmitting ? (isEditMode ? "Saving..." : "Creating...") : (isEditMode ? "Save Changes" : "Create Student Profile")}
           </Button>
         </div>
       </form>

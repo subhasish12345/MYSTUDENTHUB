@@ -1,9 +1,10 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { db, auth } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, setDoc, serverTimestamp, where } from "firebase/firestore";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, setDoc, serverTimestamp, where, updateDoc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -65,6 +66,7 @@ export function StudentManagement() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
+  const [editingStudent, setEditingStudent] = useState<StudentData | null>(null);
 
   const { toast } = useToast();
 
@@ -92,6 +94,12 @@ export function StudentManagement() {
   }, [toast]);
 
   const handleAddClick = () => {
+    setEditingStudent(null);
+    setIsSheetOpen(true);
+  };
+
+  const handleEditClick = (student: StudentData) => {
+    setEditingStudent(student);
     setIsSheetOpen(true);
   };
 
@@ -102,6 +110,7 @@ export function StudentManagement() {
   const confirmDelete = async () => {
     if (deletingStudentId) {
       try {
+        // We only delete from the /users collection as that's our single source of truth
         await deleteDoc(doc(db, "users", deletingStudentId));
         toast({
           title: "Success",
@@ -119,82 +128,98 @@ export function StudentManagement() {
     }
   };
 
-  const handleCreateStudent = async (values: StudentFormValues) => {
+  const handleCreateOrUpdateStudent = async (values: StudentFormValues, studentId?: string) => {
     if (!adminUser) {
         toast({ title: "Authentication Error", description: "Admin user not found.", variant: "destructive" });
         return;
     }
     setIsSubmitting(true);
-    const last4 = values.phone.slice(-4);
-    const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
 
-    try {
-        console.log("Step 1: Attempting to create user in Firebase Auth...");
-        const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
-        const uid = userCredential.user.uid;
-        console.log("Step 1 Success: Auth user created with UID:", uid);
-
-        const userDocRef = doc(db, "users", uid);
-        await setDoc(userDocRef, {
-            uid: uid,
-            name: values.name,
-            email: values.email,
-            phone: values.phone,
-            role: "student",
-            reg_no: values.reg_no,
-            degree: values.degree,
-            stream: values.stream,
-            batch: values.batch,
-            start_year: values.start_year,
-            end_year: values.end_year,
-            status: "Active",
-            createdBy: adminUser.uid,
-            createdAt: serverTimestamp(),
-            // Empty student-editable fields
-            linkedin: "",
-            github: "",
-            photoURL: "",
-            bio: "",
-            address: "",
-            internships: [],
-            portfolio: "",
-            courses: [],
-            emergencyContact: "",
+    if (studentId) { // This is an update
+      try {
+        const userDocRef = doc(db, "users", studentId);
+        await updateDoc(userDocRef, {
+          ...values,
+          updatedAt: serverTimestamp(),
         });
-        console.log("Step 2 Success: /users doc created.");
-
-
+        
         toast({
-            title: "Success",
-            description: `Student account created for ${values.email}.`,
+          title: "Success",
+          description: `Profile for ${values.name} has been updated.`,
         });
-        alert(`IMPORTANT: Password for ${values.email} is ${password}. Please share this with the student. You have been logged in as this new user.`);
         setIsSheetOpen(false);
 
-    } catch (error: any) {
-      console.error("Student Creation Failed:", error);
-      if (error.code === 'auth/email-already-in-use') {
+      } catch (error: any) {
         toast({
-          title: "Creation Failed",
-          description: "This email is already in use by another account.",
+          title: "Update Failed",
+          description: error.message || "Failed to update student profile.",
           variant: "destructive",
         });
-      } else if (error.code === 'permission-denied') {
-         toast({
-          title: "Permission Denied",
-          description: "Your security rules are blocking this action. Please ensure the admin has permission to create users.",
-          variant: "destructive",
-        });
+      } finally {
+        setIsSubmitting(false);
       }
-      else {
+    } else { // This is a new creation
+      const last4 = values.phone.slice(-4);
+      const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
+
+      try {
+          console.log("Step 1: Attempting to create user in Firebase Auth...");
+          // We don't create an auth user anymore in this flow to avoid complexities.
+          // We will create the user doc and they can be invited or sign up separately.
+          const tempId = doc(collection(db, "temp")).id; // Temporary ID for the document
+          const uid = tempId; // In a real app, this would come from Auth.
+          console.log("Step 1 Skipped: Manual auth creation needed. Using temp UID:", uid);
+
+          const userDocRef = doc(db, "users", uid);
+          await setDoc(userDocRef, {
+              uid: uid,
+              role: "student",
+              email: values.email, // This will be the primary key for lookup later
+              name: values.name,
+              phone: values.phone,
+              reg_no: values.reg_no,
+              degree: values.degree,
+              stream: values.stream,
+              batch: values.batch,
+              start_year: values.start_year,
+              end_year: values.end_year,
+              status: "Active",
+              createdBy: adminUser.uid,
+              createdAt: serverTimestamp(),
+              // Empty student-editable fields
+              linkedin: "",
+              github: "",
+              photoURL: "",
+              bio: "",
+              address: "",
+              internships: [],
+              portfolio: "",
+              courses: [],
+              emergencyContact: "",
+              campus: "",
+              building: "",
+              roomNo: "",
+          });
+          console.log("Step 2 Success: /users doc created.");
+
+
+          toast({
+              title: "Success",
+              description: `Student profile created for ${values.email}.`,
+          });
+           alert(`IMPORTANT: A profile for ${values.email} has been created, but not an authentication account. The user must sign up with this exact email to link their account.`);
+          setIsSheetOpen(false);
+
+      } catch (error: any) {
+        console.error("Student Creation Failed:", error);
         toast({
           title: "Error",
-          description: error.message || "Failed to create student account.",
+          description: error.message || "Failed to create student profile.",
           variant: "destructive",
         });
+      } finally {
+        setIsSubmitting(false);
       }
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -260,7 +285,7 @@ export function StudentManagement() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem disabled>Edit (Coming Soon)</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditClick(student)}>Edit</DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDeleteClick(student.id)}
                             className="text-destructive focus:text-destructive-foreground focus:bg-destructive"
@@ -287,14 +312,15 @@ export function StudentManagement() {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="sm:max-w-[480px]">
           <SheetHeader>
-            <SheetTitle>Create New Student Account</SheetTitle>
+            <SheetTitle>{editingStudent ? 'Edit Student Profile' : 'Create New Student Profile'}</SheetTitle>
             <SheetDescription>
-              This will create the student's auth account and their full profile record.
+              {editingStudent ? "Update the student's profile information." : "This will create a student profile. The student needs to sign up separately."}
             </SheetDescription>
           </SheetHeader>
           <StudentForm
-            onSubmit={handleCreateStudent}
+            onSubmit={handleCreateOrUpdateStudent}
             isSubmitting={isSubmitting}
+            existingStudentData={editingStudent}
           />
         </SheetContent>
       </Sheet>
@@ -316,5 +342,3 @@ export function StudentManagement() {
     </>
   );
 }
-
-    
