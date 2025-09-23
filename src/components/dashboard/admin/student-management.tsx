@@ -196,7 +196,9 @@ export function StudentManagement() {
   }, [filters, searchTerm, students]);
 
   const handleFilterChange = (filterName: 'degree' | 'stream' | 'batch', value: string) => {
-    const newFilters = { ...filters, [filterName]: value };
+    const finalValue = value === 'all' ? '' : value;
+    const newFilters = { ...filters, [filterName]: finalValue };
+    
     // Reset child filters if parent changes
     if (filterName === 'degree') {
       newFilters.stream = '';
@@ -347,7 +349,7 @@ export function StudentManagement() {
                         <SelectValue placeholder="Filter by Degree" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">All Degrees</SelectItem>
+                        <SelectItem value="all">All Degrees</SelectItem>
                         {degrees.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
@@ -356,7 +358,7 @@ export function StudentManagement() {
                         <SelectValue placeholder="Filter by Stream" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">All Streams</SelectItem>
+                        <SelectItem value="all">All Streams</SelectItem>
                         {streams.filter(s => s.degreeId === filters.degree).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
@@ -365,7 +367,7 @@ export function StudentManagement() {
                         <SelectValue placeholder="Filter by Batch" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">All Batches</SelectItem>
+                        <SelectItem value="all">All Batches</SelectItem>
                         {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.batch_name}</SelectItem>)}
                     </SelectContent>
                 </Select>
