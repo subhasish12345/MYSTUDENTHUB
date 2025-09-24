@@ -71,7 +71,7 @@ export default function ProfileSetupPage() {
         reg_no,
         degree,
         stream,
-        batch,
+        batch_id: batch,
         start_year: parseInt(start_year, 10),
         end_year: parseInt(end_year, 10),
         status: "Active",
