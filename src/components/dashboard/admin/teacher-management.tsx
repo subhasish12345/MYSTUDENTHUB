@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -213,8 +214,8 @@ export function TeacherManagement() {
         await createUserAndProfile({
           email: values.email,
           password: password,
-          role: 'teacher',
-          initialProfile: values,
+          role: 'teacher', // Correctly specify the role
+          initialProfile: values, // Pass the form values as the profile
           adminUid: adminUser.uid,
         });
 
