@@ -94,7 +94,6 @@ export function StudentManagement() {
   const fetchStudents = async () => {
       setLoading(true);
       
-      // The onSnapshot listener will handle fetching and real-time updates.
       const q = query(collection(db, "students"));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const studentsData = snapshot.docs.map((doc) => ({
@@ -440,7 +439,7 @@ unsubBatches();
                   />
                 </TabsContent>
                 <TabsContent value="semesters">
-                   <SemesterManagement studentId={editingStudent.id} onSemesterUpdate={() => {}}/>
+                   <SemesterManagement student={editingStudent} onSemesterUpdate={fetchStudents}/>
                 </TabsContent>
               </Tabs>
             ) : (

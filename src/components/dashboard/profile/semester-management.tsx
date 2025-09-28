@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -6,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp, DocumentData } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, DocumentData, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
@@ -16,6 +15,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { StudentData } from "../admin/student-management";
 
 export interface Semester extends DocumentData {
     id: string;
@@ -40,7 +40,7 @@ const formSchema = z.object({
 
 type SemesterFormValues = z.infer<typeof formSchema>;
 
-export function SemesterManagement({ studentId, onSemesterUpdate }: { studentId: string; onSemesterUpdate: () => void }) {
+export function SemesterManagement({ student, onSemesterUpdate }: { student: StudentData; onSemesterUpdate: () => void }) {
     const { user: adminUser } = useAuth();
     const { toast } = useToast();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -48,8 +48,12 @@ export function SemesterManagement({ studentId, onSemesterUpdate }: { studentId:
     
     const form = useForm<SemesterFormValues>({
         resolver: zodResolver(formSchema),
-        defaultValues: { semester_no: 1, section: "A", subjects: "", labs: "", roomNo: "" },
+        defaultValues: { semester_no: 1, section: student.section || "A", subjects: "", labs: "", roomNo: "" },
     });
+
+     useEffect(() => {
+        form.reset({ semester_no: 1, section: student.section || "A", subjects: "", labs: "", roomNo: "" });
+    }, [student, form]);
 
     const handleFormSubmit = async (values: SemesterFormValues) => {
         if (!adminUser) {
@@ -58,27 +62,55 @@ export function SemesterManagement({ studentId, onSemesterUpdate }: { studentId:
         }
         setIsSubmitting(true);
         try {
-            const semesterId = `sem-${values.semester_no}`;
-            const semesterDocRef = doc(db, "students", studentId, "semesters", semesterId);
+            // Find all students in the same degree, stream, batch, and section
+            const studentsQuery = query(
+                collection(db, "students"),
+                where("degree", "==", student.degree),
+                where("stream", "==", student.stream),
+                where("batch_id", "==", student.batch_id),
+                where("section", "==", values.section)
+            );
 
+            const querySnapshot = await getDocs(studentsQuery);
+            if (querySnapshot.empty) {
+                toast({ title: "Warning", description: "No students found matching this academic group.", variant: "destructive" });
+                setIsSubmitting(false);
+                return;
+            }
+
+            const batch = writeBatch(db);
+            const semesterId = `sem-${values.semester_no}`;
             const semesterData = {
-                ...values,
+                semester_no: values.semester_no,
+                section: values.section,
                 subjects: values.subjects.split(',').map(s => s.trim()).filter(Boolean),
                 labs: values.labs?.split(',').map(s => s.trim()).filter(Boolean) || [],
-                sgpa: values.sgpa || null,
+                roomNo: values.roomNo || "",
+                // SGPA is student-specific, so we don't batch-update it unless it's the current student's form
+                sgpa: null, 
                 createdAt: serverTimestamp(),
                 createdBy: adminUser.uid,
             };
-            
-            await setDoc(semesterDocRef, semesterData);
 
-            toast({ title: "Success", description: `Semester ${values.semester_no} has been added.` });
+            querySnapshot.forEach((studentDoc) => {
+                const semesterDocRef = doc(db, "students", studentDoc.id, "semesters", semesterId);
+                let finalSemesterData = { ...semesterData };
+                // Only apply the SGPA to the specific student this form was opened for
+                if (studentDoc.id === student.id && values.sgpa) {
+                    finalSemesterData.sgpa = values.sgpa;
+                }
+                batch.set(semesterDocRef, finalSemesterData, { merge: true });
+            });
+
+            await batch.commit();
+
+            toast({ title: "Success", description: `Semester ${values.semester_no} has been added/updated for ${querySnapshot.size} student(s).` });
             form.reset();
             setIsSheetOpen(false);
-            onSemesterUpdate();
+            onSemesterUpdate(); // This will trigger a re-fetch in the parent component
         } catch (error: any) {
-            console.error("Error adding semester:", error);
-            toast({ title: "Error", description: error.message || "Failed to add semester.", variant: "destructive" });
+            console.error("Error batch-adding semester:", error);
+            toast({ title: "Error", description: error.message || "Failed to add semester to the group.", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -86,25 +118,27 @@ export function SemesterManagement({ studentId, onSemesterUpdate }: { studentId:
 
     return (
         <>
-            {/* This is the card that only admins see */}
             <Card className="shadow-lg bg-secondary/50">
                 <CardHeader>
                     <CardTitle className="font-headline">Manage Semesters</CardTitle>
-                    <CardDescription>As an admin, you can add academic semesters for this student.</CardDescription>
+                    <CardDescription>
+                        Define curriculum for this student's academic group (Batch, Stream, Section). This will apply to all students in the same group.
+                    </CardDescription>
                 </CardHeader>
                 <CardFooter>
                     <Button onClick={() => setIsSheetOpen(true)}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add Semester
+                        <PlusCircle className="mr-2 h-4 w-4" /> Add/Update Semester for Group
                     </Button>
                 </CardFooter>
             </Card>
 
-            {/* This Sheet (slide-out form) is triggered by the button above */}
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                 <SheetContent>
                     <SheetHeader>
-                        <SheetTitle>Add New Semester</SheetTitle>
-                        <SheetDescription>Fill in the details for the student's new semester.</SheetDescription>
+                        <SheetTitle>Add/Update Group Semester</SheetTitle>
+                        <SheetDescription>
+                            Define semester details for all students in Batch: {student.batch_id}, Section: {form.getValues('section')}.
+                        </SheetDescription>
                     </SheetHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6 py-4 max-h-[80vh] overflow-y-auto pr-4">
@@ -146,13 +180,14 @@ export function SemesterManagement({ studentId, onSemesterUpdate }: { studentId:
                             <FormField control={form.control} name="sgpa" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>SGPA (Optional)</FormLabel>
-                                <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                                 <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                                <FormDescription>This SGPA will only be applied to {student.name}. It will not be batch-applied.</FormDescription>
                                 <FormMessage />
                                 </FormItem>
                             )} />
                              <div className="flex justify-end pt-4">
                                 <Button type="submit" disabled={isSubmitting}>
-                                    {isSubmitting ? "Saving..." : "Save Semester"}
+                                    {isSubmitting ? "Saving..." : "Save Semester for Group"}
                                 </Button>
                             </div>
                         </form>
