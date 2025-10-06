@@ -99,12 +99,7 @@ export function SemesterManagement({
             );
 
             const querySnapshot = await getDocs(studentsQuery);
-            if (querySnapshot.empty) {
-                toast({ title: "Warning", description: "No students found matching this academic group.", variant: "destructive" });
-                setIsSubmitting(false);
-                return;
-            }
-
+            
             const batch = writeBatch(db);
             const semesterId = `sem-${values.semester_no}`;
             const semesterData = {
@@ -118,20 +113,34 @@ export function SemesterManagement({
                 createdAt: serverTimestamp(),
                 createdBy: adminUser.uid,
             };
-
-            querySnapshot.forEach((studentDoc) => {
-                const semesterDocRef = doc(db, "students", studentDoc.id, "semesters", semesterId);
-                let finalSemesterData = { ...semesterData };
-                // Only apply the SGPA to the specific student this form was opened for
-                if (studentDoc.id === student.id && values.sgpa) {
+            
+            if (querySnapshot.empty) {
+                 // Even if no other students are found, add it for the current student.
+                const semesterDocRef = doc(db, "students", student.id, "semesters", semesterId);
+                 let finalSemesterData = { ...semesterData };
+                 if (values.sgpa) {
                     finalSemesterData.sgpa = values.sgpa;
                 }
                 batch.set(semesterDocRef, finalSemesterData, { merge: true });
-            });
+                
+                toast({ title: "Success", description: `Semester ${values.semester_no} has been added for ${student.name}.` });
+            } else {
+                querySnapshot.forEach((studentDoc) => {
+                    const semesterDocRef = doc(db, "students", studentDoc.id, "semesters", semesterId);
+                    let finalSemesterData = { ...semesterData };
+                    // Only apply the SGPA to the specific student this form was opened for
+                    if (studentDoc.id === student.id && values.sgpa) {
+                        finalSemesterData.sgpa = values.sgpa;
+                    }
+                    batch.set(semesterDocRef, finalSemesterData, { merge: true });
+                });
+                
+                toast({ title: "Success", description: `Semester ${values.semester_no} has been added/updated for ${querySnapshot.size} student(s).` });
+            }
+
 
             await batch.commit();
 
-            toast({ title: "Success", description: `Semester ${values.semester_no} has been added/updated for ${querySnapshot.size} student(s).` });
             form.reset();
             setIsSheetOpen(false);
             onSemesterUpdate(); // This will trigger a re-fetch in the parent component
