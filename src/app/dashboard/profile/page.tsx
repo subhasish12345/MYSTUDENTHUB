@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, DocumentData, orderBy, query } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, DocumentData, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { PenSquare, Mail, Phone, Building, GraduationCap, Briefcase, Linkedin, Github, Home, FileText, BriefcaseBusiness, ShieldAlert, BookOpen } from "lucide-react";
+import { PenSquare, Mail, Phone, Building, GraduationCap, Briefcase, Linkedin, Github, Home, FileText, BriefcaseBusiness, ShieldAlert, BookOpen, Percent } from "lucide-react";
 import { StudentData } from "@/components/dashboard/admin/student-management";
 import { UserData } from "@/components/dashboard/admin/teacher-management";
 
@@ -20,15 +20,31 @@ import { Semester } from "@/components/dashboard/profile/semester-management";
 import { Degree } from "@/components/dashboard/admin/degree-management";
 import { Stream } from "@/components/dashboard/admin/stream-management";
 import { Batch } from "@/components/dashboard/admin/batch-management";
+import { Progress } from "@/components/ui/progress";
 
 
 type ProfileData = (StudentData | UserData) & { id: string };
+
+interface AttendanceRecord {
+    id: string;
+    present: string[];
+    absent: string[];
+}
+
+interface SemesterWithAttendance extends Semester {
+    attendance?: {
+        total: number;
+        attended: number;
+        percentage: number;
+    };
+}
+
 
 export default function ProfilePage() {
   const { user, userRole, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
-  const [semesters, setSemesters] = useState<Semester[]>([]);
+  const [semesters, setSemesters] = useState<SemesterWithAttendance[]>([]);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -55,11 +71,11 @@ export default function ProfilePage() {
         const data = { id: docSnap.id, ...docSnap.data() } as ProfileData
         setProfileData(data);
         if (data.role === 'student') {
-            await fetchSemesters(data.uid);
-            await fetchAcademicData();
+            await fetchAcademicDataAndSemesters(data as StudentData);
         }
       } else {
         console.error("No profile document found for UID:", user.uid, "in collection:", collectionName);
+        // Fallback for profile initialization
         const scaffoldData = { uid: user.uid, email: user.email, createdAt: serverTimestamp() };
         await setDoc(userDocRef, scaffoldData, { merge: true });
         const newDocSnap = await getDoc(userDocRef);
@@ -77,7 +93,7 @@ export default function ProfilePage() {
     }
   };
 
-  const fetchAcademicData = async () => {
+  const fetchAcademicDataAndSemesters = async (studentData: StudentData) => {
     try {
         const [degreeSnap, streamSnap, batchSnap] = await Promise.all([
             getDocs(collection(db, 'degrees')),
@@ -85,26 +101,40 @@ export default function ProfilePage() {
             getDocs(collection(db, 'batches'))
         ]);
 
-        setDegreeMap(degreeSnap.docs.reduce((acc, doc) => ({ ...acc, [doc.id]: doc.data().name }), {}));
-        setStreamMap(streamSnap.docs.reduce((acc, doc) => ({ ...acc, [doc.id]: doc.data().name }), {}));
-        setBatchMap(batchSnap.docs.reduce((acc, doc) => ({ ...acc, [doc.id]: doc.data().batch_name }), {}));
+        const degrees = degreeSnap.docs.reduce((acc, doc) => ({ ...acc, [doc.id]: doc.data().name }), {});
+        const streams = streamSnap.docs.reduce((acc, doc) => ({ ...acc, [doc.id]: doc.data().name }), {});
+        const batches = batchSnap.docs.reduce((acc, doc) => ({ ...acc, [doc.id]: doc.data().batch_name }), {});
+
+        setDegreeMap(degrees);
+        setStreamMap(streams);
+        setBatchMap(batches);
+
+        const semestersQuery = query(collection(db, "students", studentData.uid, "semesters"), orderBy("semester_no", "asc"));
+        const semestersSnapshot = await getDocs(semestersQuery);
+        const semesterData = semestersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Semester));
+        
+        const semestersWithAttendance = await Promise.all(semesterData.map(async (sem) => {
+            const degreeName = degrees[studentData.degree] || studentData.degree;
+            const streamName = streams[studentData.stream] || studentData.stream;
+            const batchName = batches[studentData.batch_id] || studentData.batch_id;
+            const groupId = `${degreeName}_${streamName}_${batchName}_sem${sem.semester_no}_${sem.section}`.replace(/\s+/g, '_');
+            
+            const attendanceQuery = query(collection(db, `semesterGroups/${groupId}/attendance`));
+            const attendanceSnap = await getDocs(attendanceQuery);
+            
+            const attendanceRecords = attendanceSnap.docs.map(doc => doc.data() as AttendanceRecord);
+            const total = attendanceRecords.length;
+            const attended = attendanceRecords.filter(rec => rec.present.includes(studentData.uid)).length;
+            const percentage = total > 0 ? (attended / total) * 100 : 0;
+            
+            return { ...sem, attendance: { total, attended, percentage } };
+        }));
+
+        setSemesters(semestersWithAttendance);
 
     } catch (error) {
-        console.error("Error fetching academic data maps:", error);
-        toast({ title: "Error", description: "Could not load complete academic details.", variant: "destructive" });
-    }
-  };
-
-
-  const fetchSemesters = async (studentId: string) => {
-    try {
-        const semestersQuery = query(collection(db, "students", studentId, "semesters"), orderBy("semester_no", "asc"));
-        const querySnapshot = await getDocs(semestersQuery);
-        const semesterData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Semester));
-        setSemesters(semesterData);
-    } catch (error) {
-        console.error("Error fetching semesters: ", error);
-        toast({ title: "Error", description: "Could not fetch semester data.", variant: "destructive" });
+        console.error("Error fetching academic or attendance data:", error);
+        toast({ title: "Error", description: "Could not load complete academic or attendance details.", variant: "destructive" });
     }
   };
 
@@ -117,6 +147,7 @@ export default function ProfilePage() {
         setLoading(false);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, userRole, isClient, authLoading]);
 
   const handleProfileUpdate = async (values: ProfileFormValues) => {
@@ -325,6 +356,21 @@ export default function ProfilePage() {
                                     <InfoItem label="Labs" value={Array.isArray(sem.labs) ? sem.labs.join(', ') : sem.labs} />
                                     <InfoItem label="Room No." value={sem.roomNo} />
                                  </CardContent>
+                                  {sem.attendance && (
+                                     <CardFooter className="flex-col items-start gap-2 pt-4 border-t">
+                                        <div className="flex items-center gap-2 font-semibold">
+                                            <Percent className="h-4 w-4" />
+                                            Attendance
+                                        </div>
+                                         <div className="w-full space-y-1">
+                                             <div className="flex justify-between text-xs text-muted-foreground">
+                                                 <span>{sem.attendance.attended} / {sem.attendance.total} classes attended</span>
+                                                 <span>{sem.attendance.percentage.toFixed(1)}%</span>
+                                            </div>
+                                             <Progress value={sem.attendance.percentage} className="h-2" />
+                                         </div>
+                                     </CardFooter>
+                                 )}
                              </Card>
                         ))}
                     </CardContent>
@@ -375,5 +421,3 @@ const InfoItem = ({ label, value, children }: { label: string; value?: string | 
         </div>
     )
 }
-
-    
