@@ -22,9 +22,8 @@ service cloud.firestore {
     }
 
     function isTeacher() {
-      return isSignedIn() &&
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher');
+      // Check if a user is a teacher by looking for their UID in the /teachers collection
+      return isSignedIn() && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
     }
 
     // USER-RELATED COLLECTIONS
@@ -122,3 +121,4 @@ export function FirestoreRules() {
         </div>
     );
 }
+

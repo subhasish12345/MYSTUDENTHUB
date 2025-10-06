@@ -5,10 +5,11 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, DocumentData, doc, getDoc } from "firebase/firestore";
 import { NoticeFormValues } from "./notice-form";
 import { revalidatePath } from "next/cache";
+import { Roles } from "@/lib/roles";
 
 interface CreateNoticeParams extends NoticeFormValues {
     postedBy: string;
-    userRole: 'admin' | 'teacher';
+    userRole: Roles;
 }
 
 export async function createNotice(data: CreateNoticeParams) {
@@ -17,7 +18,9 @@ export async function createNotice(data: CreateNoticeParams) {
     // Fetch the user's name from either the 'teachers' or 'users' collection
     let postedByName = "Unknown";
     try {
-        const userDocRef = doc(db, userRole === 'teacher' ? 'teachers' : 'users', postedBy);
+        // Admins are in 'users', Teachers are in 'teachers'. This logic correctly fetches their name.
+        const collectionName = userRole === 'teacher' ? 'teachers' : 'users';
+        const userDocRef = doc(db, collectionName, postedBy);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
             postedByName = userDoc.data().name || "Admin User";
@@ -55,3 +58,4 @@ export async function createNotice(data: CreateNoticeParams) {
 
     revalidatePath("/dashboard/notice-board");
 }
+
