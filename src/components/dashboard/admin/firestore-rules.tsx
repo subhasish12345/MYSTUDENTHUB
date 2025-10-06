@@ -14,11 +14,7 @@ service cloud.firestore {
       return request.auth != null; 
     }
     
-    // Corrected isAdmin function. It now primarily relies on a custom claim, 
-    // which is the secure and standard way to handle roles.
-    // The fallback to a document read was causing circular permission errors.
     function isAdmin() {
-      // This is the correct way to check a role from a Firestore document.
       // The user must have permission to read their own /users document for this to work.
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
@@ -30,42 +26,32 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      // THIS IS THE KEY FIX: Allow a user to read their own document.
-      // This breaks the circular dependency in the isAdmin() check.
       allow read:   if isSignedIn() && request.auth.uid == userId;
-      // Admins can write to any user doc, users can create their own during setup.
       allow write: if isAdmin() || (request.resource.data.uid == request.auth.uid);
-      // Only admins can list all users.
       allow list: if isAdmin();
     }
 
     match /teachers/{teacherId} {
       allow read: if isSignedIn();
       allow list: if isAdmin() || isTeacher();
-      allow create: if isAdmin(); // Only admins can create new teachers
-      allow update: if isAdmin() || request.auth.uid == teacherId; // Admin or the teacher themselves
+      allow create: if isAdmin();
+      allow update: if isAdmin() || request.auth.uid == teacherId;
       allow delete: if isAdmin();
     }
 
     match /students/{studentId} {
       allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-      // This `list` rule is CRITICAL for admins to be able to query the student collection
-      // when creating semester groups. This was a primary source of the error.
       allow list: if isAdmin() || isTeacher();
-      // Allow creation by admin OR by a user creating their own profile
       allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
-      allow update: if isAdmin() || request.auth.uid == studentId; // Admin or the student themselves
+      allow update: if isAdmin() || request.auth.uid == studentId;
       allow delete: if isAdmin();
 
-      // This rule is CRITICAL for allowing the batch write to succeed.
-      // Admins need permission to write to this subcollection for any student.
       match /semesters/{semesterId} {
         allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-        allow write: if isAdmin(); // Only admins can add/edit/delete semesters for a student
+        allow write: if isAdmin();
       }
     }
     
-
     // ACADEMIC STRUCTURE COLLECTIONS (Admin-only write access)
     match /degrees/{degreeId} {
       allow read: if isSignedIn();
@@ -83,7 +69,6 @@ service cloud.firestore {
     }
 
     // SEMESTER GROUPS for Attendance/Assignments (Admin write, Teacher/Admin read)
-    // This rule is CRITICAL for allowing the admin to create the group document.
     match /semesterGroups/{groupId} {
         allow read: if isAdmin() || isTeacher();
         allow list: if isAdmin() || isTeacher();
