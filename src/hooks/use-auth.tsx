@@ -44,10 +44,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           
           if (userDoc.exists()) {
             const baseUserData = userDoc.data();
-            setUserRole(baseUserData.role as Roles);
+            const role = baseUserData.role as Roles;
+            setUserRole(role);
 
             // Fetch the detailed profile from the role-specific collection
-            const profileCollection = baseUserData.role === 'student' ? 'students' : 'teachers';
+            const profileCollection = role === 'student' ? 'students' : (role === 'teacher' ? 'teachers' : 'users');
             const profileDocRef = doc(db, profileCollection, user.uid);
             const profileDoc = await getDoc(profileDocRef);
 
@@ -55,10 +56,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setUserData(profileDoc.data());
             } else {
                 // If the detailed profile doesn't exist, use the base user data
+                // This might happen during initial profile setup
                 setUserData(baseUserData);
             }
 
           } else {
+            // This case handles a newly signed-up user who hasn't completed profile setup
             setUserRole(null);
             setUserData(null);
           }

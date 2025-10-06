@@ -13,40 +13,34 @@ service cloud.firestore {
     function isSignedIn() { 
       return request.auth != null; 
     }
-    
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
       // Any signed-in user can create their own user document during profile setup.
       allow create: if isSignedIn() && request.auth.uid == userId;
-      // Users can read their own data. Admins can read anyone's data.
-      allow get: if isOwner(userId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      // Only Admins can list all users.
-      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      // Only Admins can update or delete user roles.
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Allow users to read their own user document. This is crucial for role checks.
+      allow get: if isSignedIn() && request.auth.uid == userId;
+      // Only admins can read the full list of users or update/delete them.
+      allow list, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /teachers/{teacherId} {
       allow get: if isSignedIn();
       allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || isOwner(teacherId);
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == teacherId;
       allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /students/{studentId} {
       allow get: if isSignedIn();
       allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
-      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || isOwner(studentId);
-      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || isOwner(studentId);
+      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (isSignedIn() && request.auth.uid == studentId);
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == studentId;
       allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
       match /semesters/{semesterId} {
-        allow read: if isOwner(studentId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+        allow read: if isSignedIn() && (request.auth.uid == studentId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher');
         allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       }
     }
@@ -81,18 +75,21 @@ service cloud.firestore {
     // NOTICE BOARD
     match /notices/{noticeId} {
       allow list, read: if isSignedIn();
-      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.postedBy == request.auth.uid);
+      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' 
+                      || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' 
+                              || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.postedBy == request.auth.uid);
     }
   }
 }
-`;
+`
+.trim();
 
 export function FirestoreRules() {
     const [hasCopied, setHasCopied] = useState(false);
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(rules.trim());
+        navigator.clipboard.writeText(rules);
         setHasCopied(true);
         setTimeout(() => setHasCopied(false), 2000);
     };
@@ -110,7 +107,7 @@ export function FirestoreRules() {
             </Button>
             <pre className="text-sm whitespace-pre-wrap font-mono">
                 <code>
-                    {rules.trim()}
+                    {rules}
                 </code>
             </pre>
         </div>
