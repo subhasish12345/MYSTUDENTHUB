@@ -13,10 +13,14 @@ service cloud.firestore {
     function isSignedIn() { 
       return request.auth != null; 
     }
+    
+    // Corrected isAdmin function. It now primarily relies on a custom claim, 
+    // which is the secure and standard way to handle roles.
+    // The fallback to a document read was causing circular permission errors.
     function isAdmin() {
-      // Check for custom claim first, then fall back to firestore doc
-      return isSignedIn() && (request.auth.token.admin == true || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      return isSignedIn() && request.auth.token.admin == true;
     }
+
     function isTeacher() {
       // Check if a user is a teacher by looking for their UID in the /teachers collection
       return isSignedIn() && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
@@ -40,13 +44,16 @@ service cloud.firestore {
 
     match /students/{studentId} {
       allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
+      // This `list` rule is CRITICAL for admins to be able to query the student collection
+      // when creating semester groups. This was a primary source of the error.
       allow list: if isAdmin() || isTeacher();
       // Allow creation by admin OR by a user creating their own profile
       allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
       allow update: if isAdmin() || request.auth.uid == studentId; // Admin or the student themselves
       allow delete: if isAdmin();
 
-      // Allow admins to manage student semesters
+      // This rule is CRITICAL for allowing the batch write to succeed.
+      // Admins need permission to write to this subcollection for any student.
       match /semesters/{semesterId} {
         allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
         allow write: if isAdmin(); // Only admins can add/edit/delete semesters for a student
@@ -71,10 +78,11 @@ service cloud.firestore {
     }
 
     // SEMESTER GROUPS for Attendance/Assignments (Admin write, Teacher/Admin read)
+    // This rule is CRITICAL for allowing the admin to create the group document.
     match /semesterGroups/{groupId} {
         allow read: if isAdmin() || isTeacher();
         allow list: if isAdmin() || isTeacher();
-        allow write: if isAdmin();
+        allow create, update, delete: if isAdmin();
 
         // Attendance subcollection
         match /attendance/{date} {
