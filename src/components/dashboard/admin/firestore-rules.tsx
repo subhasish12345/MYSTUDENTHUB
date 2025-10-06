@@ -18,7 +18,9 @@ service cloud.firestore {
     // which is the secure and standard way to handle roles.
     // The fallback to a document read was causing circular permission errors.
     function isAdmin() {
-      return isSignedIn() && request.auth.token.admin == true;
+      // This is the correct way to check a role from a Firestore document.
+      // The user must have permission to read their own /users document for this to work.
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     function isTeacher() {
@@ -28,10 +30,13 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      allow read:   if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      // Admins can create/update/delete any user doc.
-      // Users can create their own doc during profile setup.
+      // THIS IS THE KEY FIX: Allow a user to read their own document.
+      // This breaks the circular dependency in the isAdmin() check.
+      allow read:   if isSignedIn() && request.auth.uid == userId;
+      // Admins can write to any user doc, users can create their own during setup.
       allow write: if isAdmin() || (request.resource.data.uid == request.auth.uid);
+      // Only admins can list all users.
+      allow list: if isAdmin();
     }
 
     match /teachers/{teacherId} {
