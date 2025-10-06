@@ -22,8 +22,9 @@ service cloud.firestore {
     }
 
     function isTeacher() {
-      // Check if a user is a teacher by looking for their UID in the /teachers collection
-      return isSignedIn() && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+      return isSignedIn() &&
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher');
     }
 
     // USER-RELATED COLLECTIONS
@@ -43,14 +44,14 @@ service cloud.firestore {
 
     match /students/{studentId} {
       allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-      allow list: if isAdmin(); // Admin can query the list of all students
+      allow list: if isAdmin() || isTeacher(); 
       allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
       allow update: if isAdmin() || request.auth.uid == studentId;
       allow delete: if isAdmin();
 
       match /semesters/{semesterId} {
         allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-        allow write: if isAdmin(); // Admin can add/edit semesters for students
+        allow write: if isAdmin();
       }
     }
     
@@ -74,13 +75,20 @@ service cloud.firestore {
     match /semesterGroups/{groupId} {
         allow read: if isAdmin() || isTeacher();
         allow list: if isAdmin() || isTeacher();
-        allow write: if isAdmin(); // Allow admin to create/update/delete groups
+        allow write: if isAdmin();
 
-        // Attendance subcollection
         match /attendance/{date} {
           allow read: if isSignedIn();
           allow write: if isTeacher() || isAdmin();
         }
+    }
+
+    // NOTICE BOARD
+    match /notices/{noticeId} {
+      allow read: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isAdmin() || isTeacher();
+      allow update, delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
     }
   }
 }

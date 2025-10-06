@@ -19,7 +19,8 @@ import {
   Settings,
   LogOut,
   GraduationCap,
-  ClipboardCheck
+  ClipboardCheck,
+  Megaphone
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -27,6 +28,7 @@ import { useAuth } from "@/hooks/use-auth";
 
 const allMenuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/notice-board", label: "Notice Board", icon: Megaphone },
   { href: "/dashboard/events", label: "Events", icon: Calendar },
   { href: "/dashboard/assignments", label: "Assignments", icon: BookOpen },
   { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck, teacherOnly: true },
