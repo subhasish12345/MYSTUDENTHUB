@@ -238,7 +238,6 @@ export default function ProfilePage() {
                     <InfoItem label="Degree" value={degreeMap[studentProfile.degree] || studentProfile.degree} />
                     <InfoItem label="Stream" value={streamMap[studentProfile.stream] || studentProfile.stream} />
                     <InfoItem label="Batch" value={batchMap[studentProfile.batch_id] || studentProfile.batch_id} />
-                    <InfoItem label="Section" value={studentProfile.section} />
                     <InfoItem label="Start Year" value={studentProfile.start_year} />
                     <InfoItem label="End Year" value={studentProfile.end_year} />
                 </>}

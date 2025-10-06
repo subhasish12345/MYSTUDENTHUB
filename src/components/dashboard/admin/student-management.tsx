@@ -46,7 +46,6 @@ export interface StudentData extends DocumentData {
   degree: string;
   stream: string;
   batch_id: string;
-  section: string;
   start_year: number;
   end_year: number;
   status: "Active" | "Suspended" | "Graduated";
@@ -80,13 +79,12 @@ export function StudentManagement() {
   const [degrees, setDegrees] = useState<Degree[]>([]);
   const [streams, setStreams] = useState<Stream[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
-  const [sections, setSections] = useState<string[]>([]);
   const [degreeMap, setDegreeMap] = useState<Record<string, string>>({});
   const [streamMap, setStreamMap] = useState<Record<string, string>>({});
   const [batchMap, setBatchMap] = useState<Record<string, string>>({});
 
   const [filteredStudents, setFilteredStudents] = useState<StudentData[]>([]);
-  const [filters, setFilters] = useState({ degree: '', stream: '', batch: '', section: '' });
+  const [filters, setFilters] = useState({ degree: '', stream: '', batch: '' });
   const [searchTerm, setSearchTerm] = useState('');
 
   const { toast } = useToast();
@@ -101,7 +99,6 @@ export function StudentManagement() {
           ...doc.data(),
         } as StudentData));
         setStudents(studentsData);
-        setSections([...new Set(studentsData.map(s => s.section).filter(Boolean))].sort());
         setLoading(false);
       }, (error) => {
         console.error("Error fetching students:", error);
@@ -159,9 +156,6 @@ unsubBatches();
     if (filters.batch) {
       result = result.filter(s => s.batch_id === filters.batch);
     }
-    if (filters.section) {
-      result = result.filter(s => s.section === filters.section);
-    }
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
       result = result.filter(s => 
@@ -172,7 +166,7 @@ unsubBatches();
     setFilteredStudents(result);
   }, [filters, searchTerm, students]);
 
-  const handleFilterChange = (filterName: 'degree' | 'stream' | 'batch' | 'section', value: string) => {
+  const handleFilterChange = (filterName: 'degree' | 'stream' | 'batch', value: string) => {
     const finalValue = value === 'all' ? '' : value;
     const newFilters = { ...filters, [filterName]: finalValue };
     
@@ -346,15 +340,6 @@ unsubBatches();
                         {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.batch_name}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                <Select value={filters.section} onValueChange={(value) => handleFilterChange('section', value)}>
-                    <SelectTrigger className="w-full md:w-[120px]">
-                        <SelectValue placeholder="Section" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Sections</SelectItem>
-                        {sections.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    </SelectContent>
-                </Select>
             </div>
           <Table>
             <TableHeader>
@@ -362,8 +347,7 @@ unsubBatches();
                 <TableHead>Name</TableHead>
                 <TableHead>Degree</TableHead>
                 <TableHead>Batch</TableHead>
-                <TableHead>Section</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -373,8 +357,7 @@ unsubBatches();
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-8" /></TableCell>
                   </TableRow>
                 ))
               ) : filteredStudents.length > 0 ? (
@@ -383,8 +366,7 @@ unsubBatches();
                     <TableCell className="font-medium">{student.name}</TableCell>
                     <TableCell>{degreeMap[student.degree] || 'N/A'}</TableCell>
                     <TableCell>{batchMap[student.batch_id] || 'N/A'}</TableCell>
-                    <TableCell>{student.section || 'N/A'}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">
@@ -407,7 +389,7 @@ unsubBatches();
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24">
+                  <TableCell colSpan={4} className="text-center h-24">
                     No students found matching your criteria.
                   </TableCell>
                 </TableRow>

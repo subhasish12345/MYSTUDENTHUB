@@ -32,7 +32,6 @@ const formSchema = z.object({
   degree: z.string().min(1, "Degree is required."),
   stream: z.string().min(1, "Stream is required."),
   batch: z.string().min(1, "Batch is required."),
-  section: z.string().min(1, "Section is required."),
   start_year: z.coerce.number().min(2000),
   end_year: z.coerce.number().min(2000),
 });
@@ -81,7 +80,6 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
       degree: "",
       stream: "",
       batch: "",
-      section: "",
       start_year: new Date().getFullYear(),
       end_year: new Date().getFullYear() + 4,
     },
@@ -97,7 +95,6 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
         degree: existingStudentData.degree,
         stream: existingStudentData.stream,
         batch: existingStudentData.batch_id,
-        section: existingStudentData.section,
         start_year: existingStudentData.start_year,
         end_year: existingStudentData.end_year,
       });
@@ -110,7 +107,6 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
         degree: "",
         stream: "",
         batch: "",
-        section: "",
         start_year: new Date().getFullYear(),
         end_year: new Date().getFullYear() + 4,
       });
@@ -266,19 +262,6 @@ export function StudentForm({ onSubmit, isSubmitting, existingStudentData }: Stu
                     ))}
                   </SelectContent>
                 </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-           <FormField
-            control={form.control}
-            name="section"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Section</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., A, B, C..." {...field} />
-                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

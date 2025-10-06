@@ -13,7 +13,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StudentData } from "../admin/student-management";
@@ -63,22 +63,22 @@ export function SemesterManagement({
         resolver: zodResolver(formSchema),
         defaultValues: { 
             semester_no: 1, 
-            section: student.section || "A", 
+            section: "A", 
             subjects: "", 
             labs: "", 
             roomNo: "", 
-            sgpa: undefined 
+            sgpa: undefined
         },
     });
 
      useEffect(() => {
         form.reset({
              semester_no: 1, 
-             section: student.section || "A", 
+             section: "A", 
              subjects: "", 
              labs: "", 
              roomNo: "", 
-             sgpa: undefined 
+             sgpa: undefined
         });
     }, [student, form]);
 
@@ -89,13 +89,11 @@ export function SemesterManagement({
         }
         setIsSubmitting(true);
         try {
-            // Find all students in the same degree, stream, batch, and section
             const studentsQuery = query(
                 collection(db, "students"),
                 where("degree", "==", student.degree),
                 where("stream", "==", student.stream),
-                where("batch_id", "==", student.batch_id),
-                where("section", "==", values.section)
+                where("batch_id", "==", student.batch_id)
             );
 
             const querySnapshot = await getDocs(studentsQuery);
@@ -108,42 +106,27 @@ export function SemesterManagement({
                 subjects: values.subjects.split(',').map(s => s.trim()).filter(Boolean),
                 labs: values.labs?.split(',').map(s => s.trim()).filter(Boolean) || [],
                 roomNo: values.roomNo || "",
-                // SGPA is student-specific, so we don't batch-update it unless it's the current student's form
                 sgpa: null, 
                 createdAt: serverTimestamp(),
                 createdBy: adminUser.uid,
             };
             
-            if (querySnapshot.empty) {
-                 // Even if no other students are found, add it for the current student.
-                const semesterDocRef = doc(db, "students", student.id, "semesters", semesterId);
-                 let finalSemesterData = { ...semesterData };
-                 if (values.sgpa) {
+            querySnapshot.forEach((studentDoc) => {
+                const semesterDocRef = doc(db, "students", studentDoc.id, "semesters", semesterId);
+                let finalSemesterData = { ...semesterData };
+                if (studentDoc.id === student.id && values.sgpa) {
                     finalSemesterData.sgpa = values.sgpa;
                 }
                 batch.set(semesterDocRef, finalSemesterData, { merge: true });
-                
-                toast({ title: "Success", description: `Semester ${values.semester_no} has been added for ${student.name}.` });
-            } else {
-                querySnapshot.forEach((studentDoc) => {
-                    const semesterDocRef = doc(db, "students", studentDoc.id, "semesters", semesterId);
-                    let finalSemesterData = { ...semesterData };
-                    // Only apply the SGPA to the specific student this form was opened for
-                    if (studentDoc.id === student.id && values.sgpa) {
-                        finalSemesterData.sgpa = values.sgpa;
-                    }
-                    batch.set(semesterDocRef, finalSemesterData, { merge: true });
-                });
-                
-                toast({ title: "Success", description: `Semester ${values.semester_no} has been added/updated for ${querySnapshot.size} student(s).` });
-            }
-
+            });
+            
+            toast({ title: "Success", description: `Semester ${values.semester_no} has been added/updated for ${querySnapshot.size} student(s).` });
 
             await batch.commit();
 
             form.reset();
             setIsSheetOpen(false);
-            onSemesterUpdate(); // This will trigger a re-fetch in the parent component
+            onSemesterUpdate();
         } catch (error: any) {
             console.error("Error batch-adding semester:", error);
             toast({ title: "Error", description: error.message || "Failed to add semester to the group.", variant: "destructive" });
@@ -176,7 +159,7 @@ export function SemesterManagement({
                     <SheetHeader>
                         <SheetTitle>Add/Update Group Semester</SheetTitle>
                         <SheetDescription>
-                           Define semester details for: <br/> <span className="font-semibold">{targetGroupDescription}</span>, Section: <span className="font-semibold">{form.watch('section')}</span>
+                           Define semester details for: <br/> <span className="font-semibold">{targetGroupDescription}</span>
                         </SheetDescription>
                     </SheetHeader>
                     <Form {...form}>
@@ -192,6 +175,7 @@ export function SemesterManagement({
                                 <FormItem>
                                 <FormLabel>Section</FormLabel>
                                 <FormControl><Input placeholder="e.g., A, B" {...field} /></FormControl>
+                                <FormDescription>This section will be applied to all students in this batch for this semester.</FormDescription>
                                 <FormMessage />
                                 </FormItem>
                             )} />
@@ -220,7 +204,7 @@ export function SemesterManagement({
                                 <FormItem>
                                 <FormLabel>SGPA for {student.name} (Optional)</FormLabel>
                                  <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                                <FormDescription>This SGPA will only be applied to {student.name}. It will not be batch-applied to other students.</FormDescription>
+                                <FormDescription>This SGPA will only be applied to {student.name}.</FormDescription>
                                 <FormMessage />
                                 </FormItem>
                             )} />
