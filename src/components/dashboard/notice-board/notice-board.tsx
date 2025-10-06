@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -78,10 +79,10 @@ export function NoticeBoard() {
 
 
     const handleCreateNotice = async (values: NoticeFormValues) => {
-        if (!user) return;
+        if (!user || !userRole) return;
         setIsSubmitting(true);
         try {
-            await createNotice({ ...values, postedBy: user.uid, postedByName: user.displayName || "Unknown" });
+            await createNotice({ ...values, postedBy: user.uid, userRole: userRole });
             toast({ title: "Success!", description: "Notice has been posted." });
             setIsSheetOpen(false);
         } catch (error: any) {
@@ -145,4 +146,5 @@ export function NoticeBoard() {
         </div>
     );
 }
+
 

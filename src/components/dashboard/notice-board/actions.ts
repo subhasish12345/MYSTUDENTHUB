@@ -2,17 +2,30 @@
 "use server";
 
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp, DocumentData } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, DocumentData, doc, getDoc } from "firebase/firestore";
 import { NoticeFormValues } from "./notice-form";
 import { revalidatePath } from "next/cache";
 
 interface CreateNoticeParams extends NoticeFormValues {
     postedBy: string;
-    postedByName: string;
+    userRole: 'admin' | 'teacher';
 }
 
 export async function createNotice(data: CreateNoticeParams) {
-    const { title, description, imageUrl, targetType, degree, stream, batch, postedBy, postedByName } = data;
+    const { title, description, imageUrl, targetType, degree, stream, batch, postedBy, userRole } = data;
+
+    // Fetch the user's name from either the 'teachers' or 'users' collection
+    let postedByName = "Unknown";
+    try {
+        const userDocRef = doc(db, userRole === 'teacher' ? 'teachers' : 'users', postedBy);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+            postedByName = userDoc.data().name || "Admin User";
+        }
+    } catch (e) {
+        console.error("Could not fetch user's name for notice:", e);
+    }
+
 
     const noticeData: DocumentData = {
         title,
