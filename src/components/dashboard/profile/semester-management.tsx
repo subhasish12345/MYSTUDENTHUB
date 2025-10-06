@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp, DocumentData, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, DocumentData, collection, query, where, getDocs, writeBatch, arrayUnion, updateDoc } from "firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
@@ -32,7 +31,7 @@ export interface Semester extends DocumentData {
 
 const formSchema = z.object({
     semester_no: z.coerce.number().min(1).max(12),
-    section: z.string().min(1, "Section is required."),
+    section: z.string().min(1, "Section is required.").trim(),
     subjects: z.string().min(1, "At least one subject is required."),
     labs: z.string().optional(),
     roomNo: z.string().optional(),
@@ -88,19 +87,56 @@ export function SemesterManagement({
             return;
         }
         setIsSubmitting(true);
+
+        const { degree, stream, batch_id } = student;
+        const semester_no = values.semester_no;
+        const section = values.section;
+
+        // 1. Build the group ID
+        const degreeName = degreeMap[degree] || degree;
+        const streamName = streamMap[stream] || stream;
+        const batchName = batchMap[batch_id] || batch_id;
+        const groupId = `${degreeName}_${streamName}_${batchName}_sem${semester_no}_${section}`.replace(/\s+/g, '_');
+
         try {
+            const batch = writeBatch(db);
+
+            // 2. Create/Update the group document in /semesterGroups
+            const groupRef = doc(db, "semesterGroups", groupId);
+            const groupData = {
+                groupId,
+                degree: degree,
+                stream: stream,
+                batch: batch_id,
+                section,
+                semester_no,
+                subjects: values.subjects.split(',').map(s => s.trim()).filter(Boolean),
+                labs: values.labs?.split(',').map(s => s.trim()).filter(Boolean) || [],
+                updatedAt: serverTimestamp(),
+            };
+            batch.set(groupRef, groupData, { merge: true });
+
+            // 3. Find all students belonging to this academic group
             const studentsQuery = query(
                 collection(db, "students"),
-                where("degree", "==", student.degree),
-                where("stream", "==", student.stream),
-                where("batch_id", "==", student.batch_id)
+                where("degree", "==", degree),
+                where("stream", "==", stream),
+                where("batch_id", "==", batch_id)
             );
 
             const querySnapshot = await getDocs(studentsQuery);
-            
-            const batch = writeBatch(db);
-            const semesterId = `sem-${values.semester_no}`;
-            const semesterData = {
+
+            if (querySnapshot.empty) {
+                toast({
+                    title: "No Students Found",
+                    description: "No students were found matching this academic group. Please check the student's profile.",
+                    variant: "destructive"
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
+            const semesterDocData = {
                 semester_no: values.semester_no,
                 section: values.section,
                 subjects: values.subjects.split(',').map(s => s.trim()).filter(Boolean),
@@ -110,19 +146,25 @@ export function SemesterManagement({
                 createdAt: serverTimestamp(),
                 createdBy: adminUser.uid,
             };
-            
+
+            // 4. Update each student's semester subcollection and add their UID to the group
             querySnapshot.forEach((studentDoc) => {
-                const semesterDocRef = doc(db, "students", studentDoc.id, "semesters", semesterId);
-                let finalSemesterData = { ...semesterData };
+                const semesterDocRef = doc(db, "students", studentDoc.id, "semesters", `sem-${semester_no}`);
+                
+                let finalSemesterData = { ...semesterDocData };
+
+                // Only apply SGPA to the student currently being edited, if provided
                 if (studentDoc.id === student.id && values.sgpa) {
                     finalSemesterData.sgpa = values.sgpa;
                 }
+                
                 batch.set(semesterDocRef, finalSemesterData, { merge: true });
+                batch.update(groupRef, { students: arrayUnion(studentDoc.id) });
             });
             
-            toast({ title: "Success", description: `Semester ${values.semester_no} has been added/updated for ${querySnapshot.size} student(s).` });
-
             await batch.commit();
+
+            toast({ title: "Success", description: `Semester ${values.semester_no} (Section ${section}) has been configured for ${querySnapshot.size} student(s).` });
 
             form.reset();
             setIsSheetOpen(false);
@@ -144,12 +186,12 @@ export function SemesterManagement({
                     <CardTitle className="font-headline">Manage Semesters</CardTitle>
 
                     <CardDescription>
-                        Define curriculum for this student's academic group. This will apply to all students in the same group.
+                        Define curriculum for a section. This applies the same semester details to all students in the target group: <br/> <span className="font-semibold">{targetGroupDescription}</span>
                     </CardDescription>
                 </CardHeader>
                 <CardFooter>
                     <Button onClick={() => setIsSheetOpen(true)}>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Add/Update Semester for Group
+                        <PlusCircle className="mr-2 h-4 w-4" /> Add/Update Group Semester
                     </Button>
                 </CardFooter>
             </Card>
@@ -203,8 +245,8 @@ export function SemesterManagement({
                             <FormField control={form.control} name="sgpa" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>SGPA for {student.name} (Optional)</FormLabel>
-                                 <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                                <FormDescription>This SGPA will only be applied to {student.name}.</FormDescription>
+                                 <FormControl><Input type="number" step="0.01" {...field} value={field.value ?? ''} /></FormControl>
+                                <FormDescription>This SGPA will only be applied to {student.name}. Others in the group will have SGPA set to null.</FormDescription>
                                 <FormMessage />
                                 </FormItem>
                             )} />

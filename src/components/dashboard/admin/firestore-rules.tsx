@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Check, Clipboard } from "lucide-react";
@@ -14,31 +13,30 @@ service cloud.firestore {
       return request.auth != null; 
     }
     function isAdmin() {
-      return isSignedIn() && (
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
-      );
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function isTeacher() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
     }
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      // Admins can create users, and users can create their own doc during profile setup.
-      allow create: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
       allow read:   if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      // Only admins can update role/status or delete the core user record.
-      allow update, delete: if isAdmin();
+      // Admins can create/update/delete any user doc.
+      // Users can create their own doc during profile setup.
+      allow write: if isAdmin() || (request.resource.data.uid == request.auth.uid);
     }
 
     match /teachers/{teacherId} {
       allow read: if isSignedIn();
-      allow list: if isAdmin();
+      allow list: if isAdmin() || isTeacher();
       allow create: if isAdmin(); // Only admins can create new teachers
       allow update: if isAdmin() || request.auth.uid == teacherId; // Admin or the teacher themselves
       allow delete: if isAdmin();
     }
 
     match /students/{studentId} {
-      allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin());
+      allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
       allow list: if isAdmin();
       // Allow creation by admin OR by a user creating their own profile
       allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
@@ -47,8 +45,8 @@ service cloud.firestore {
     }
 
     match /students/{studentId}/semesters/{semesterId} {
-      allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin());
-      allow write: if isAdmin(); // Only admins can add/edit/delete semesters
+      allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
+      allow write: if isAdmin(); // Only admins can add/edit/delete semesters for a student
     }
 
     // ACADEMIC STRUCTURE COLLECTIONS (Admin-only write access)
@@ -65,6 +63,12 @@ service cloud.firestore {
     match /batches/{batchId} {
       allow read: if isSignedIn();
       allow list, write: if isAdmin();
+    }
+
+    // SEMESTER GROUPS for Attendance/Assignments (Admin write, Teacher/Admin read)
+    match /semesterGroups/{groupId} {
+        allow read, list: if isAdmin() || isTeacher();
+        allow write: if isAdmin();
     }
   }
 }
