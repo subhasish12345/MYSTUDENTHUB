@@ -14,7 +14,8 @@ service cloud.firestore {
       return request.auth != null; 
     }
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Check for custom claim first, then fall back to firestore doc
+      return isSignedIn() && (request.auth.token.admin == true || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
     function isTeacher() {
       // Check if a user is a teacher by looking for their UID in the /teachers collection
@@ -39,7 +40,7 @@ service cloud.firestore {
 
     match /students/{studentId} {
       allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-      allow list: if isAdmin();
+      allow list: if isAdmin() || isTeacher();
       // Allow creation by admin OR by a user creating their own profile
       allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
       allow update: if isAdmin() || request.auth.uid == studentId; // Admin or the student themselves
@@ -69,7 +70,8 @@ service cloud.firestore {
 
     // SEMESTER GROUPS for Attendance/Assignments (Admin write, Teacher/Admin read)
     match /semesterGroups/{groupId} {
-        allow read, list: if isAdmin() || isTeacher();
+        allow read: if isAdmin() || isTeacher();
+        allow list: if isAdmin() || isTeacher();
         allow write: if isAdmin();
     }
 

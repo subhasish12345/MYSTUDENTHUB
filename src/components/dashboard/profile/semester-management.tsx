@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp, DocumentData, collection, query, where, getDocs, writeBatch, arrayUnion, updateDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, DocumentData, collection, query, where, getDocs, writeBatch, arrayUnion } from "firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
@@ -60,14 +60,7 @@ export function SemesterManagement({
     
     const form = useForm<SemesterFormValues>({
         resolver: zodResolver(formSchema),
-        defaultValues: { 
-            semester_no: 1, 
-            section: "A", 
-            subjects: "", 
-            labs: "", 
-            roomNo: "", 
-            sgpa: undefined
-        },
+        defaultValues: { semester_no: 1, section: "A", subjects: "", labs: "", roomNo: "", sgpa: undefined },
     });
 
      useEffect(() => {
@@ -125,16 +118,6 @@ export function SemesterManagement({
             );
 
             const querySnapshot = await getDocs(studentsQuery);
-
-            if (querySnapshot.empty) {
-                toast({
-                    title: "No Students Found",
-                    description: "No students were found matching this academic group. Please check the student's profile.",
-                    variant: "destructive"
-                });
-                setIsSubmitting(false);
-                return;
-            }
 
             const semesterDocData = {
                 semester_no: values.semester_no,
