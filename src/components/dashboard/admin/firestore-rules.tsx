@@ -14,86 +14,75 @@ service cloud.firestore {
       return request.auth != null; 
     }
     
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'admin';
-    }
-
-    function isTeacher() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'teacher';
-    }
-    
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      allow create: if isSignedIn();
-      // Allow users to read their own data, and admins to read any user's data
-      allow get:    if isOwner(userId) || isAdmin();
-      allow list:   if isAdmin();
-      allow update, delete: if isAdmin();
+      // Any signed-in user can create their own user document during profile setup.
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Users can read their own data. Admins can read anyone's data.
+      allow get: if isOwner(userId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Only Admins can list all users.
+      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Only Admins can update or delete user roles.
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /teachers/{teacherId} {
       allow get: if isSignedIn();
-      allow list: if isAdmin() || isTeacher();
-      allow create: if isAdmin();
-      allow update: if isAdmin() || isOwner(teacherId);
-      allow delete: if isAdmin();
+      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || isOwner(teacherId);
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /students/{studentId} {
       allow get: if isSignedIn();
-      allow list: if isAdmin() || isTeacher(); 
-      allow create: if isAdmin() || isOwner(studentId);
-      allow update: if isAdmin() || isOwner(studentId);
-      allow delete: if isAdmin();
+      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || isOwner(studentId);
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || isOwner(studentId);
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
       match /semesters/{semesterId} {
-        allow read: if isSignedIn() && (isOwner(studentId) || isAdmin() || isTeacher());
-        allow write: if isAdmin();
+        allow read: if isOwner(studentId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       }
     }
     
     // ACADEMIC STRUCTURE COLLECTIONS (Admin-only write access)
     match /degrees/{degreeId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /streams/{streamId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /batches/{batchId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // SEMESTER GROUPS for Attendance/Assignments
     match /semesterGroups/{groupId} {
-        allow read: if isAdmin() || isTeacher();
-        allow write: if isAdmin();
+        allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
         match /attendance/{date} {
           allow read: if isSignedIn();
-          allow write: if isTeacher() || isAdmin();
+          allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
         }
     }
 
     // NOTICE BOARD
     match /notices/{noticeId} {
       allow list, read: if isSignedIn();
-      // Allow create if user is an admin or a teacher.
-      allow create: if isAdmin() || isTeacher();
-      // Allow update/delete if user is admin, or if they are a teacher who owns the post.
-      allow update, delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
+      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.postedBy == request.auth.uid);
     }
   }
 }

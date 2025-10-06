@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 
 interface CreateNoticeParams extends NoticeFormValues {
     postedBy: string;
-    postedByName: string; // Name is now passed directly from the client
+    postedByName: string;
 }
 
 export async function createNotice(data: CreateNoticeParams) {
@@ -18,7 +18,7 @@ export async function createNotice(data: CreateNoticeParams) {
         title,
         description,
         postedBy,
-        postedByName, // Use the name passed from the client
+        postedByName,
         createdAt: serverTimestamp(),
         target: {
             type: targetType,
