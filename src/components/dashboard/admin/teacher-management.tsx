@@ -35,6 +35,7 @@ export interface UserData extends DocumentData {
   role: Roles;
   department?: string;
   subjects?: string[];
+  assignedGroups?: string[];
   status?: 'Active' | 'Retired' | 'Transferred';
   phone?: string;
   experienceYears?: number;
@@ -89,6 +90,7 @@ export function TeacherManagement() {
                     phone: userData.phone || "",
                     department: userData.department || "",
                     subjects: userData.subjects || [],
+                    assignedGroups: userData.assignedGroups || [],
                     designation: userData.designation || "",
                     employeeId: userData.employeeId || "",
                     experienceYears: userData.experienceYears || 0,

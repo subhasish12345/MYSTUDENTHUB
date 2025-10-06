@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Check, Clipboard } from "lucide-react";
@@ -16,7 +17,8 @@ service cloud.firestore {
       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     function isTeacher() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+      // Check if a user is a teacher by looking for their UID in the /teachers collection
+      return isSignedIn() && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
     }
 
     // USER-RELATED COLLECTIONS
@@ -69,6 +71,12 @@ service cloud.firestore {
     match /semesterGroups/{groupId} {
         allow read, list: if isAdmin() || isTeacher();
         allow write: if isAdmin();
+    }
+
+    // Attendance subcollection
+    match /semesterGroups/{groupId}/attendance/{date} {
+      allow read: if isSignedIn();
+      allow write: if isTeacher() || isAdmin();
     }
   }
 }

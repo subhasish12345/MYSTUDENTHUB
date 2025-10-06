@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -17,7 +18,8 @@ import {
   Timer,
   Settings,
   LogOut,
-  GraduationCap
+  GraduationCap,
+  ClipboardCheck
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -27,6 +29,7 @@ const allMenuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/events", label: "Events", icon: Calendar },
   { href: "/dashboard/assignments", label: "Assignments", icon: BookOpen },
+  { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck, teacherOnly: true },
   { href: "/dashboard/circles", label: "Circles", icon: Users },
   { href: "/dashboard/focus", label: "Focus Session", icon: Timer },
   { href: "/dashboard/admin", label: "Admin", icon: Settings, adminOnly: true },
@@ -36,7 +39,11 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const { userRole } = useAuth();
 
-  const menuItems = allMenuItems.filter(item => !item.adminOnly || userRole === "admin");
+  const menuItems = allMenuItems.filter(item => {
+    if (item.adminOnly) return userRole === "admin";
+    if (item.teacherOnly) return userRole === "teacher" || userRole === "admin";
+    return true;
+  });
 
   return (
     <Sidebar>

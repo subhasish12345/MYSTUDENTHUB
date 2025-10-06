@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -35,6 +36,7 @@ const formSchema = z.object({
   experienceYears: z.coerce.number().min(0, "Experience must be a positive number."),
   qualification: z.string().min(2, "Qualification is required."),
   specialization: z.string().optional(),
+  assignedGroups: z.string().optional(),
 
   // Meta / University Data
   campus: z.string().optional(),
@@ -74,6 +76,7 @@ export function TeacherForm({ onSubmit, isSubmitting, existingTeacherData }: Tea
         experienceYears: 0,
         qualification: "",
         specialization: "",
+        assignedGroups: "",
         campus: "",
         building: "",
         roomNo: "",
@@ -89,6 +92,7 @@ export function TeacherForm({ onSubmit, isSubmitting, existingTeacherData }: Tea
       form.reset({
         ...existingTeacherData,
         subjects: Array.isArray(existingTeacherData.subjects) ? existingTeacherData.subjects.join(', ') : '',
+        assignedGroups: Array.isArray(existingTeacherData.assignedGroups) ? existingTeacherData.assignedGroups.join(', ') : '',
         experienceYears: existingTeacherData.experienceYears || 0,
         // Ensure optional fields that might be undefined are handled
         specialization: existingTeacherData.specialization || "",
@@ -105,7 +109,11 @@ export function TeacherForm({ onSubmit, isSubmitting, existingTeacherData }: Tea
 
   const handleFormSubmit = async (values: TeacherFormValues) => {
     try {
-      await onSubmit(values, existingTeacherData?.id);
+      const submissionValues = {
+        ...values,
+        assignedGroups: values.assignedGroups ? values.assignedGroups.split(',').map(s => s.trim()).filter(Boolean) : []
+      };
+      await onSubmit(submissionValues as any, existingTeacherData?.id);
       if (!isEditMode) {
         form.reset();
       }
@@ -213,7 +221,23 @@ export function TeacherForm({ onSubmit, isSubmitting, existingTeacherData }: Tea
                         <Input placeholder="e.g., DSA, OS, DBMS" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value} />
                     </FormControl>
                      <FormDescription>
-                        Comma-separated list of subjects.
+                        Comma-separated list of subjects taught.
+                    </FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+             <FormField
+                control={form.control}
+                name="assignedGroups"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Assigned Group IDs</FormLabel>
+                    <FormControl>
+                        <Textarea placeholder="e.g., BTech_CSE_2022-2026_sem1_A, ..." {...field} />
+                    </FormControl>
+                     <FormDescription>
+                        Comma-separated list of semester group IDs this teacher manages.
                     </FormDescription>
                     <FormMessage />
                     </FormItem>
