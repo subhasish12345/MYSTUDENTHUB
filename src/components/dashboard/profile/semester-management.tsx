@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -40,7 +41,19 @@ const formSchema = z.object({
 
 type SemesterFormValues = z.infer<typeof formSchema>;
 
-export function SemesterManagement({ student, onSemesterUpdate }: { student: StudentData; onSemesterUpdate: () => void }) {
+export function SemesterManagement({ 
+    student, 
+    onSemesterUpdate,
+    degreeMap,
+    streamMap,
+    batchMap,
+}: { 
+    student: StudentData; 
+    onSemesterUpdate: () => void;
+    degreeMap: Record<string, string>;
+    streamMap: Record<string, string>;
+    batchMap: Record<string, string>;
+}) {
     const { user: adminUser } = useAuth();
     const { toast } = useToast();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -48,11 +61,25 @@ export function SemesterManagement({ student, onSemesterUpdate }: { student: Stu
     
     const form = useForm<SemesterFormValues>({
         resolver: zodResolver(formSchema),
-        defaultValues: { semester_no: 1, section: student.section || "A", subjects: "", labs: "", roomNo: "", sgpa: undefined },
+        defaultValues: { 
+            semester_no: 1, 
+            section: student.section || "A", 
+            subjects: "", 
+            labs: "", 
+            roomNo: "", 
+            sgpa: undefined 
+        },
     });
 
      useEffect(() => {
-        form.reset({ semester_no: 1, section: student.section || "A", subjects: "", labs: "", roomNo: "", sgpa: undefined });
+        form.reset({
+             semester_no: 1, 
+             section: student.section || "A", 
+             subjects: "", 
+             labs: "", 
+             roomNo: "", 
+             sgpa: undefined 
+        });
     }, [student, form]);
 
     const handleFormSubmit = async (values: SemesterFormValues) => {
@@ -115,6 +142,8 @@ export function SemesterManagement({ student, onSemesterUpdate }: { student: Stu
             setIsSubmitting(false);
         }
     };
+    
+    const targetGroupDescription = `${degreeMap[student.degree] || 'N/A'} > ${streamMap[student.stream] || 'N/A'} > ${batchMap[student.batch_id] || 'N/A'}`;
 
     return (
         <>
@@ -123,7 +152,7 @@ export function SemesterManagement({ student, onSemesterUpdate }: { student: Stu
                     <CardTitle className="font-headline">Manage Semesters</CardTitle>
 
                     <CardDescription>
-                        Define curriculum for this student's academic group (Batch, Stream, Section). This will apply to all students in the same group.
+                        Define curriculum for this student's academic group. This will apply to all students in the same group.
                     </CardDescription>
                 </CardHeader>
                 <CardFooter>
@@ -138,7 +167,7 @@ export function SemesterManagement({ student, onSemesterUpdate }: { student: Stu
                     <SheetHeader>
                         <SheetTitle>Add/Update Group Semester</SheetTitle>
                         <SheetDescription>
-                            Define semester details for all students in Batch: {student.batch_id}, Section: {form.getValues('section')}.
+                           Define semester details for: <br/> <span className="font-semibold">{targetGroupDescription}</span>, Section: <span className="font-semibold">{form.watch('section')}</span>
                         </SheetDescription>
                     </SheetHeader>
                     <Form {...form}>
@@ -180,9 +209,9 @@ export function SemesterManagement({ student, onSemesterUpdate }: { student: Stu
                             )} />
                             <FormField control={form.control} name="sgpa" render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>SGPA (Optional)</FormLabel>
+                                <FormLabel>SGPA for {student.name} (Optional)</FormLabel>
                                  <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
-                                <FormDescription>This SGPA will only be applied to {student.name}. It will not be batch-applied.</FormDescription>
+                                <FormDescription>This SGPA will only be applied to {student.name}. It will not be batch-applied to other students.</FormDescription>
                                 <FormMessage />
                                 </FormItem>
                             )} />
@@ -198,4 +227,3 @@ export function SemesterManagement({ student, onSemesterUpdate }: { student: Stu
         </>
     );
 }
-    

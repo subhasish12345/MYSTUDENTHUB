@@ -439,7 +439,13 @@ unsubBatches();
                   />
                 </TabsContent>
                 <TabsContent value="semesters">
-                   <SemesterManagement student={editingStudent} onSemesterUpdate={fetchStudents}/>
+                   <SemesterManagement 
+                    student={editingStudent} 
+                    onSemesterUpdate={fetchStudents}
+                    degreeMap={degreeMap}
+                    streamMap={streamMap}
+                    batchMap={batchMap}
+                    />
                 </TabsContent>
               </Tabs>
             ) : (
