@@ -48,11 +48,11 @@ export function SemesterManagement({ student, onSemesterUpdate }: { student: Stu
     
     const form = useForm<SemesterFormValues>({
         resolver: zodResolver(formSchema),
-        defaultValues: { semester_no: 1, section: student.section || "A", subjects: "", labs: "", roomNo: "" },
+        defaultValues: { semester_no: 1, section: student.section || "A", subjects: "", labs: "", roomNo: "", sgpa: undefined },
     });
 
      useEffect(() => {
-        form.reset({ semester_no: 1, section: student.section || "A", subjects: "", labs: "", roomNo: "" });
+        form.reset({ semester_no: 1, section: student.section || "A", subjects: "", labs: "", roomNo: "", sgpa: undefined });
     }, [student, form]);
 
     const handleFormSubmit = async (values: SemesterFormValues) => {
