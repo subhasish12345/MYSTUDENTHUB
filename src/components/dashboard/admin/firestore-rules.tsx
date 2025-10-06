@@ -89,7 +89,7 @@ service cloud.firestore {
 
     // NOTICE BOARD
     match /notices/{noticeId} {
-      allow read: if isSignedIn();
+      allow list, read: if isSignedIn();
       // Allow create if user is an admin or a teacher.
       allow create: if isAdmin() || isTeacher();
       // Allow update/delete if user is admin, or if they are a teacher who owns the post.
