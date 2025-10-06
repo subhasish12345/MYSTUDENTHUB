@@ -43,7 +43,7 @@ service cloud.firestore {
 
     match /students/{studentId} {
       allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-      allow list: if isAdmin() || isTeacher(); 
+      allow list: if isAdmin(); 
       allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
       allow update: if isAdmin() || request.auth.uid == studentId;
       allow delete: if isAdmin();
@@ -121,4 +121,3 @@ export function FirestoreRules() {
         </div>
     );
 }
-
