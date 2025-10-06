@@ -16,7 +16,9 @@ service cloud.firestore {
     
     function isAdmin() {
       // The user must have permission to read their own /users document for this to work.
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isSignedIn() && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
     function isTeacher() {
@@ -26,14 +28,14 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
+      allow create: if isSignedIn();
       allow read:   if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow write: if isAdmin() || (request.resource.data.uid == request.auth.uid);
-      allow list: if isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     match /teachers/{teacherId} {
       allow read: if isSignedIn();
-      allow list: if isAdmin() || isTeacher();
+      allow list: if isAdmin();
       allow create: if isAdmin();
       allow update: if isAdmin() || request.auth.uid == teacherId;
       allow delete: if isAdmin();
@@ -41,14 +43,14 @@ service cloud.firestore {
 
     match /students/{studentId} {
       allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-      allow list: if isAdmin() || isTeacher();
+      allow list: if isAdmin(); // Admin can query the list of all students
       allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
       allow update: if isAdmin() || request.auth.uid == studentId;
       allow delete: if isAdmin();
 
       match /semesters/{semesterId} {
         allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-        allow write: if isAdmin();
+        allow write: if isAdmin(); // Admin can add/edit semesters for students
       }
     }
     
@@ -68,11 +70,11 @@ service cloud.firestore {
       allow list, write: if isAdmin();
     }
 
-    // SEMESTER GROUPS for Attendance/Assignments (Admin write, Teacher/Admin read)
+    // SEMESTER GROUPS for Attendance/Assignments
     match /semesterGroups/{groupId} {
         allow read: if isAdmin() || isTeacher();
         allow list: if isAdmin() || isTeacher();
-        allow create, update, delete: if isAdmin();
+        allow write: if isAdmin(); // Allow admin to create/update/delete groups
 
         // Attendance subcollection
         match /attendance/{date} {
