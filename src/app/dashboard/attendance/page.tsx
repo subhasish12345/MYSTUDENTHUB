@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -10,15 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { UserData } from "@/components/dashboard/admin/teacher-management";
 import { StudentData } from "@/components/dashboard/admin/student-management";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AttendanceReport } from "@/components/dashboard/attendance/attendance-report";
+import { UserData } from "@/components/dashboard/admin/teacher-management";
+
 
 interface Group extends DocumentData {
     id: string;
@@ -52,26 +54,38 @@ export default function AttendancePage() {
     // Fetch Teacher's Assigned Groups
     useEffect(() => {
         const fetchTeacherData = async () => {
-            if (!user || userRole !== 'teacher') {
+            if (!user || userRole === 'student') {
                 setLoading(false);
                 return;
             }
             try {
-                const teacherDocRef = doc(db, "teachers", user.uid);
-                const teacherSnap = await getDoc(teacherDocRef);
-                if (teacherSnap.exists()) {
-                    const data = teacherSnap.data() as UserData;
+                const collectionName = userRole === 'admin' ? 'users' : 'teachers';
+                const userDocRef = doc(db, collectionName, user.uid);
+                const userSnap = await getDoc(userDocRef);
+                
+                if (userSnap.exists()) {
+                    const data = userSnap.data() as UserData;
                     setTeacherData(data);
-                    if (data.assignedGroups && data.assignedGroups.length > 0) {
-                        const groupsQuery = query(collection(db, "semesterGroups"), where("groupId", "in", data.assignedGroups));
+
+                    let groupsQuery;
+                    if (userRole === 'admin') {
+                        // Admins can see all groups
+                        groupsQuery = query(collection(db, "semesterGroups"));
+                    } else if (data.assignedGroups && data.assignedGroups.length > 0) {
+                        // Teachers see their assigned groups
+                        groupsQuery = query(collection(db, "semesterGroups"), where("groupId", "in", data.assignedGroups));
+                    }
+                    
+                    if (groupsQuery) {
                         const groupsSnap = await getDocs(groupsQuery);
                         const groupsData = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group));
                         setAssignedGroups(groupsData);
                     }
                 } else {
-                     toast({ title: "Profile not found", description: "Your teacher profile could not be found.", variant: "destructive" });
+                     toast({ title: "Profile not found", description: "Your profile could not be found.", variant: "destructive" });
                 }
             } catch (error: any) {
+                console.error("Error fetching user/group data:", error);
                 toast({ title: "Error", description: error.message, variant: "destructive" });
             } finally {
                 setLoading(false);
@@ -90,13 +104,19 @@ export default function AttendancePage() {
             }
             setLoadingStudents(true);
             try {
-                // Firestore 'in' query is limited to 30 items. For larger classes, fetch one by one.
-                // This is not optimal but works for this prototype. A backend function would be better.
-                const studentPromises = selectedGroup.students.map(uid => getDoc(doc(db, "students", uid)));
-                const studentDocs = await Promise.all(studentPromises);
-                const studentData = studentDocs
-                    .filter(snap => snap.exists())
-                    .map(snap => ({ id: snap.id, ...snap.data() } as StudentData));
+                // Firestore 'in' query is limited to 30 items. 
+                const studentIds = selectedGroup.students;
+                const studentData: StudentData[] = [];
+                // Fetch in chunks of 30
+                for (let i = 0; i < studentIds.length; i += 30) {
+                    const chunk = studentIds.slice(i, i + 30);
+                    const studentPromises = chunk.map(uid => getDoc(doc(db, "students", uid)));
+                    const studentDocs = await Promise.all(studentPromises);
+                    const chunkData = studentDocs
+                        .filter(snap => snap.exists())
+                        .map(snap => ({ id: snap.id, ...snap.data() } as StudentData));
+                    studentData.push(...chunkData);
+                }
                 
                 setStudents(studentData);
                 setPresentStudents(new Set(studentData.map(s => s.id))); // Default all to present
@@ -151,7 +171,7 @@ export default function AttendancePage() {
                 present: presentArray,
                 absent: absentArray,
                 timestamp: new Date()
-            });
+            }, { merge: true }); // Use merge to avoid overwriting if attendance for another subject exists on same day
             toast({ title: "Success!", description: `Attendance for ${subject} on ${dateString} has been saved.` });
         } catch (error: any) {
             toast({ title: "Save Failed", description: error.message, variant: "destructive" });
@@ -172,144 +192,152 @@ export default function AttendancePage() {
         );
     }
     
-    if (userRole !== 'teacher') {
-         return <p className="text-center text-destructive">This page is only accessible to teachers.</p>;
+    if (userRole === 'student') {
+         return <p className="text-center text-destructive">This page is only accessible to teachers and admins.</p>;
     }
     
      if (assignedGroups.length === 0) {
-        return <p className="text-center text-muted-foreground">You have not been assigned to any groups. Please contact an administrator.</p>;
+        return <p className="text-center text-muted-foreground">You have not been assigned to any groups, or no groups exist yet. Please contact an administrator.</p>;
     }
-
 
     return (
         <div className="space-y-6">
             <div>
                 <h1 className="font-headline text-3xl font-bold">Attendance Management</h1>
-                <p className="text-muted-foreground">Select a group to manage attendance.</p>
+                <p className="text-muted-foreground">Select a group to manage and view attendance.</p>
             </div>
+            
+             <Card>
+                <CardHeader>
+                    <CardTitle>Select Group</CardTitle>
+                </CardHeader>
+                <CardContent>
+                     <Select onValueChange={(groupId) => setSelectedGroup(assignedGroups.find(g => g.id === groupId) || null)}>
+                        <SelectTrigger className="w-full md:w-1/2 lg:w-1/3">
+                            <SelectValue placeholder="Select a group..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {assignedGroups.map(group => (
+                                <SelectItem key={group.id} value={group.id}>
+                                    {group.groupId.replace(/_/g, ' ')}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </CardContent>
+            </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-1 space-y-4">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Select Group</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                             <Select onValueChange={(groupId) => setSelectedGroup(assignedGroups.find(g => g.id === groupId) || null)}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a group..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {assignedGroups.map(group => (
-                                        <SelectItem key={group.id} value={group.id}>
-                                            {group.groupId.replace(/_/g, ' ')}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </CardContent>
-                    </Card>
-
-                     {selectedGroup && (
-                         <Card>
-                             <CardHeader>
-                                <CardTitle>Mark Attendance</CardTitle>
-                                <CardDescription>Select date and subject for the session.</CardDescription>
-                            </CardHeader>
-                             <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Date</label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant={"outline"}
-                                                className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {date ? format(date, "PPP") : <span>Pick a date</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                                <div className="space-y-2">
-                                     <label className="text-sm font-medium">Subject</label>
-                                     <Select onValueChange={setSubject} value={subject}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a subject..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {selectedGroup.subjects.map(sub => (
-                                                <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                             </CardContent>
-                             <CardFooter>
-                                <Button className="w-full" onClick={handleSaveAttendance} disabled={isSubmitting || !subject || !date}>
-                                    {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : null}
-                                    Save Attendance
-                                </Button>
-                             </CardFooter>
-                        </Card>
-                    )}
-                </div>
-
-                <div className="lg:col-span-2">
-                    <Card>
-                         <CardHeader>
-                            <CardTitle>Student List</CardTitle>
-                            <CardDescription>
-                                {selectedGroup ? `${selectedGroup.groupId.replace(/_/g, ' ')} - ${students.length} students` : 'Select a group to see students.'}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {loadingStudents ? (
-                                <div className="space-y-2">
-                                    {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-                                </div>
-                            ) : selectedGroup && students.length > 0 ? (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-[50px]">
-                                                 <Checkbox
-                                                    checked={presentStudents.size === students.length && students.length > 0}
-                                                    onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                                                />
-                                            </TableHead>
-                                            <TableHead>Name</TableHead>
-                                            <TableHead>Registration No.</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {students.map(student => (
-                                            <TableRow key={student.id}>
-                                                <TableCell>
-                                                    <Checkbox 
-                                                        checked={presentStudents.has(student.id)}
-                                                        onCheckedChange={(checked) => handleStudentCheck(student.id, checked as boolean)}
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="font-medium">{student.name}</TableCell>
-                                                <TableCell>{student.reg_no}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            ) : (
-                                <p className="text-center text-muted-foreground h-40 flex items-center justify-center">
-                                    {selectedGroup ? 'No students found in this group.' : 'Please select a group.'}
-                                </p>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-
-            </div>
+            {selectedGroup && (
+                 <Tabs defaultValue="mark">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="mark">Mark Attendance</TabsTrigger>
+                        <TabsTrigger value="report">View Report</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="mark" className="mt-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-1 space-y-4">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Mark Attendance</CardTitle>
+                                        <CardDescription>Select date and subject for the session.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Date</label>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant={"outline"}
+                                                        className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
+                                                    >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                                        {date ? format(date, "PPP") : <span>Pick a date</span>}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0">
+                                                    <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus />
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Subject</label>
+                                            <Select onValueChange={setSubject} value={subject}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select a subject..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {selectedGroup.subjects.map(sub => (
+                                                        <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <Button className="w-full" onClick={handleSaveAttendance} disabled={isSubmitting || !subject || !date}>
+                                            {isSubmitting ? <Loader2 className="animate-spin mr-2"/> : null}
+                                            Save Attendance
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            </div>
+                            <div className="lg:col-span-2">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Student List</CardTitle>
+                                        <CardDescription>
+                                            {`${selectedGroup.groupId.replace(/_/g, ' ')} - ${students.length} students`}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {loadingStudents ? (
+                                            <div className="space-y-2">
+                                                {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                                            </div>
+                                        ) : students.length > 0 ? (
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="w-[50px]">
+                                                            <Checkbox
+                                                                checked={presentStudents.size === students.length && students.length > 0}
+                                                                onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                                                            />
+                                                        </TableHead>
+                                                        <TableHead>Name</TableHead>
+                                                        <TableHead>Registration No.</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {students.map(student => (
+                                                        <TableRow key={student.id}>
+                                                            <TableCell>
+                                                                <Checkbox 
+                                                                    checked={presentStudents.has(student.id)}
+                                                                    onCheckedChange={(checked) => handleStudentCheck(student.id, checked as boolean)}
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell className="font-medium">{student.name}</TableCell>
+                                                            <TableCell>{student.reg_no}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        ) : (
+                                            <p className="text-center text-muted-foreground h-40 flex items-center justify-center">
+                                                No students found in this group.
+                                            </p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
+                    </TabsContent>
+                    <TabsContent value="report" className="mt-6">
+                        <AttendanceReport selectedGroup={selectedGroup} />
+                    </TabsContent>
+                </Tabs>
+            )}
         </div>
     );
 }

@@ -117,11 +117,20 @@ export default function ProfilePage() {
             const degreeName = degrees[studentData.degree] || studentData.degree;
             const streamName = streams[studentData.stream] || studentData.stream;
             const batchName = batches[studentData.batch_id] || studentData.batch_id;
+            
+            if (!degreeName || !streamName || !batchName || !sem.section) {
+              return { ...sem };
+            }
+
             const groupId = `${degreeName}_${streamName}_${batchName}_sem${sem.semester_no}_${sem.section}`.replace(/\s+/g, '_');
             
             const attendanceQuery = query(collection(db, `semesterGroups/${groupId}/attendance`));
             const attendanceSnap = await getDocs(attendanceQuery);
             
+            if (attendanceSnap.empty) {
+                return { ...sem };
+            }
+
             const attendanceRecords = attendanceSnap.docs.map(doc => doc.data() as AttendanceRecord);
             const total = attendanceRecords.length;
             const attended = attendanceRecords.filter(rec => rec.present.includes(studentData.uid)).length;
