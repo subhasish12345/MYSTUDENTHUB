@@ -14,42 +14,47 @@ service cloud.firestore {
       return request.auth != null; 
     }
     
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     function isAdmin() {
-      // The user must have permission to read their own /users document for this to work.
-      return isSignedIn() && 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      return isSignedIn() && getUserData().role == 'admin';
     }
 
     function isTeacher() {
-      // Check if a user is a teacher by looking for their UID in the /teachers collection
-      return isSignedIn() && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+      return isSignedIn() && getUserData().role == 'teacher';
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
       allow create: if isSignedIn();
-      allow read:   if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow get:    if isSignedIn();
+      allow list:   if isAdmin();
       allow update, delete: if isAdmin();
     }
 
     match /teachers/{teacherId} {
-      allow read: if isSignedIn();
-      allow list: if isAdmin();
+      allow get: if isSignedIn();
+      allow list: if isAdmin() || isTeacher();
       allow create: if isAdmin();
-      allow update: if isAdmin() || request.auth.uid == teacherId;
+      allow update: if isAdmin() || isOwner(teacherId);
       allow delete: if isAdmin();
     }
 
     match /students/{studentId} {
-      allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-      allow list: if isAdmin(); 
-      allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
-      allow update: if isAdmin() || request.auth.uid == studentId;
+      allow get: if isSignedIn();
+      allow list: if isAdmin() || isTeacher(); 
+      allow create: if isAdmin() || isOwner(studentId);
+      allow update: if isAdmin() || isOwner(studentId);
       allow delete: if isAdmin();
 
       match /semesters/{semesterId} {
-        allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
+        allow read: if isSignedIn() && (isOwner(studentId) || isAdmin() || isTeacher());
         allow write: if isAdmin();
       }
     }
@@ -57,23 +62,22 @@ service cloud.firestore {
     // ACADEMIC STRUCTURE COLLECTIONS (Admin-only write access)
     match /degrees/{degreeId} {
       allow read: if isSignedIn();
-      allow list, write: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /streams/{streamId} {
       allow read: if isSignedIn();
-      allow list, write: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /batches/{batchId} {
       allow read: if isSignedIn();
-      allow list, write: if isAdmin();
+      allow write: if isAdmin();
     }
 
     // SEMESTER GROUPS for Attendance/Assignments
     match /semesterGroups/{groupId} {
         allow read: if isAdmin() || isTeacher();
-        allow list: if isAdmin() || isTeacher();
         allow write: if isAdmin();
 
         match /attendance/{date} {
@@ -85,7 +89,6 @@ service cloud.firestore {
     // NOTICE BOARD
     match /notices/{noticeId} {
       allow read: if isSignedIn();
-      allow list: if isSignedIn();
       allow create: if isAdmin() || isTeacher();
       allow update, delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
     }

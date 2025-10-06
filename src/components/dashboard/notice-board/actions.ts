@@ -15,16 +15,26 @@ interface CreateNoticeParams extends NoticeFormValues {
 export async function createNotice(data: CreateNoticeParams) {
     const { title, description, imageUrl, targetType, degree, stream, batch, postedBy, userRole } = data;
 
-    // This preliminary check was causing permission issues. 
-    // The name can be added differently if needed, but for creation, we only need the UID.
-    // Let's assume postedByName will be handled on the client or is not critical for creation.
-    const postedByName = "User"; // Placeholder
+    let postedByName = "Admin";
+    try {
+        // Fetch the user's name from their profile to ensure it's accurate
+        const collectionName = userRole === 'teacher' ? 'teachers' : 'users';
+        const userDocRef = doc(db, collectionName, postedBy);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+            postedByName = userDoc.data().name || "User";
+        }
+    } catch (e) {
+        console.error("Could not fetch user name for notice, defaulting.", e);
+        // Proceed with a default name if the fetch fails for any reason
+    }
+
 
     const noticeData: DocumentData = {
         title,
         description,
         postedBy,
-        postedByName, // This can be improved later, but removes the blocking read call
+        postedByName,
         createdAt: serverTimestamp(),
         target: {
             type: targetType,
