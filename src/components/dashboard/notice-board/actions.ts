@@ -26,7 +26,6 @@ export async function createNotice(data: CreateNoticeParams) {
         }
     } catch (e) {
         console.error("Could not fetch user name for notice, defaulting.", e);
-        // Proceed with a default name if the fetch fails for any reason
     }
 
 

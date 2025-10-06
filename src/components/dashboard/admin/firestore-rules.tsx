@@ -33,7 +33,7 @@ service cloud.firestore {
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
       allow create: if isSignedIn();
-      allow get:    if isSignedIn();
+      allow get:    if isOwner(userId);
       allow list:   if isAdmin();
       allow update, delete: if isAdmin();
     }
