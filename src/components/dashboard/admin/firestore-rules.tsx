@@ -26,7 +26,7 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      allow read:   if isSignedIn() && request.auth.uid == userId;
+      allow read:   if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow write: if isAdmin() || (request.resource.data.uid == request.auth.uid);
       allow list: if isAdmin();
     }
