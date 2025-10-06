@@ -12,7 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { StudentData } from "../admin/student-management";
@@ -121,6 +121,7 @@ export function SemesterManagement({ student, onSemesterUpdate }: { student: Stu
             <Card className="shadow-lg bg-secondary/50">
                 <CardHeader>
                     <CardTitle className="font-headline">Manage Semesters</CardTitle>
+
                     <CardDescription>
                         Define curriculum for this student's academic group (Batch, Stream, Section). This will apply to all students in the same group.
                     </CardDescription>
