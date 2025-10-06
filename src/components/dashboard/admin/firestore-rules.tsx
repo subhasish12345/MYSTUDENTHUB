@@ -45,12 +45,14 @@ service cloud.firestore {
       allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
       allow update: if isAdmin() || request.auth.uid == studentId; // Admin or the student themselves
       allow delete: if isAdmin();
-    }
 
-    match /students/{studentId}/semesters/{semesterId} {
-      allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-      allow write: if isAdmin(); // Only admins can add/edit/delete semesters for a student
+      // Allow admins to manage student semesters
+      match /semesters/{semesterId} {
+        allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
+        allow write: if isAdmin(); // Only admins can add/edit/delete semesters for a student
+      }
     }
+    
 
     // ACADEMIC STRUCTURE COLLECTIONS (Admin-only write access)
     match /degrees/{degreeId} {
@@ -73,12 +75,12 @@ service cloud.firestore {
         allow read: if isAdmin() || isTeacher();
         allow list: if isAdmin() || isTeacher();
         allow write: if isAdmin();
-    }
 
-    // Attendance subcollection
-    match /semesterGroups/{groupId}/attendance/{date} {
-      allow read: if isSignedIn();
-      allow write: if isTeacher() || isAdmin();
+        // Attendance subcollection
+        match /attendance/{date} {
+          allow read: if isSignedIn();
+          allow write: if isTeacher() || isAdmin();
+        }
     }
   }
 }
