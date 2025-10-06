@@ -18,7 +18,7 @@ export async function createNotice(data: CreateNoticeParams) {
         title,
         description,
         postedBy,
-        postedByName,
+        postedByName: postedByName || "User", // Fallback for safety
         createdAt: serverTimestamp(),
         target: {
             type: targetType,
@@ -27,7 +27,9 @@ export async function createNotice(data: CreateNoticeParams) {
     
     if (imageUrl) noticeData.imageUrl = imageUrl;
 
-    if (targetType === 'degree' && degree) noticeData.target.degree = degree;
+    if (targetType === 'degree' && degree) {
+        noticeData.target.degree = degree;
+    }
     if (targetType === 'stream' && degree && stream) {
         noticeData.target.degree = degree;
         noticeData.target.stream = stream;
