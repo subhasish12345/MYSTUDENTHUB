@@ -35,7 +35,7 @@ export interface Notice extends DocumentData {
 
 
 export function NoticeBoard() {
-    const { user, userRole } = useAuth();
+    const { user, userRole, userData } = useAuth();
     const { toast } = useToast();
     const [notices, setNotices] = useState<Notice[]>([]);
     const [studentData, setStudentData] = useState<StudentData | null>(null);
@@ -79,10 +79,17 @@ export function NoticeBoard() {
 
 
     const handleCreateNotice = async (values: NoticeFormValues) => {
-        if (!user || !userRole) return;
+        if (!user || !userRole || !userData) {
+            toast({ title: "Error", description: "You must be logged in to post a notice.", variant: "destructive" });
+            return;
+        }
         setIsSubmitting(true);
         try {
-            await createNotice({ ...values, postedBy: user.uid, userRole: userRole });
+            await createNotice({ 
+                ...values, 
+                postedBy: user.uid, 
+                postedByName: userData.name || "User" 
+            });
             toast({ title: "Success!", description: "Notice has been posted." });
             setIsSheetOpen(false);
         } catch (error: any) {
@@ -146,5 +153,3 @@ export function NoticeBoard() {
         </div>
     );
 }
-
-

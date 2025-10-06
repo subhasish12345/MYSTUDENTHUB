@@ -14,16 +14,16 @@ service cloud.firestore {
       return request.auth != null; 
     }
     
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
     function isAdmin() {
-      return isSignedIn() && getUserData().role == 'admin';
+      return isSignedIn() && getUserData(request.auth.uid).role == 'admin';
     }
 
     function isTeacher() {
-      return isSignedIn() && getUserData().role == 'teacher';
+      return isSignedIn() && getUserData(request.auth.uid).role == 'teacher';
     }
     
     function isOwner(userId) {
@@ -33,7 +33,8 @@ service cloud.firestore {
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
       allow create: if isSignedIn();
-      allow get:    if isOwner(userId);
+      // Allow users to read their own data, and admins to read any user's data
+      allow get:    if isOwner(userId) || isAdmin();
       allow list:   if isAdmin();
       allow update, delete: if isAdmin();
     }
@@ -89,7 +90,9 @@ service cloud.firestore {
     // NOTICE BOARD
     match /notices/{noticeId} {
       allow read: if isSignedIn();
+      // Allow create if user is an admin or a teacher.
       allow create: if isAdmin() || isTeacher();
+      // Allow update/delete if user is admin, or if they are a teacher who owns the post.
       allow update, delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
     }
   }

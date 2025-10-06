@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -8,25 +9,28 @@ import {
   ReactNode,
 } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, DocumentData } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Roles } from "@/lib/roles";
 
 type AuthContextType = {
   user: User | null;
   userRole: Roles | null;
+  userData: DocumentData | null;
   loading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   userRole: null,
+  userData: null,
   loading: true,
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<Roles | null>(null);
+  const [userData, setUserData] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,25 +39,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (user) {
         setUser(user);
         try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
+          const userDocRef = doc(db, "users", user.uid);
+          const userDoc = await getDoc(userDocRef);
+          
           if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setUserRole(userData.role as Roles);
+            const baseUserData = userDoc.data();
+            setUserRole(baseUserData.role as Roles);
+
+            // Fetch the detailed profile from the role-specific collection
+            const profileCollection = baseUserData.role === 'student' ? 'students' : 'teachers';
+            const profileDocRef = doc(db, profileCollection, user.uid);
+            const profileDoc = await getDoc(profileDocRef);
+
+            if (profileDoc.exists()) {
+                setUserData(profileDoc.data());
+            } else {
+                // If the detailed profile doesn't exist, use the base user data
+                setUserData(baseUserData);
+            }
+
           } else {
-            // This case handles users who are authenticated but have no user document.
-            // This might happen during initial profile setup.
             setUserRole(null);
+            setUserData(null);
           }
         } catch (error) {
-            console.error("Error fetching user role:", error);
+            console.error("Error fetching user data:", error);
             setUserRole(null);
+            setUserData(null);
         } finally {
           setLoading(false);
         }
       } else {
-        // No user is signed in.
         setUser(null);
         setUserRole(null);
+        setUserData(null);
         setLoading(false);
       }
     });
@@ -62,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userRole, loading }}>
+    <AuthContext.Provider value={{ user, userRole, userData, loading }}>
       {children}
     </AuthContext.Provider>
   );
