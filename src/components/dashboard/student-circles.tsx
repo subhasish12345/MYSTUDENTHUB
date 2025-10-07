@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Send, MessageSquare } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface PostAuthor {
     name: string;
@@ -29,6 +30,7 @@ interface Post extends DocumentData {
 
 export function StudentCircles() {
     const { user, userData } = useAuth();
+    const { toast } = useToast();
     const [posts, setPosts] = useState<Post[]>([]);
     const [newPostContent, setNewPostContent] = useState("");
     const [loading, setLoading] = useState(true);
@@ -42,11 +44,12 @@ export function StudentCircles() {
             setLoading(false);
         }, (error) => {
             console.error("Error fetching posts:", error);
+            toast({ title: "Error", description: "Could not fetch circle posts.", variant: "destructive" });
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [toast]);
 
     const handlePostSubmit = async () => {
         if (!user || !userData || newPostContent.trim() === "") return;
@@ -63,8 +66,9 @@ export function StudentCircles() {
                 timestamp: serverTimestamp(),
             });
             setNewPostContent("");
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error creating post:", error);
+            toast({ title: "Error", description: "Could not create post. Check permissions.", variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }

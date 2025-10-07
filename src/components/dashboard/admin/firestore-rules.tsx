@@ -100,14 +100,16 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow list, read: if isSignedIn();
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow update, delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' 
+                      || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.postedBy == request.auth.uid);
     }
     
     // EVENTS
     match /events/{eventId} {
       allow list, read: if isSignedIn();
       allow create: if request.resource.data.authorRole == 'admin';
-      allow update, delete: if isAdmin();
+      allow update: if request.resource.data.authorRole == 'admin';
+      allow delete: if resource.data.createdBy == request.auth.uid;
     }
 
     // ASSIGNMENTS & SUBMISSIONS
@@ -119,11 +121,13 @@ service cloud.firestore {
     // CIRCLES (Community Groups)
     match /circles/{circleId} {
       allow read, create: if isSignedIn();
+      // Circle document itself can only be updated by admin or creator.
       allow update: if isAdmin() || resource.data.createdBy == request.auth.uid;
 
       match /posts/{postId} {
-        allow read, create: if isSignedIn(); // Simplified: any signed-in user can post for now
-        allow update, delete: if isAdmin() || resource.data.authorId == request.auth.uid;
+        allow read, create: if isSignedIn(); // Any signed-in user can post for now
+        // only post author or admin can delete.
+        allow update, delete: if isAdmin() || resource.data.author.uid == request.auth.uid;
       }
     }
   }

@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, DocumentData, orderBy, doc, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, DocumentData, orderBy, doc, getDoc, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { StudentData } from "./admin/student-management";
+import { AssignmentForm, AssignmentFormValues } from "./assignments/assignment-form";
 
 // Define the structure of an Assignment
 export interface Assignment extends DocumentData {
@@ -128,6 +129,27 @@ export function AssignmentTracker() {
         }
         return { text: 'Pending', variant: 'secondary' };
     };
+    
+    const handleFormSubmit = async (values: AssignmentFormValues) => {
+        if (!user) {
+            toast({ title: "Error", description: "You must be logged in.", variant: "destructive"});
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            await addDoc(collection(db, "assignments"), {
+                ...values,
+                createdBy: user.uid,
+                createdAt: serverTimestamp(),
+            });
+            toast({ title: "Success", description: "Assignment created successfully."});
+            setIsSheetOpen(false);
+        } catch (error: any) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <>
@@ -214,7 +236,7 @@ export function AssignmentTracker() {
                     </CardContent>
                 </Card>
             </div>
-             {/* <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                 <SheetContent className="sm:max-w-xl w-full">
                     <SheetHeader>
                         <SheetTitle>Create New Assignment</SheetTitle>
@@ -222,9 +244,9 @@ export function AssignmentTracker() {
                             Fill in the details for the new assignment.
                         </SheetDescription>
                     </SheetHeader>
-                    
+                    <AssignmentForm onSubmit={handleFormSubmit} isSubmitting={isSubmitting} />
                 </SheetContent>
-            </Sheet> */}
+            </Sheet>
         </>
     );
 }
