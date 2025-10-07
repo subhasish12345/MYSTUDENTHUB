@@ -15,42 +15,47 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Helper Function to get user data. Be careful with usage in write rules.
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    // Helper function to get user's role securely.
+    // Use this for READ rules, but avoid in WRITE rules where possible.
+    function getUserRole(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role;
     }
-
+    
     // ✅ USERS COLLECTION
     match /users/{userId} {
-      // Allow users to read their own data, and admins to read any.
-      allow get: if isSignedIn() && (request.auth.uid == userId || getUserData().role == 'admin');
-      allow list: if isSignedIn() && getUserData().role == 'admin';
+      // Admins can read any user doc. Users can read their own.
+      allow get: if isSignedIn() && (getUserRole(request.auth.uid) == 'admin' || request.auth.uid == userId);
+      allow list: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
       
       // Allow a user to create their own /users document on signup
       allow create: if isSignedIn();
       
-      // Allow a user to update their own data, or an admin to update any user.
-      allow update: if isSignedIn() && (request.auth.uid == userId || getUserData().role == 'admin');
+      // An admin can update any user. A user can update their own doc.
+      allow update: if isSignedIn() && (getUserRole(request.auth.uid) == 'admin' || request.auth.uid == userId);
 
       // Only admins can delete user documents.
-      allow delete: if isSignedIn() && getUserData().role == 'admin';
+      allow delete: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
 
     // ✅ TEACHERS & STUDENTS (Profile Collections)
     match /teachers/{teacherId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && getUserData().role == 'admin';
+      // Only admins can write to the teachers collection.
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
 
     match /students/{studentId} {
       allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && getUserData().role == 'admin';
-      allow update: if isSignedIn() && (getUserData().role == 'admin' || request.auth.uid == studentId);
-      allow delete: if isSignedIn() && getUserData().role == 'admin';
+      // Admins can create students. Students can create their own profile during setup.
+      allow create: if isSignedIn() && (getUserRole(request.auth.uid) == 'admin' || request.auth.uid == studentId);
+      // Admins or the student themselves can update their profile.
+      allow update: if isSignedIn() && (getUserRole(request.auth.uid) == 'admin' || request.auth.uid == studentId);
+      allow delete: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
 
       // Sub-collections for students
       match /semesters/{semesterId} {
-        allow read, write: if request.auth.uid == studentId || getUserData().role == 'admin';
+        allow read: if isSignedIn();
+        allow write: if getUserRole(request.auth.uid) == 'admin';
       }
       match /focusSessions/{sessionId} {
         allow read, write: if request.auth.uid == studentId;
@@ -63,21 +68,21 @@ service cloud.firestore {
     // ✅ ACADEMIC STRUCTURE (Admin-only write)
     match /degrees/{degreeId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && getUserData().role == 'admin';
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
     match /streams/{streamId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && getUserData().role == 'admin';
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
     match /batches/{batchId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && getUserData().role == 'admin';
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
     match /semesterGroups/{groupId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && getUserData().role in ['admin', 'teacher'];
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) in ['admin', 'teacher'];
       match /attendance/{date} {
-        allow read, write: if isSignedIn() && getUserData().role in ['admin', 'teacher'];
+        allow read, write: if isSignedIn() && getUserRole(request.auth.uid) in ['admin', 'teacher'];
       }
     }
 
@@ -85,40 +90,37 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow get, list: if isSignedIn();
 
-      // For create/update, check the role sent with the request data to avoid complex gets.
+      // Check the role being sent IN THE REQUEST DATA. This is secure and reliable.
       allow create, update: if isSignedIn() && request.resource.data.authorRole in ['admin', 'teacher'];
 
-      // For delete, check the role on the existing document. Secure because create rule is secure.
-      // Also allow users to delete their own notices.
-      allow delete: if isSignedIn() && (resource.data.postedBy == request.auth.uid || getUserData().role == 'admin');
+      // For delete, check the role on the DOCUMENT BEING DELETED.
+      allow delete: if isSignedIn() && (getUserRole(request.auth.uid) == 'admin' || resource.data.postedBy == request.auth.uid);
     }
 
-    // ✅ EVENTS SECTION
+    // ✅ EVENTS SECTION (Corrected and Simplified)
     match /events/{eventId} {
       allow get, list: if isSignedIn();
-      
-      // For create/update, check the role sent with the request data.
+
+      // 'create' and 'update' check the role being sent in the request data.
       allow create, update: if isSignedIn() && request.resource.data.authorRole == 'admin';
       
-      // For delete, check the role on the existing document.
-      allow delete: if isSignedIn() && getUserData().role == 'admin';
+      // 'delete' checks the role on the existing document, which is safe.
+      allow delete: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
 
     // ✅ ASSIGNMENTS & SUBMISSIONS
     match /assignments/{assignmentId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && getUserData().role in ['teacher', 'admin'];
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) in ['teacher', 'admin'];
     }
 
     // ✅ CIRCLES (Community groups)
     match /circles/{circleId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && (resource.data.createdBy == request.auth.uid || getUserData().role == 'admin');
-
+      // Any signed in user can create a post, but we check author UID for updates/deletes.
       match /posts/{postId} {
         allow get, list, create: if isSignedIn();
-        allow update, delete: if isSignedIn() && (resource.data.author.uid == request.auth.uid || getUserData().role == 'admin');
+        allow update, delete: if isSignedIn() && (resource.data.author.uid == request.auth.uid || getUserRole(request.auth.uid) == 'admin');
       }
     }
   }

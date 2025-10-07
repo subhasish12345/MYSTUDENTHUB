@@ -75,16 +75,18 @@ export function EventCalendar() {
         setIsSubmitting(true);
         try {
             if (editingEvent) {
+                // Pass the userRole for the security rule check on update
                 await updateEvent(editingEvent.id, { ...values, authorRole: userRole });
                 toast({ title: "Success", description: "Event has been updated." });
             } else {
+                // Pass user info and role for the security rule check on create
                 await createEvent({ ...values, createdBy: user.uid, postedByName: userData.name, authorRole: userRole });
                 toast({ title: "Success", description: "New event has been created." });
             }
             setIsSheetOpen(false);
             setEditingEvent(null);
         } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
+            toast({ title: "Operation Failed", description: error.message, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -96,7 +98,7 @@ export function EventCalendar() {
             await deleteEvent(deletingEvent.id);
             toast({ title: "Success", description: "Event has been deleted."});
         } catch (error: any) {
-            toast({ title: "Error", description: error.message, variant: "destructive"});
+            toast({ title: "Deletion Failed", description: error.message, variant: "destructive"});
         } finally {
             setDeletingEvent(null);
         }
