@@ -63,7 +63,7 @@ export async function updateNotice(noticeId: string, data: NoticeFormValues) {
     const updateData: DocumentData = {
         title: data.title,
         description: data.description,
-        imageUrl: data.imageUrl || "", // Ensure it's not undefined
+        imageUrl: data.imageUrl || null, // Ensure it's not undefined
         target: {
             type: data.targetType,
             degree: data.degree || null,
