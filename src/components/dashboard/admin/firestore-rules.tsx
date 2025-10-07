@@ -18,16 +18,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Securely checks the role of the currently signed-in user from the /users collection.
-    // This is the single source of truth.
     function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
     }
 
     function isAdmin() {
       return isSignedIn() && getUserRole() == 'admin';
     }
-    
+
     function isTeacher() {
       return isSignedIn() && getUserRole() == 'teacher';
     }
@@ -37,36 +37,24 @@ service cloud.firestore {
     // =====================================================================
 
     match /users/{userId} {
-      // Admins can see any user document. Users can only see their own.
       allow get: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
-      // Only Admins can list all user documents.
       allow list: if isAdmin();
-      // Any authenticated user can create their own doc. An admin can create for others.
       allow create: if isSignedIn();
-      // An admin can update any user doc. A user can only update their own.
       allow update: if isAdmin() || request.auth.uid == userId;
-      // Only an admin can delete user documents.
       allow delete: if isAdmin();
     }
 
     match /teachers/{teacherId} {
-      // Any signed-in user can read teacher profiles.
       allow read: if isSignedIn();
-      // Only admins can write to teacher profiles.
       allow write: if isAdmin();
     }
 
     match /students/{studentId} {
-      // Any signed-in user can read student profiles.
       allow read: if isSignedIn();
-      // An admin can create a student profile, or a student can create their own.
       allow create: if isAdmin() || request.auth.uid == studentId;
-      // An admin can update any profile. A student can only update their own.
       allow update: if isAdmin() || request.auth.uid == studentId;
-      // Only an admin can delete student profiles.
       allow delete: if isAdmin();
 
-      // Student Sub-collections
       match /semesters/{semesterId} {
         allow read, write: if isAdmin() || request.auth.uid == studentId;
       }
@@ -79,7 +67,7 @@ service cloud.firestore {
     }
 
     // =====================================================================
-    //  Academic Structure (Admin Write-Only)
+    //  Academic Structure
     // =====================================================================
 
     match /degrees/{degreeId} {
@@ -109,17 +97,13 @@ service cloud.firestore {
 
     match /notices/{noticeId} {
       allow read: if isSignedIn();
-      // The `authorRole` is passed in the request and checked on creation/update.
-      // This is safe because the rule ensures only admins/teachers can do this.
-      allow create, update: if (isAdmin() || isTeacher());
-      // Admins can delete any notice. Teachers can only delete their own.
+      allow create, update: if isAdmin() || isTeacher();
       allow delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
     }
 
     match /events/{eventId} {
       allow read: if isSignedIn();
-      // Only admins can create, update, or delete events.
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     match /assignments/{assignmentId} {
