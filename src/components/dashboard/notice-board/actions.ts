@@ -13,62 +13,52 @@ interface CreateNoticeParams extends NoticeFormValues {
 }
 
 export async function createNotice(data: CreateNoticeParams) {
-    const { title, description, imageUrl, targetType, degree, stream, batch, postedBy, postedByName, authorRole } = data;
-
-    if (!authorRole) {
-        throw new Error("Author role is missing and is required to create a notice.");
-    }
-    if (authorRole !== 'admin' && authorRole !== 'teacher') {
+    
+    if (data.authorRole !== 'admin' && data.authorRole !== 'teacher') {
         throw new Error("You do not have permission to create a notice.");
     }
 
     const noticeData: DocumentData = {
-        title,
-        description,
-        postedBy,
-        postedByName,
-        authorRole,
+        ...data,
         createdAt: serverTimestamp(),
-        target: {
-            type: targetType,
-        }
+        updatedAt: serverTimestamp(),
     };
-    
-    if (imageUrl) noticeData.imageUrl = imageUrl;
 
-    if (targetType === 'degree' && degree) {
-        noticeData.target.degree = degree;
+    if (data.targetType === 'degree' && data.degree) {
+        noticeData.target = { type: 'degree', degree: data.degree };
+    } else if (data.targetType === 'stream' && data.degree && data.stream) {
+        noticeData.target = { type: 'stream', degree: data.degree, stream: data.stream };
+    } else if (data.targetType === 'batch' && data.degree && data.stream && data.batch) {
+        noticeData.target = { type: 'batch', degree: data.degree, stream: data.stream, batch: data.batch };
+    } else {
+        noticeData.target = { type: 'global' };
     }
-    if (targetType === 'stream' && degree && stream) {
-        noticeData.target.degree = degree;
-        noticeData.target.stream = stream;
-    }
-    if (targetType === 'batch' && degree && stream && batch) {
-        noticeData.target.degree = degree;
-        noticeData.target.stream = stream;
-        noticeData.target.batch = batch;
-    }
+
 
     await addDoc(collection(db, "notices"), noticeData);
 }
 
+interface UpdateNoticeParams extends NoticeFormValues {
+    authorRole: Roles;
+}
 
-export async function updateNotice(noticeId: string, data: NoticeFormValues) {
+export async function updateNotice(noticeId: string, data: UpdateNoticeParams) {
     const noticeRef = doc(db, "notices", noticeId);
     
-    // It's crucial to not update fields that determine ownership or creation time.
     const updateData: DocumentData = {
-        title: data.title,
-        description: data.description,
-        imageUrl: data.imageUrl || null, // Ensure it's not undefined
-        target: {
-            type: data.targetType,
-            degree: data.degree || null,
-            stream: data.stream || null,
-            batch: data.batch || null,
-        },
+        ...data,
         updatedAt: serverTimestamp(),
     };
+    
+    if (data.targetType === 'degree' && data.degree) {
+        updateData.target = { type: 'degree', degree: data.degree };
+    } else if (data.targetType === 'stream' && data.degree && data.stream) {
+        updateData.target = { type: 'stream', degree: data.degree, stream: data.stream };
+    } else if (data.targetType === 'batch' && data.degree && data.stream && data.batch) {
+        updateData.target = { type: 'batch', degree: data.degree, stream: data.stream, batch: data.batch };
+    } else {
+        updateData.target = { type: 'global' };
+    }
 
     await updateDoc(noticeRef, updateData);
 }

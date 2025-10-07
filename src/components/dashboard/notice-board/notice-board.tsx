@@ -116,7 +116,7 @@ export function NoticeBoard() {
         setIsSubmitting(true);
         try {
             if (editingNotice) {
-                await updateNotice(editingNotice.id, values);
+                await updateNotice(editingNotice.id, { ...values, authorRole: userRole });
                 toast({ title: "Success!", description: "Notice has been updated." });
             } else {
                  await createNotice({

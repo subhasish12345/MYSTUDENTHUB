@@ -16,12 +16,8 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      // Any signed-in user can read any other user's profile.
-      // This is necessary for rules that need to check another user's role.
       allow get, list: if isSignedIn();
-      // Any signed-in user can create their own user document during profile setup.
       allow create: if request.auth.uid == userId;
-      // Admins can update/delete any user's main role document. Students/teachers can update their own.
       allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == userId;
       allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
@@ -81,17 +77,16 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow get, list: if isSignedIn();
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      // An admin can update/delete any notice. A teacher can only modify their own.
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
+      allow update: if request.resource.data.authorRole == 'admin' || (request.resource.data.authorRole == 'teacher' && resource.data.postedBy == request.auth.uid);
+      allow delete: if resource.data.authorRole == 'admin' || (resource.data.authorRole == 'teacher' && resource.data.postedBy == request.auth.uid);
     }
     
     // EVENTS
     match /events/{eventId} {
       allow get, list: if isSignedIn();
-      // Admin can create any event.
       allow create: if request.resource.data.authorRole == 'admin';
-      // Admin can update or delete any event.
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow update: if request.resource.data.authorRole == 'admin';
+      allow delete: if resource.data.authorRole == 'admin';
     }
 
     // ASSIGNMENTS & SUBMISSIONS
@@ -102,7 +97,8 @@ service cloud.firestore {
 
     // CIRCLES (Community Groups)
     match /circles/{circleId} {
-      allow read, create: if isSignedIn();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn(); // Any signed-in user can create a post, which is what the `create` op here means.
       allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.createdBy == request.auth.uid;
 
       match /posts/{postId} {
@@ -112,8 +108,7 @@ service cloud.firestore {
     }
   }
 }
-`
-.trim();
+`.trim();
 
 export function FirestoreRules() {
     const [hasCopied, setHasCopied] = useState(false);
@@ -143,4 +138,3 @@ export function FirestoreRules() {
         </div>
     );
 }
-
