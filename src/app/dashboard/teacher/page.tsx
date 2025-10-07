@@ -11,43 +11,18 @@ import { UserData } from "@/components/dashboard/admin/teacher-management";
 import { BookOpen, Calendar, Users } from "lucide-react";
 
 export default function TeacherDashboardPage() {
-  const { user } = useAuth();
-  const [teacherData, setTeacherData] = useState<UserData | null>(null);
+  const { user, userData: teacherData, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [isClient, setIsClient] = useState(false);
 
-  // Ensure this component only renders on the client to avoid hydration mismatches
+  // This combines the auth loading state with any additional data loading
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (user && isClient) {
-      const fetchUserData = async () => {
-        setLoading(true);
-        console.log("Fetching data for user UID:", user.uid);
-        const userDocRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(userDocRef);
-        if (docSnap.exists()) {
-          console.log("Teacher document found:", docSnap.data());
-          setTeacherData(docSnap.data() as UserData);
-        } else {
-          console.error("No teacher document found for UID:", user.uid);
-          // Explicitly set teacherData to null if doc doesn't exist
-          setTeacherData(null);
-        }
-        setLoading(false);
-      };
-      fetchUserData();
-    } else if (isClient) {
-      // If there's no user on the client, stop loading
-      console.log("No user found on client-side.");
+    if (!authLoading) {
       setLoading(false);
     }
-  }, [user, isClient]);
+  }, [authLoading]);
 
   // While waiting for client-side render and data fetching, show skeletons
-  if (!isClient || loading) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-1/3" />
@@ -68,9 +43,8 @@ export default function TeacherDashboardPage() {
 
   // If user is logged in but profile data doesn't exist in Firestore
   if (!teacherData) {
-      return <p className="text-center text-destructive">No teacher profile found. Please contact an administrator.</p>;
+      return <p className="text-center text-destructive">No teacher profile found. Please contact an administrator or complete your profile setup.</p>;
   }
-
 
   const userName = teacherData?.name || "Teacher";
 
@@ -90,7 +64,7 @@ export default function TeacherDashboardPage() {
           <CardContent>
             {teacherData?.subjects && teacherData.subjects.length > 0 ? (
                 <ul className="space-y-2">
-                    {teacherData.subjects.map((subject, index) => (
+                    {teacherData.subjects.map((subject: string, index: number) => (
                         <li key={index} className="text-muted-foreground">{subject}</li>
                     ))}
                 </ul>

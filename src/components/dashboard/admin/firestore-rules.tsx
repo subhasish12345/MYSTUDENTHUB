@@ -32,9 +32,9 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      allow list: if isAdmin();
-      // Any signed-in user can read any other user's profile to facilitate other rules.
+      // Any signed-in user can read any other user's profile to check roles.
       allow get: if isSignedIn();
+      allow list: if isAdmin();
       // Any signed-in user can create their own user document during profile setup.
       allow create: if isOwner(userId);
       // Admins can update/delete any user's main role document. Students/teachers can update their own.
@@ -98,36 +98,46 @@ service cloud.firestore {
 
     // NOTICE BOARD
     match /notices/{noticeId} {
-      allow list, get: if isSignedIn();
+      // Explicitly allow both single-document gets and collection-wide lists
+      allow get, list: if isSignedIn();
+      // Only admins or teachers can create notices. Check the role from the incoming data.
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
-      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
+      // An admin can update any notice. A teacher can only update their own.
+      allow update: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
+      allow delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
     }
     
     // EVENTS
     match /events/{eventId} {
-      allow list, get: if isSignedIn();
+      // Allow any logged-in user to view the list of events or a single event
+      allow get, list: if isSignedIn();
+      // Only allow event creation if the incoming data marks the author as an admin
       allow create: if request.resource.data.authorRole == 'admin';
-      allow update: if request.resource.data.authorRole == 'admin';
-      allow delete: if resource.data.createdBy == request.auth.uid;
+      // Only allow updates if the user is an admin
+      allow update: if isAdmin();
+      // Only allow deletion if the user is an admin
+      allow delete: if isAdmin();
     }
 
     // ASSIGNMENTS & SUBMISSIONS
     match /assignments/{assignmentId} {
-      // Changed 'read' to 'get, list' to explicitly allow collection queries for all users.
+      // Allow any logged-in user to query the assignments collection
       allow get, list: if isSignedIn();
+      // Only teachers or admins can create, update, or delete assignments
       allow create, update, delete: if isTeacher() || isAdmin();
     }
 
     // CIRCLES (Community Groups)
     match /circles/{circleId} {
+      // Allow any logged-in user to read circle info and create a circle
       allow read, create: if isSignedIn();
-      // Circle document itself can only be updated by admin or creator.
+      // Only the circle creator or an admin can update the circle details
       allow update: if isAdmin() || resource.data.createdBy == request.auth.uid;
 
       match /posts/{postId} {
-        allow read, create: if isSignedIn(); // Any signed-in user can post for now
-        // only post author or admin can delete.
+        // Allow any logged-in user to read posts and create new ones
+        allow get, list, create: if isSignedIn();
+        // Only the post author or an admin can update or delete a post
         allow update, delete: if isAdmin() || resource.data.author.uid == request.auth.uid;
       }
     }

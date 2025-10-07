@@ -4,7 +4,6 @@
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, DocumentData, updateDoc, doc, getDoc, deleteDoc } from "firebase/firestore";
 import { NoticeFormValues } from "./notice-form";
-import { revalidatePath } from "next/cache";
 import { Roles } from "@/lib/roles";
 
 interface CreateNoticeParams extends NoticeFormValues {
@@ -51,8 +50,6 @@ export async function createNotice(data: CreateNoticeParams) {
     }
 
     await addDoc(collection(db, "notices"), noticeData);
-
-    revalidatePath("/dashboard/notice-board");
 }
 
 
@@ -74,10 +71,8 @@ export async function updateNotice(noticeId: string, data: NoticeFormValues) {
     };
 
     await updateDoc(noticeRef, updateData);
-    revalidatePath('/dashboard/notice-board');
 }
 
 export async function deleteNotice(noticeId: string) {
     await deleteDoc(doc(db, "notices", noticeId));
-    revalidatePath("/dashboard/notice-board");
 }
