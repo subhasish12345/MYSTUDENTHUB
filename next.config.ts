@@ -28,6 +28,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'image2url.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   // This is to allow cross-origin requests in development.
