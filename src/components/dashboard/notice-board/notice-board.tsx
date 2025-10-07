@@ -14,6 +14,7 @@ import { NoticeList } from "./notice-list";
 import { useToast } from "@/hooks/use-toast";
 import { createNotice } from "./actions";
 import { StudentData } from "../admin/student-management";
+import { Roles } from "@/lib/roles";
 
 
 export interface Notice extends DocumentData {
@@ -23,6 +24,7 @@ export interface Notice extends DocumentData {
     imageUrl?: string;
     postedBy: string;
     postedByName: string;
+    authorRole: Roles;
     target: {
         type: 'global' | 'degree' | 'stream' | 'batch' | 'group';
         degree?: string;
@@ -103,7 +105,8 @@ export function NoticeBoard() {
             await createNotice({
                 ...values,
                 postedBy: user.uid,
-                postedByName: userData.name || "User"
+                postedByName: userData.name || "User",
+                authorRole: userRole,
             });
             toast({ title: "Success!", description: "Notice has been posted." });
             setIsSheetOpen(false);
