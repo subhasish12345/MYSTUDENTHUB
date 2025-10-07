@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Check, Clipboard } from "lucide-react";
@@ -79,7 +78,7 @@ service cloud.firestore {
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
       // An admin can update/delete any notice.
       // A teacher can update/delete only their own notices.
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.postedBy == request.auth.uid);
     }
   }
 }

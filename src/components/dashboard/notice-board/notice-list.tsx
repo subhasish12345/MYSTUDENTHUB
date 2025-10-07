@@ -74,7 +74,7 @@ export function NoticeList({ notices, loading, currentUser, userRole, onEdit, on
                                 <Image
                                     src={notice.imageUrl}
                                     alt={notice.title}
-                                    layout="fill"
+                                    fill
                                     objectFit="cover"
                                     className="rounded-t-lg"
                                     data-ai-hint="announcement poster"
