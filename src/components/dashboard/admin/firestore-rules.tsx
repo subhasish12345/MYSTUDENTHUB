@@ -19,14 +19,15 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
+      // Admins can list all users.
+      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Any signed-in user can read any user's profile. This is required to break circular dependencies in other rules.
+      allow get: if isSignedIn();
       // Any signed-in user can create their own user document during profile setup.
       allow create: if isOwner(userId);
-      // Any signed-in user can read any user's role document. This is required for other rules to check roles.
-      allow get: if isSignedIn();
-      // Only Admins can list all users.
-      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      // Only Admins can update or delete user roles.
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Admins can update/delete any user's main role document. Students/teachers can update their own.
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || isOwner(userId);
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /teachers/{teacherId} {
@@ -81,14 +82,14 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow list, read: if isSignedIn();
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.postedBy == request.auth.uid);
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (resource.data.postedBy == request.auth.uid);
     }
     
     // EVENTS
     match /events/{eventId} {
       allow list, read: if isSignedIn();
-      allow create: if request.resource.data.authorRole == 'admin';
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Admin-only write access, checked by reading the user's role document. This now works because of the permissive /users rule.
+      allow create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
   }
 }
