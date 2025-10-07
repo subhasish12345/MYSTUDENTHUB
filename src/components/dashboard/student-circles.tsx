@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, orderBy, query, addDoc, serverTimestamp, DocumentData } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, MessageSquare } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
@@ -25,6 +25,19 @@ interface Post extends DocumentData {
     author: PostAuthor;
     content: string;
     timestamp: any;
+}
+
+function ClientOnly({ children }: { children: React.ReactNode }) {
+    const [hasMounted, setHasMounted] = useState(false);
+    useEffect(() => {
+        setHasMounted(true);
+    }, []);
+
+    if (!hasMounted) {
+        return null;
+    }
+
+    return <>{children}</>;
 }
 
 
@@ -118,7 +131,9 @@ export function StudentCircles() {
                             <div>
                                 <p className="font-semibold">{post.author.name}</p>
                                 <p className="text-xs text-muted-foreground">
-                                    {post.timestamp ? formatDistanceToNow(post.timestamp.toDate(), { addSuffix: true }) : 'Just now'}
+                                    <ClientOnly>
+                                      {post.timestamp ? formatDistanceToNow(post.timestamp.toDate(), { addSuffix: true }) : 'Just now'}
+                                    </ClientOnly>
                                 </p>
                             </div>
                         </CardHeader>

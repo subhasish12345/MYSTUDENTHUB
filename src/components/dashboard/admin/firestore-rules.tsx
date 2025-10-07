@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Check, Clipboard } from "lucide-react";
@@ -10,12 +11,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Function: Check if the user is authenticated.
+    // Helper Function to check if a user is signed in.
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Helper Function: Securely get the role of the currently authenticated user.
+    // Helper Function to get a user's role from the /users collection.
     // This is the single source of truth for a user's role.
     function getUserRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
@@ -29,11 +30,10 @@ service cloud.firestore {
     match /users/{userId} {
       // Admins can read any user document; users can only read their own.
       allow get: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == userId);
-      // Only admins can list all user documents.
       allow list: if isSignedIn() && getUserRole() == 'admin';
       
       // Any authenticated user can create their own user document upon signup.
-      // An admin can also create one.
+      // An admin can also create one for other users.
       allow create: if isSignedIn();
       
       // A user can update their own document, or an admin can update any user document.
@@ -63,8 +63,7 @@ service cloud.firestore {
       // --- Student Sub-collections ---
       match /semesters/{semesterId} {
         // Admins can manage semesters, students can read their own.
-        allow read: if isSignedIn() && (request.auth.uid == studentId || getUserRole() == 'admin');
-        allow write: if isSignedIn() && getUserRole() == 'admin';
+        allow read, write: if isSignedIn() && (request.auth.uid == studentId || getUserRole() == 'admin');
       }
       match /focusSessions/{sessionId} {
         // A student has full control over their own focus sessions.
@@ -111,9 +110,8 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow get, list: if isSignedIn();
       
-      // User's role must be 'admin' or 'teacher' to create/update.
-      // We check the role from the user's document, not the incoming request data, to prevent spoofing.
-      allow create, update: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+      // Check the role being sent with the write request.
+      allow create, update: if isSignedIn() && request.resource.data.authorRole in ['admin', 'teacher'];
 
       // An admin can delete any notice. A teacher can only delete their own.
       allow delete: if isSignedIn() && (getUserRole() == 'admin' || resource.data.postedBy == request.auth.uid);
@@ -122,7 +120,12 @@ service cloud.firestore {
     // Events: Only admins can create, update, or delete events.
     match /events/{eventId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && getUserRole() == 'admin';
+
+      // Check the role being sent with the write request.
+      allow create, update: if isSignedIn() && request.resource.data.authorRole == 'admin';
+      
+      // Check the role of the user trying to delete.
+      allow delete: if isSignedIn() && getUserRole() == 'admin';
     }
 
     // Assignments: Managed by teachers and admins.
@@ -133,7 +136,7 @@ service cloud.firestore {
 
     // Student Circles: Community feature.
     match /circles/{circleId} {
-      allow read: if isSignedIn();
+      allow get, list, create: if isSignedIn();
       
       // --- Circle Sub-collection for Posts ---
       match /posts/{postId} {

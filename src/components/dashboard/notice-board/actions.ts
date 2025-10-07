@@ -16,7 +16,6 @@ export async function createNotice(data: CreateNoticeParams) {
 
     const noticeData: DocumentData = {
         ...data,
-        authorRole: data.authorRole, // Ensure role is on the doc
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
@@ -31,7 +30,6 @@ export async function createNotice(data: CreateNoticeParams) {
         noticeData.target = { type: 'global' };
     }
 
-
     await addDoc(collection(db, "notices"), noticeData);
 }
 
@@ -44,7 +42,6 @@ export async function updateNotice(noticeId: string, data: UpdateNoticeParams) {
     
     const updateData: DocumentData = {
         ...data,
-        authorRole: data.authorRole, // Pass role with the update
         updatedAt: serverTimestamp(),
     };
     

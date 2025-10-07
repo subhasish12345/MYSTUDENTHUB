@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Button } from "@/components/ui/button";
 import { User } from "firebase/auth";
 import { Roles } from "@/lib/roles";
+import { useEffect, useState } from "react";
 
 
 interface NoticeListProps {
@@ -22,6 +23,20 @@ interface NoticeListProps {
     onEdit: (notice: Notice) => void;
     onDelete: (notice: Notice) => void;
 }
+
+function ClientOnly({ children }: { children: React.ReactNode }) {
+    const [hasMounted, setHasMounted] = useState(false);
+    useEffect(() => {
+        setHasMounted(true);
+    }, []);
+
+    if (!hasMounted) {
+        return null;
+    }
+
+    return <>{children}</>;
+}
+
 
 export function NoticeList({ notices, loading, currentUser, userRole, onEdit, onDelete }: NoticeListProps) {
 
@@ -86,7 +101,9 @@ export function NoticeList({ notices, loading, currentUser, userRole, onEdit, on
                                 <div className="flex-1">
                                     <CardTitle>{notice.title}</CardTitle>
                                     <CardDescription>
-                                        {formatDistanceToNow(notice.createdAt.toDate(), { addSuffix: true })}
+                                        <ClientOnly>
+                                            {formatDistanceToNow(notice.createdAt.toDate(), { addSuffix: true })}
+                                        </ClientOnly>
                                     </CardDescription>
                                 </div>
                                 {canModify && (

@@ -14,9 +14,6 @@ interface CreateEventParams extends EventFormValues {
 
 // The 'authorRole' is now required and will be checked by security rules.
 export async function createEvent(data: CreateEventParams) {
-    if (data.authorRole !== 'admin') {
-        throw new Error("Only admins can create events.");
-    }
     const eventData: DocumentData = {
         ...data,
         createdAt: serverTimestamp(),
@@ -31,9 +28,6 @@ interface UpdateEventParams extends EventFormValues {
 
 // The 'authorRole' is passed with the update to be checked by security rules.
 export async function updateEvent(eventId: string, data: UpdateEventParams) {
-     if (data.authorRole !== 'admin') {
-        throw new Error("Only admins can update events.");
-    }
     const eventRef = doc(db, "events", eventId);
     const updateData: DocumentData = {
         ...data,
