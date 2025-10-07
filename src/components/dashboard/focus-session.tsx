@@ -1,46 +1,54 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Play, Pause, RotateCcw } from "lucide-react";
+import { Progress } from '../ui/progress';
 
 export function FocusSession() {
-    const [totalSeconds, setTotalSeconds] = useState(25 * 60);
+    const [timer, setTimer] = useState(25 * 60); // Default to 25 minutes
+    const [initialTime, setInitialTime] = useState(25 * 60);
     const [isActive, setIsActive] = useState(false);
     const [topic, setTopic] = useState("Study Session");
 
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
+    const minutes = Math.floor(timer / 60);
+    const seconds = timer % 60;
+    const progress = ((initialTime - timer) / initialTime) * 100;
 
     useEffect(() => {
-        if (isActive && totalSeconds > 0) {
+        if (isActive && timer > 0) {
             intervalRef.current = setInterval(() => {
-                setTotalSeconds(s => s - 1);
+                setTimer(t => t - 1);
             }, 1000);
-        } else if (!isActive || totalSeconds === 0) {
+        } else if (!isActive || timer === 0) {
             if (intervalRef.current) clearInterval(intervalRef.current);
-            if(totalSeconds === 0) {
+            if (timer === 0 && isActive) {
+                // Handle session end
                 setIsActive(false);
+                alert(`Focus session "${topic}" complete!`);
+                // Here you would typically save the session to Firestore
             }
         }
         
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [isActive, totalSeconds]);
+    }, [isActive, timer, topic]);
     
     const toggleTimer = () => {
         setIsActive(!isActive);
     };
 
-    const resetTimer = (newTime: number) => {
+    const resetTimer = (newTimeInMinutes: number) => {
+        const newTimeInSeconds = newTimeInMinutes * 60;
         if (intervalRef.current) clearInterval(intervalRef.current);
         setIsActive(false);
-        setTotalSeconds(newTime);
+        setInitialTime(newTimeInSeconds);
+        setTimer(newTimeInSeconds);
     };
 
     return (
@@ -59,8 +67,11 @@ export function FocusSession() {
                     <CardDescription>Stay focused on your goal.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center gap-6">
-                    <div className="text-8xl font-bold font-mono text-primary tabular-nums">
-                        {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                    <div className="relative h-48 w-48">
+                         <Progress value={progress} className="absolute h-full w-full rounded-full [&>div]:bg-primary/20" />
+                         <div className="absolute inset-0 flex items-center justify-center text-5xl font-bold font-mono text-primary tabular-nums">
+                            {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                        </div>
                     </div>
                     
                     <div className="flex w-full gap-2">
@@ -68,19 +79,18 @@ export function FocusSession() {
                             {isActive ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
                             {isActive ? 'Pause' : 'Start'}
                         </Button>
-                        <Button variant="outline" size="lg" onClick={() => resetTimer(25 * 60)}>
+                        <Button variant="outline" size="lg" onClick={() => resetTimer(initialTime/60)}>
                            <RotateCcw className="h-5 w-5" />
                         </Button>
                     </div>
 
-                    <div className="w-full space-y-2">
-                         <div className="flex gap-2 justify-center">
-                            <Button variant="ghost" size="sm" onClick={() => resetTimer(25 * 60)}>25 min</Button>
-                            <Button variant="ghost" size="sm" onClick={() => resetTimer(45 * 60)}>45 min</Button>
-                            <Button variant="ghost" size="sm" onClick={() => resetTimer(60 * 60)}>60 min</Button>
-                        </div>
-                    </div>
+                    
                 </CardContent>
+                 <CardFooter className="flex justify-center gap-2 pt-0">
+                    <Button variant="ghost" size="sm" onClick={() => resetTimer(25)}>25 min</Button>
+                    <Button variant="ghost" size="sm" onClick={() => resetTimer(45)}>45 min</Button>
+                    <Button variant="ghost" size="sm" onClick={() => resetTimer(60)}>60 min</Button>
+                 </CardFooter>
             </Card>
         </div>
     );

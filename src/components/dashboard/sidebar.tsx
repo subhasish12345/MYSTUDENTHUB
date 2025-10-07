@@ -13,7 +13,6 @@ import {
 import {
   LayoutDashboard,
   Calendar,
-  BookOpen,
   Users,
   Timer,
   Settings,
