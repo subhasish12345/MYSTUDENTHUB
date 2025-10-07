@@ -6,9 +6,9 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy, DocumentData } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { format, isPast } from "date-fns";
 import { Button } from '../ui/button';
-import { PlusCircle, Edit, Trash2, ExternalLink } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ExternalLink, UserCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { EventForm, EventFormValues } from './events/event-form';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -30,16 +30,19 @@ export interface Event extends DocumentData {
     category: string;
     status: 'Scheduled' | 'Cancelled';
     createdBy: string;
+    postedByName: string;
 }
 
 export function EventCalendar() {
-    const { user, userRole } = useAuth();
+    const { user, userRole, userData } = useAuth();
     const { toast } = useToast();
     
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [categoryFilter, setCategoryFilter] = useState('All');
+    const [timeFilter, setTimeFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
+
 
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,7 +67,7 @@ export function EventCalendar() {
     }, [toast]);
 
     const handleFormSubmit = async (values: EventFormValues) => {
-        if (!user || !userRole) {
+        if (!user || !userRole || !userData) {
             toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" });
             return;
         }
@@ -74,7 +77,7 @@ export function EventCalendar() {
                 await updateEvent(editingEvent.id, { ...values, authorRole: userRole });
                 toast({ title: "Success", description: "Event has been updated." });
             } else {
-                await createEvent({ ...values, createdBy: user.uid, authorRole: userRole });
+                await createEvent({ ...values, createdBy: user.uid, postedByName: userData.name, authorRole: userRole });
                 toast({ title: "Success", description: "New event has been created." });
             }
             setIsSheetOpen(false);
@@ -109,33 +112,61 @@ export function EventCalendar() {
     }
 
     const filteredEvents = useMemo(() => {
-        return events.filter(event => {
-            if (categoryFilter === 'All') return true;
-            return event.category === categoryFilter;
-        });
-    }, [events, categoryFilter]);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Start of today
 
-    const eventsOnSelectedDate = useMemo(() => {
-        if (!date) return [];
-        return filteredEvents.filter(event => format(event.date.toDate(), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd'));
-    }, [filteredEvents, date]);
+        return events.filter(event => {
+            const eventDate = event.date.toDate();
+            let timeMatch = false;
+            if (timeFilter === 'upcoming') {
+                timeMatch = eventDate >= now;
+            } else if (timeFilter === 'past') {
+                timeMatch = eventDate < now;
+            } else { // 'all'
+                timeMatch = true;
+            }
+
+            const categoryMatch = categoryFilter === 'All' || event.category === categoryFilter;
+            
+            return timeMatch && categoryMatch;
+        }).sort((a,b) => timeFilter === 'past' ? b.date.toMillis() - a.date.toMillis() : a.date.toMillis() - b.date.toMillis());
+    }, [events, categoryFilter, timeFilter]);
+
 
     return (
         <>
         <div className="space-y-6">
-             <div>
-                <h1 className="font-headline text-3xl font-bold">Events Calendar</h1>
-                <p className="text-muted-foreground">Stay updated with all campus events.</p>
+             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                <div>
+                    <h1 className="font-headline text-3xl font-bold">Events Calendar</h1>
+                    <p className="text-muted-foreground">Stay updated with all campus events.</p>
+                </div>
+                {isAdmin && (
+                    <Button onClick={handleCreateClick}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Create Event
+                    </Button>
+                )}
             </div>
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                <div className="lg:col-span-2 space-y-6">
-                    <Card>
-                        <CardHeader className="flex flex-col sm:flex-row justify-between sm:items-center">
-                           <div>
-                                <CardTitle className="font-headline">Calendar</CardTitle>
-                                <CardDescription>Select a date to view events.</CardDescription>
-                            </div>
-                           <div className="flex gap-2">
+
+            <Card>
+                <CardHeader>
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                        <div>
+                            <CardTitle className="font-headline">Filter Events</CardTitle>
+                            <CardDescription>Select filters to narrow down the events shown below.</CardDescription>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                            <Select value={timeFilter} onValueChange={(val) => setTimeFilter(val as any)}>
+                                <SelectTrigger className="w-full sm:w-[160px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="upcoming">Upcoming</SelectItem>
+                                    <SelectItem value="past">Past</SelectItem>
+                                    <SelectItem value="all">All Events</SelectItem>
+                                </SelectContent>
+                            </Select>
                             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                                 <SelectTrigger className="w-full sm:w-[180px]">
                                     <SelectValue placeholder="Filter by category..." />
@@ -146,89 +177,65 @@ export function EventCalendar() {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            {isAdmin && (
-                                <Button onClick={handleCreateClick}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Create Event
-                                </Button>
-                            )}
-                           </div>
-                        </CardHeader>
-                        <CardContent className="flex justify-center">
-                            <Calendar
-                                mode="single"
-                                selected={date}
-                                onSelect={setDate}
-                                className="rounded-md border"
-                                modifiers={{
-                                    hasEvent: events.map(e => e.date.toDate())
-                                }}
-                                modifiersStyles={{
-                                    hasEvent: { 
-                                        fontWeight: 'bold', 
-                                        textDecoration: 'underline',
-                                        textDecorationColor: 'hsl(var(--accent))',
-                                        textUnderlineOffset: '0.2rem',
-                                        textDecorationThickness: '0.15rem'
-                                    }
-                                }}
-                            />
-                        </CardContent>
-                    </Card>
-                </div>
-                <div className="lg:col-span-1">
-                    <Card>
-                         <CardHeader>
-                            <CardTitle className="font-headline">
-                                Events on {date ? format(date, 'MMMM d') : 'selected date'}
-                            </CardTitle>
-                            <CardDescription>
-                                {eventsOnSelectedDate.length} event(s) scheduled.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4 max-h-[60vh] overflow-y-auto">
-                             {eventsOnSelectedDate.length > 0 ? (
-                                    eventsOnSelectedDate.map(event => (
-                                        <Card key={event.id} className="shadow-md">
-                                            {event.imageUrl && (
-                                                <div className="relative h-32 w-full">
-                                                    <Image src={event.imageUrl} alt={event.title} fill objectFit="cover" className="rounded-t-lg" data-ai-hint="event poster" />
-                                                </div>
-                                            )}
-                                            <CardHeader>
-                                                <CardTitle className='text-lg'>{event.title}</CardTitle>
-                                                <div className='flex justify-between items-center'>
-                                                    <CardDescription>{event.venue}</CardDescription>
-                                                    <Badge variant={event.status === 'Cancelled' ? 'destructive' : 'secondary'}>{event.category}</Badge>
-                                                </div>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <p className="text-sm text-muted-foreground">{event.description}</p>
-                                                {event.status === 'Cancelled' && <p className="text-destructive font-bold mt-2">This event has been cancelled.</p>}
-                                            </CardContent>
-                                            <CardFooter className="flex justify-between">
-                                                {event.registrationLink && (
-                                                    <Button asChild size="sm">
-                                                        <a href={event.registrationLink} target="_blank" rel="noopener noreferrer">
-                                                            Register <ExternalLink className="ml-2 h-4 w-4" />
-                                                        </a>
-                                                    </Button>
-                                                )}
-                                                {isAdmin && (
-                                                    <div className="flex gap-2">
-                                                        <Button variant="outline" size="sm" onClick={() => handleEditClick(event)}><Edit className="h-4 w-4" /></Button>
-                                                        <Button variant="destructive" size="sm" onClick={() => setDeletingEvent(event)}><Trash2 className="h-4 w-4" /></Button>
-                                                    </div>
-                                                )}
-                                            </CardFooter>
-                                        </Card>
-                                    ))
-                            ) : (
-                                <p className="text-muted-foreground text-sm h-40 flex items-center justify-center">No events scheduled for this day.</p>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
+                        </div>
+                   </div>
+                </CardHeader>
+            </Card>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                 {loading ? (
+                    Array.from({length: 4}).map((_, i) => <Card key={i}><CardHeader><CardTitle>Loading...</CardTitle></CardHeader></Card>)
+                 ) : filteredEvents.length > 0 ? (
+                        filteredEvents.map(event => (
+                            <Card key={event.id} className="flex flex-col shadow-md">
+                                {event.imageUrl && (
+                                    <div className="relative h-40 w-full">
+                                        <Image src={event.imageUrl} alt={event.title} fill objectFit="cover" className="rounded-t-lg" data-ai-hint="event poster" />
+                                    </div>
+                                )}
+                                <CardHeader>
+                                    <div className="flex justify-between items-start gap-2">
+                                        <div className='flex-1'>
+                                            <CardTitle className='text-lg'>{event.title}</CardTitle>
+                                            <CardDescription>{format(event.date.toDate(), 'PPP, p')}</CardDescription>
+                                        </div>
+                                        <Badge variant={event.status === 'Cancelled' ? 'destructive' : 'secondary'}>{event.category}</Badge>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="flex-grow space-y-2">
+                                    <p className="text-sm text-muted-foreground">{event.description}</p>
+                                    <p className="text-sm font-semibold">Venue: {event.venue}</p>
+                                    {event.status === 'Cancelled' && <p className="text-destructive font-bold">This event has been cancelled.</p>}
+                                </CardContent>
+                                <CardFooter className="flex justify-between items-center border-t pt-4">
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <UserCircle className="h-4 w-4" />
+                                        <span>{event.postedByName || "Admin"}</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {event.registrationLink && event.status !== 'Cancelled' && (
+                                            <Button asChild size="sm">
+                                                <a href={event.registrationLink} target="_blank" rel="noopener noreferrer">
+                                                    Register <ExternalLink className="ml-2 h-4 w-4" />
+                                                </a>
+                                            </Button>
+                                        )}
+                                        {isAdmin && (
+                                            <>
+                                                <Button variant="outline" size="icon" onClick={() => handleEditClick(event)}><Edit className="h-4 w-4" /></Button>
+                                                <Button variant="destructive" size="icon" onClick={() => setDeletingEvent(event)}><Trash2 className="h-4 w-4" /></Button>
+                                            </>
+                                        )}
+                                    </div>
+                                </CardFooter>
+                            </Card>
+                        ))
+                ) : (
+                    <div className="lg:col-span-3 text-center py-16 border-dashed border-2 rounded-lg">
+                        <h3 className="font-headline text-2xl font-semibold">No Events Found</h3>
+                        <p className="text-muted-foreground">There are no events matching your current filters.</p>
+                    </div>
+                )}
             </div>
         </div>
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>

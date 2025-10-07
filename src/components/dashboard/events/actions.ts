@@ -9,6 +9,7 @@ import { Roles } from "@/lib/roles";
 
 interface CreateEventParams extends EventFormValues {
     createdBy: string;
+    postedByName: string; // Add this
     authorRole: Roles;
 }
 
