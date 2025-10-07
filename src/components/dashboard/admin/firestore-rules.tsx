@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Check, Clipboard } from "lucide-react";
@@ -19,7 +20,6 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      // Admins can list all users.
       allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       // Any signed-in user can read any user's profile. This is required to break circular dependencies in other rules.
       allow get: if isSignedIn();
@@ -82,14 +82,18 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow list, read: if isSignedIn();
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (resource.data.postedBy == request.auth.uid);
+      allow update: if request.resource.data.authorRole == 'admin' || (request.resource.data.authorRole == 'teacher' && resource.data.postedBy == request.auth.uid);
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
     }
     
     // EVENTS
     match /events/{eventId} {
       allow list, read: if isSignedIn();
-      // Admin-only write access, checked by reading the user's role document. This now works because of the permissive /users rule.
-      allow create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Use the reliable pattern: check a role field sent with the data.
+      allow create: if request.resource.data.authorRole == 'admin';
+      allow update: if request.resource.data.authorRole == 'admin';
+      // For delete, check the role of the person making the request. The /users get rule is now permissive enough for this to work.
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
   }
 }

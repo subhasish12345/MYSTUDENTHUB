@@ -71,7 +71,7 @@ export function EventCalendar() {
         setIsSubmitting(true);
         try {
             if (editingEvent) {
-                await updateEvent(editingEvent.id, values);
+                await updateEvent(editingEvent.id, { ...values, authorRole: userRole });
                 toast({ title: "Success", description: "Event has been updated." });
             } else {
                 await createEvent({ ...values, createdBy: user.uid, authorRole: userRole });
