@@ -10,95 +10,127 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() { 
-      return request.auth != null; 
+    // Helper Function — Check if user is signed in
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // USER-RELATED COLLECTIONS
+    // Helper Function — Get role of current user
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // ✅ USERS COLLECTION
     match /users/{userId} {
       allow get, list: if isSignedIn();
-      allow create, update: if request.auth.uid == userId;
-      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create: if isSignedIn(); // first-time user signup allowed
+      allow update: if request.auth.uid == userId || userRole() == 'admin';
+      allow delete: if userRole() == 'admin';
     }
 
+    // ✅ TEACHERS COLLECTION
     match /teachers/{teacherId} {
       allow get, list: if isSignedIn();
-      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create, update, delete: if userRole() == 'admin';
     }
 
+    // ✅ STUDENTS COLLECTION
     match /students/{studentId} {
       allow get, list: if isSignedIn();
-      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == studentId;
-      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == studentId;
-      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create: if userRole() == 'admin' || request.auth.uid == studentId;
+      allow update: if userRole() == 'admin' || request.auth.uid == studentId;
+      allow delete: if userRole() == 'admin';
 
+      // Sub-collections
       match /semesters/{semesterId} {
-        allow read, write: if request.auth.uid == studentId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        allow read, write: if request.auth.uid == studentId || userRole() == 'admin';
       }
 
       match /focusSessions/{sessionId} {
-      	allow read, write: if request.auth.uid == studentId;
+        allow read, write: if request.auth.uid == studentId;
       }
+
       match /submissions/{submissionId} {
-      	allow read, write: if request.auth.uid == studentId;
+        allow read, write: if request.auth.uid == studentId;
       }
     }
-    
-    // ACADEMIC STRUCTURE COLLECTIONS (Admin-only write access)
+
+    // ✅ DEGREE / STREAM / BATCH STRUCTURE (Admin-only write)
     match /degrees/{degreeId} {
       allow read: if isSignedIn();
-      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if userRole() == 'admin';
     }
 
     match /streams/{streamId} {
       allow read: if isSignedIn();
-      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if userRole() == 'admin';
     }
 
     match /batches/{batchId} {
       allow read: if isSignedIn();
-      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if userRole() == 'admin';
     }
 
-    // SEMESTER GROUPS for Attendance/Assignments
+    // ✅ SEMESTER GROUPS (For Attendance & Assignments)
     match /semesterGroups/{groupId} {
-        allow read: if isSignedIn();
-        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+      allow read: if isSignedIn();
+      allow write: if userRole() in ['admin', 'teacher'];
 
-        match /attendance/{date} {
-          allow read, write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
-        }
+      match /attendance/{date} {
+        allow read, write: if userRole() in ['admin', 'teacher'];
+      }
     }
 
-    // NOTICE BOARD
+    // ✅ NOTICE BOARD
     match /notices/{noticeId} {
       allow get, list: if isSignedIn();
-      allow create, update: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow delete: if resource.data.postedBy == request.auth.uid || resource.data.authorRole == 'admin';
+
+      // Admins & teachers can create or update notices
+      allow create, update: if
+        isSignedIn() &&
+        userRole() in ['admin', 'teacher'];
+
+      // Allow delete if user is admin or is the original poster
+      allow delete: if
+        isSignedIn() &&
+        (
+          userRole() == 'admin' ||
+          resource.data.postedBy == request.auth.uid
+        );
     }
-    
-    // EVENTS
+
+    // ✅ EVENTS SECTION
     match /events/{eventId} {
       allow get, list: if isSignedIn();
-      allow create, update: if request.resource.data.authorRole == 'admin';
-      allow delete: if resource.data.authorRole == 'admin';
+
+      // Only admins can create or update events
+      allow create, update: if
+        isSignedIn() &&
+        userRole() == 'admin';
+
+      // Only admins can delete events
+      allow delete: if
+        isSignedIn() &&
+        userRole() == 'admin';
     }
 
-    // ASSIGNMENTS & SUBMISSIONS
+    // ✅ ASSIGNMENTS & SUBMISSIONS
     match /assignments/{assignmentId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create, update, delete: if userRole() in ['teacher', 'admin'];
     }
 
-    // CIRCLES (Community Groups)
+    // ✅ CIRCLES (Community groups)
     match /circles/{circleId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn(); 
-      allow update: if resource.data.createdBy == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update: if resource.data.createdBy == request.auth.uid || userRole() == 'admin';
 
       match /posts/{postId} {
         allow get, list, create: if isSignedIn();
-        allow update, delete: if resource.data.author.uid == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        allow update, delete: if
+          resource.data.author.uid == request.auth.uid ||
+          userRole() == 'admin';
       }
     }
   }

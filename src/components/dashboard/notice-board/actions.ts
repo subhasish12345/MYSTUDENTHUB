@@ -13,10 +13,6 @@ interface CreateNoticeParams extends NoticeFormValues {
 }
 
 export async function createNotice(data: CreateNoticeParams) {
-    
-    if (data.authorRole !== 'admin' && data.authorRole !== 'teacher') {
-        throw new Error("You do not have permission to create a notice.");
-    }
 
     const noticeData: DocumentData = {
         ...data,
