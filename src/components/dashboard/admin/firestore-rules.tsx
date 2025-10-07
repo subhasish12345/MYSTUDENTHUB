@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { Check, Clipboard } from "lucide-react";
@@ -109,23 +107,15 @@ service cloud.firestore {
     // Notice Board: Admins and teachers can manage notices.
     match /notices/{noticeId} {
       allow get, list: if isSignedIn();
-      
-      // Check the role being sent with the write request.
       allow create, update: if isSignedIn() && request.resource.data.authorRole in ['admin', 'teacher'];
-
-      // An admin can delete any notice. A teacher can only delete their own.
       allow delete: if isSignedIn() && (getUserRole() == 'admin' || resource.data.postedBy == request.auth.uid);
     }
 
     // Events: Only admins can create, update, or delete events.
     match /events/{eventId} {
       allow get, list: if isSignedIn();
-
-      // Check the role being sent with the write request.
-      allow create, update: if isSignedIn() && request.resource.data.authorRole == 'admin';
-      
-      // Check the role of the user trying to delete.
-      allow delete: if isSignedIn() && getUserRole() == 'admin';
+      allow create, update: if request.resource.data.authorRole == 'admin';
+      allow delete: if resource.data.authorRole == 'admin';
     }
 
     // Assignments: Managed by teachers and admins.
@@ -136,7 +126,7 @@ service cloud.firestore {
 
     // Student Circles: Community feature.
     match /circles/{circleId} {
-      allow get, list, create: if isSignedIn();
+      allow read, create: if isSignedIn();
       
       // --- Circle Sub-collection for Posts ---
       match /posts/{postId} {

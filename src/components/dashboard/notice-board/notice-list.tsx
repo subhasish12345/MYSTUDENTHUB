@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Notice } from "./notice-board";
@@ -102,7 +101,7 @@ export function NoticeList({ notices, loading, currentUser, userRole, onEdit, on
                                     <CardTitle>{notice.title}</CardTitle>
                                     <CardDescription>
                                         <ClientOnly>
-                                            {formatDistanceToNow(notice.createdAt.toDate(), { addSuffix: true })}
+                                            {notice.createdAt ? formatDistanceToNow(notice.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
                                         </ClientOnly>
                                     </CardDescription>
                                 </div>
