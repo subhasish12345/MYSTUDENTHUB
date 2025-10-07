@@ -12,15 +12,20 @@ service cloud.firestore {
     function isSignedIn() { 
       return request.auth != null; 
     }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      // Allow users to read their OWN document to check their role.
-      allow get: if isSignedIn() && request.auth.uid == userId;
-      // Admins can list all users. This relies on the admin's OWN role being readable.
+      // Any signed-in user can create their own user document during profile setup.
+      allow create: if isOwner(userId);
+      // Any signed-in user can read any user's role document. This is required for other rules to check roles.
+      allow get: if isSignedIn();
+      // Only Admins can list all users.
       allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      // Admins can update/delete any user's main role document.
+      // Only Admins can update or delete user roles.
       allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -28,19 +33,19 @@ service cloud.firestore {
       allow get: if isSignedIn();
       allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == teacherId;
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || isOwner(teacherId);
       allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /students/{studentId} {
       allow get: if isSignedIn();
       allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
-      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (isSignedIn() && request.auth.uid == studentId);
-      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == studentId;
+      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || isOwner(studentId);
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || isOwner(studentId);
       allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
       match /semesters/{semesterId} {
-        allow read: if request.auth.uid == studentId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+        allow read: if isOwner(studentId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
         allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       }
     }
@@ -81,9 +86,7 @@ service cloud.firestore {
     
     // EVENTS
     match /events/{eventId} {
-      // Anyone can see events
       allow list, read: if isSignedIn();
-      // Only admins can create, update, or delete events.
       allow create: if request.resource.data.authorRole == 'admin';
       allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
