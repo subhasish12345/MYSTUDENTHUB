@@ -16,8 +16,6 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      // Any signed-in user can view user profiles (e.g. for author details)
-      // but can only create or fully update their own user document.
       allow get, list: if isSignedIn();
       allow create, update: if request.auth.uid == userId;
       allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
@@ -76,14 +74,14 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow get, list: if isSignedIn();
       allow create, update: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
+      allow delete: if resource.data.postedBy == request.auth.uid || resource.data.authorRole == 'admin';
     }
     
     // EVENTS
     match /events/{eventId} {
       allow get, list: if isSignedIn();
       allow create, update: if request.resource.data.authorRole == 'admin';
-      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow delete: if resource.data.authorRole == 'admin';
     }
 
     // ASSIGNMENTS & SUBMISSIONS

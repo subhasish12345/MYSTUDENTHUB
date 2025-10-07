@@ -47,7 +47,6 @@ export async function updateNotice(noticeId: string, data: UpdateNoticeParams) {
     
     const updateData: DocumentData = {
         ...data,
-        authorRole: data.authorRole, // Explicitly include the role for the rule check
         updatedAt: serverTimestamp(),
     };
     
@@ -65,6 +64,6 @@ export async function updateNotice(noticeId: string, data: UpdateNoticeParams) {
 }
 
 export async function deleteNotice(noticeId: string) {
-    // Note: The security rule for delete now checks the role of the user making the request.
+    // The security rule for delete now checks the role of the user making the request.
     await deleteDoc(doc(db, "notices", noticeId));
 }

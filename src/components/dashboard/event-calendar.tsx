@@ -31,6 +31,7 @@ export interface Event extends DocumentData {
     status: 'Scheduled' | 'Cancelled';
     createdBy: string;
     postedByName: string;
+    authorRole: string;
 }
 
 export function EventCalendar() {
