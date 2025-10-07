@@ -16,12 +16,16 @@ interface CreateNoticeParams extends NoticeFormValues {
 export async function createNotice(data: CreateNoticeParams) {
     const { title, description, imageUrl, targetType, degree, stream, batch, postedBy, postedByName, authorRole } = data;
 
+    if (!authorRole) {
+        throw new Error("Author role is missing and is required to create a notice.");
+    }
+
     const noticeData: DocumentData = {
         title,
         description,
         postedBy,
         postedByName,
-        authorRole,
+        authorRole, // This is now guaranteed to be passed from the client
         createdAt: serverTimestamp(),
         target: {
             type: targetType,
