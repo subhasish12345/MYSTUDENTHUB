@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Check, Clipboard } from "lucide-react";
@@ -77,15 +76,17 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow list, read: if isSignedIn();
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.postedBy == request.auth.uid);
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
     }
     
     // EVENTS
     match /events/{eventId} {
       // Anyone can see events
       allow list, read: if isSignedIn();
-      // Only admins can create, update, or delete events
-      allow create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Only admins can create events
+      allow create: if request.resource.data.authorRole == 'admin';
+      // Admins can update/delete any event.
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
   }
 }

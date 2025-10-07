@@ -63,7 +63,7 @@ export function EventCalendar() {
     }, [toast]);
 
     const handleFormSubmit = async (values: EventFormValues) => {
-        if (!user) {
+        if (!user || !userRole) {
             toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" });
             return;
         }
@@ -73,7 +73,7 @@ export function EventCalendar() {
                 await updateEvent(editingEvent.id, values);
                 toast({ title: "Success", description: "Event has been updated." });
             } else {
-                await createEvent({ ...values, createdBy: user.uid });
+                await createEvent({ ...values, createdBy: user.uid, authorRole: userRole });
                 toast({ title: "Success", description: "New event has been created." });
             }
             setIsSheetOpen(false);
@@ -191,7 +191,7 @@ export function EventCalendar() {
                                         <Card key={event.id} className="shadow-md">
                                             {event.imageUrl && (
                                                 <div className="relative h-32 w-full">
-                                                    <Image src={event.imageUrl} alt={event.title} layout="fill" objectFit="cover" className="rounded-t-lg" data-ai-hint="event poster" />
+                                                    <Image src={event.imageUrl} alt={event.title} fill objectFit="cover" className="rounded-t-lg" data-ai-hint="event poster" />
                                                 </div>
                                             )}
                                             <CardHeader>

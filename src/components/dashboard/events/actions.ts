@@ -4,9 +4,11 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, DocumentData, updateDoc, doc, deleteDoc } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { EventFormValues } from "./event-form";
+import { Roles } from "@/lib/roles";
 
 interface CreateEventParams extends EventFormValues {
     createdBy: string;
+    authorRole: Roles;
 }
 
 export async function createEvent(data: CreateEventParams) {
@@ -16,6 +18,10 @@ export async function createEvent(data: CreateEventParams) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
+
+    if (eventData.authorRole !== 'admin') {
+        throw new Error("Only admins can create events.");
+    }
 
     await addDoc(collection(db, "events"), eventData);
 
