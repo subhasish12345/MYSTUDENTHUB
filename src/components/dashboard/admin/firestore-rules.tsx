@@ -16,15 +16,16 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      allow read, list: if isSignedIn();
-      allow create: if request.auth.uid == userId;
-      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == userId;
+      // Any signed-in user can view user profiles (e.g. for author details)
+      // but can only create or fully update their own user document.
+      allow get, list: if isSignedIn();
+      allow create, update: if request.auth.uid == userId;
       allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /teachers/{teacherId} {
-      allow read, list: if isSignedIn();
-      allow create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow get, list: if isSignedIn();
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /students/{studentId} {
@@ -34,8 +35,7 @@ service cloud.firestore {
       allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
       match /semesters/{semesterId} {
-        allow read: if request.auth.uid == studentId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
-        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        allow read, write: if request.auth.uid == studentId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       }
 
       match /focusSessions/{sessionId} {
@@ -68,23 +68,22 @@ service cloud.firestore {
         allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
 
         match /attendance/{date} {
-          allow read: if isSignedIn();
-          allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+          allow read, write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
         }
     }
 
     // NOTICE BOARD
     match /notices/{noticeId} {
       allow get, list: if isSignedIn();
-      allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow update, delete: if resource.data.postedBy == request.auth.uid;
+      allow create, update: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
     }
     
     // EVENTS
     match /events/{eventId} {
       allow get, list: if isSignedIn();
-      allow create: if request.resource.data.authorRole == 'admin';
-      allow update, delete: if resource.data.postedBy == request.auth.uid;
+      allow create, update: if request.resource.data.authorRole == 'admin';
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // ASSIGNMENTS & SUBMISSIONS
@@ -101,7 +100,7 @@ service cloud.firestore {
 
       match /posts/{postId} {
         allow get, list, create: if isSignedIn();
-        allow update, delete: if resource.data.author.uid == request.auth.uid;
+        allow update, delete: if resource.data.author.uid == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       }
     }
   }
