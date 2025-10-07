@@ -98,15 +98,15 @@ service cloud.firestore {
 
     // NOTICE BOARD
     match /notices/{noticeId} {
-      allow list, read: if isSignedIn();
+      allow list, get: if isSignedIn();
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' 
-                      || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.postedBy == request.auth.uid);
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
     }
     
     // EVENTS
     match /events/{eventId} {
-      allow list, read: if isSignedIn();
+      allow list, get: if isSignedIn();
       allow create: if request.resource.data.authorRole == 'admin';
       allow update: if request.resource.data.authorRole == 'admin';
       allow delete: if resource.data.createdBy == request.auth.uid;
@@ -114,7 +114,8 @@ service cloud.firestore {
 
     // ASSIGNMENTS & SUBMISSIONS
     match /assignments/{assignmentId} {
-      allow read: if isSignedIn();
+      // Changed 'read' to 'get, list' to explicitly allow collection queries for all users.
+      allow get, list: if isSignedIn();
       allow create, update, delete: if isTeacher() || isAdmin();
     }
 
