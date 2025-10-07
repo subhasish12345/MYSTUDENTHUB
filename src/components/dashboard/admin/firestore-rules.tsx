@@ -16,14 +16,14 @@ service cloud.firestore {
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      allow get, list: if isSignedIn();
+      allow read, list: if isSignedIn();
       allow create: if request.auth.uid == userId;
       allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == userId;
       allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /teachers/{teacherId} {
-      allow get, list: if isSignedIn();
+      allow read, list: if isSignedIn();
       allow create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -64,8 +64,8 @@ service cloud.firestore {
 
     // SEMESTER GROUPS for Attendance/Assignments
     match /semesterGroups/{groupId} {
-        allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
-        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        allow read: if isSignedIn();
+        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
 
         match /attendance/{date} {
           allow read: if isSignedIn();
@@ -77,16 +77,14 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow get, list: if isSignedIn();
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow update: if request.resource.data.authorRole == 'admin' || (request.resource.data.authorRole == 'teacher' && resource.data.postedBy == request.auth.uid);
-      allow delete: if resource.data.authorRole == 'admin' || (resource.data.authorRole == 'teacher' && resource.data.postedBy == request.auth.uid);
+      allow update, delete: if resource.data.postedBy == request.auth.uid;
     }
     
     // EVENTS
     match /events/{eventId} {
       allow get, list: if isSignedIn();
       allow create: if request.resource.data.authorRole == 'admin';
-      allow update: if request.resource.data.authorRole == 'admin';
-      allow delete: if resource.data.authorRole == 'admin';
+      allow update, delete: if resource.data.postedBy == request.auth.uid;
     }
 
     // ASSIGNMENTS & SUBMISSIONS
@@ -98,12 +96,12 @@ service cloud.firestore {
     // CIRCLES (Community Groups)
     match /circles/{circleId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn(); // Any signed-in user can create a post, which is what the `create` op here means.
-      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.createdBy == request.auth.uid;
+      allow create: if isSignedIn(); 
+      allow update: if resource.data.createdBy == request.auth.uid;
 
       match /posts/{postId} {
         allow get, list, create: if isSignedIn();
-        allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.author.uid == request.auth.uid;
+        allow update, delete: if resource.data.author.uid == request.auth.uid;
       }
     }
   }
