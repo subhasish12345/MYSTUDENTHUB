@@ -6,134 +6,132 @@ import { Button } from "@/components/ui/button";
 
 const rules = `
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Function to check if a user is signed in.
+    // =====================================================================
+    // Helper Functions
+    // =====================================================================
+
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Helper Function to get a user's role from the /users collection.
-    // This is the single source of truth for a user's role.
+    // Securely checks the role of the currently signed-in user from the /users collection.
+    // This is the single source of truth.
     function getUserRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserRole() == 'admin';
+    }
+    
+    function isTeacher() {
+      return isSignedIn() && getUserRole() == 'teacher';
     }
 
     // =====================================================================
     //  User & Profile Collections
     // =====================================================================
 
-    // The /users collection stores the role, which is the source of truth for permissions.
     match /users/{userId} {
-      // Admins can read any user document; users can only read their own.
-      allow get: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == userId);
-      allow list: if isSignedIn() && getUserRole() == 'admin';
-      
-      // Any authenticated user can create their own user document upon signup.
-      // An admin can also create one for other users.
+      // Admins can see any user document. Users can only see their own.
+      allow get: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
+      // Only Admins can list all user documents.
+      allow list: if isAdmin();
+      // Any authenticated user can create their own doc. An admin can create for others.
       allow create: if isSignedIn();
-      
-      // A user can update their own document, or an admin can update any user document.
-      // The role can only be changed by an admin.
-      allow update: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
-
-      // Only an admin can delete a user document.
-      allow delete: if isSignedIn() && getUserRole() == 'admin';
+      // An admin can update any user doc. A user can only update their own.
+      allow update: if isAdmin() || request.auth.uid == userId;
+      // Only an admin can delete user documents.
+      allow delete: if isAdmin();
     }
 
-    // Teacher-specific profiles. Write access is admin-only.
     match /teachers/{teacherId} {
-      allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      // Any signed-in user can read teacher profiles.
+      allow read: if isSignedIn();
+      // Only admins can write to teacher profiles.
+      allow write: if isAdmin();
     }
 
-    // Student-specific profiles.
     match /students/{studentId} {
-      allow get, list: if isSignedIn();
-      // An admin can create a student profile. A student can create their own during setup.
-      allow create: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == studentId);
+      // Any signed-in user can read student profiles.
+      allow read: if isSignedIn();
+      // An admin can create a student profile, or a student can create their own.
+      allow create: if isAdmin() || request.auth.uid == studentId;
       // An admin can update any profile. A student can only update their own.
-      allow update: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == studentId);
-      // Only admins can delete student profiles.
-      allow delete: if isSignedIn() && getUserRole() == 'admin';
+      allow update: if isAdmin() || request.auth.uid == studentId;
+      // Only an admin can delete student profiles.
+      allow delete: if isAdmin();
 
-      // --- Student Sub-collections ---
+      // Student Sub-collections
       match /semesters/{semesterId} {
-        // Admins can manage semesters, students can read their own.
-        allow read, write: if isSignedIn() && (request.auth.uid == studentId || getUserRole() == 'admin');
+        allow read, write: if isAdmin() || request.auth.uid == studentId;
       }
       match /focusSessions/{sessionId} {
-        // A student has full control over their own focus sessions.
-        allow read, write: if isSignedIn() && request.auth.uid == studentId;
+        allow read, write: if request.auth.uid == studentId;
       }
       match /submissions/{submissionId} {
-         // A student has full control over their own submissions.
-        allow read, write: if isSignedIn() && request.auth.uid == studentId;
+        allow read, write: if request.auth.uid == studentId;
       }
     }
 
     // =====================================================================
-    //  Academic Structure Collections (Admin Write-Only)
+    //  Academic Structure (Admin Write-Only)
     // =====================================================================
 
     match /degrees/{degreeId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isAdmin();
     }
     match /streams/{streamId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isAdmin();
     }
     match /batches/{batchId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isAdmin();
     }
+
+    // =====================================================================
+    //  App Features
+    // =====================================================================
+
     match /semesterGroups/{groupId} {
       allow read: if isSignedIn();
-      // Admins and teachers can manage semester groups (e.g., for assigning students).
-      allow write: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
-      
-      // Attendance sub-collection for a specific group.
+      allow write: if isAdmin() || isTeacher();
       match /attendance/{date} {
-        allow read, write: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+        allow read, write: if isAdmin() || isTeacher();
       }
     }
 
-    // =====================================================================
-    //  Content & Feature Collections
-    // =====================================================================
-
-    // Notice Board: Admins and teachers can manage notices.
     match /notices/{noticeId} {
-      allow get, list: if isSignedIn();
-      allow create, update: if isSignedIn() && request.resource.data.authorRole in ['admin', 'teacher'];
-      allow delete: if isSignedIn() && (getUserRole() == 'admin' || resource.data.postedBy == request.auth.uid);
+      allow read: if isSignedIn();
+      // The `authorRole` is passed in the request and checked on creation/update.
+      // This is safe because the rule ensures only admins/teachers can do this.
+      allow create, update: if (isAdmin() || isTeacher());
+      // Admins can delete any notice. Teachers can only delete their own.
+      allow delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
     }
 
-    // Events: Only admins can create, update, or delete events.
     match /events/{eventId} {
-      allow get, list: if isSignedIn();
-      allow create, update: if request.resource.data.authorRole == 'admin';
-      allow delete: if resource.data.authorRole == 'admin';
+      allow read: if isSignedIn();
+      // Only admins can create, update, or delete events.
+      allow write: if isAdmin();
     }
 
-    // Assignments: Managed by teachers and admins.
     match /assignments/{assignmentId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && getUserRole() in ['teacher', 'admin'];
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isTeacher();
     }
 
-    // Student Circles: Community feature.
     match /circles/{circleId} {
-      allow read, create: if isSignedIn();
-      
-      // --- Circle Sub-collection for Posts ---
+      allow read: if isSignedIn();
       match /posts/{postId} {
-        // Any signed-in user can read and create posts.
-        allow get, list, create: if isSignedIn();
-        // A user can update/delete their own post. An admin can update/delete any post.
-        allow update, delete: if isSignedIn() && (resource.data.author.uid == request.auth.uid || getUserRole() == 'admin');
+        allow read, create: if isSignedIn();
+        allow update, delete: if isAdmin() || resource.data.author.uid == request.auth.uid;
       }
     }
   }
