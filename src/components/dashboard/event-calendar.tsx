@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy, DocumentData } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Button } from '../ui/button';
