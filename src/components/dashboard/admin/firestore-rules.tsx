@@ -13,132 +13,101 @@ service cloud.firestore {
     function isSignedIn() { 
       return request.auth != null; 
     }
-    
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-    }
-
-    function isAdmin() {
-      return getUserRole() == 'admin';
-    }
-
-    function isTeacher() {
-      return getUserRole() == 'teacher';
-    }
 
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      // Any signed-in user can read any other user's profile to check roles.
-      allow get: if isSignedIn();
-      allow list: if isAdmin();
+      // Any signed-in user can read any other user's profile.
+      // This is necessary for rules that need to check another user's role.
+      allow get, list: if isSignedIn();
       // Any signed-in user can create their own user document during profile setup.
-      allow create: if isOwner(userId);
+      allow create: if request.auth.uid == userId;
       // Admins can update/delete any user's main role document. Students/teachers can update their own.
-      allow update: if isAdmin() || isOwner(userId);
-      allow delete: if isAdmin();
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == userId;
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /teachers/{teacherId} {
-      allow get: if isSignedIn();
-      allow list: if isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /students/{studentId} {
-      allow get: if isSignedIn();
-      allow list: if isAdmin() || isTeacher();
-      allow create: if isAdmin() || isOwner(studentId);
-      allow update: if isAdmin() || isOwner(studentId);
-      allow delete: if isAdmin();
+      allow get, list: if isSignedIn();
+      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == studentId;
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.uid == studentId;
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
       match /semesters/{semesterId} {
-        allow read: if isOwner(studentId) || isAdmin() || isTeacher();
-        allow write: if isAdmin();
+        allow read: if request.auth.uid == studentId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       }
 
-      // Students can manage their own focus sessions and submissions
       match /focusSessions/{sessionId} {
-      	allow read, write: if isOwner(studentId);
+      	allow read, write: if request.auth.uid == studentId;
       }
       match /submissions/{submissionId} {
-      	allow read, write: if isOwner(studentId);
+      	allow read, write: if request.auth.uid == studentId;
       }
     }
     
     // ACADEMIC STRUCTURE COLLECTIONS (Admin-only write access)
     match /degrees/{degreeId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /streams/{streamId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /batches/{batchId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // SEMESTER GROUPS for Attendance/Assignments
     match /semesterGroups/{groupId} {
-        allow read: if isAdmin() || isTeacher();
-        allow write: if isAdmin();
+        allow read: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+        allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
         match /attendance/{date} {
           allow read: if isSignedIn();
-          allow write: if isAdmin() || isTeacher();
+          allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
         }
     }
 
     // NOTICE BOARD
     match /notices/{noticeId} {
-      // Explicitly allow both single-document gets and collection-wide lists
       allow get, list: if isSignedIn();
-      // Only admins or teachers can create notices. Check the role from the incoming data.
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      // An admin can update any notice. A teacher can only update their own.
-      allow update: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
-      allow delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
+      // An admin can update/delete any notice. A teacher can only modify their own.
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
     }
     
     // EVENTS
     match /events/{eventId} {
-      // Allow any logged-in user to view the list of events or a single event
       allow get, list: if isSignedIn();
-      // Only allow event creation if the incoming data marks the author as an admin
+      // Admin can create any event.
       allow create: if request.resource.data.authorRole == 'admin';
-      // Only allow updates if the user is an admin
-      allow update: if isAdmin();
-      // Only allow deletion if the user is an admin
-      allow delete: if isAdmin();
+      // Admin can update or delete any event.
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // ASSIGNMENTS & SUBMISSIONS
     match /assignments/{assignmentId} {
-      // Allow any logged-in user to query the assignments collection
       allow get, list: if isSignedIn();
-      // Only teachers or admins can create, update, or delete assignments
-      allow create, update, delete: if isTeacher() || isAdmin();
+      allow create, update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // CIRCLES (Community Groups)
     match /circles/{circleId} {
-      // Allow any logged-in user to read circle info and create a circle
       allow read, create: if isSignedIn();
-      // Only the circle creator or an admin can update the circle details
-      allow update: if isAdmin() || resource.data.createdBy == request.auth.uid;
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.createdBy == request.auth.uid;
 
       match /posts/{postId} {
-        // Allow any logged-in user to read posts and create new ones
         allow get, list, create: if isSignedIn();
-        // Only the post author or an admin can update or delete a post
-        allow update, delete: if isAdmin() || resource.data.author.uid == request.auth.uid;
+        allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.author.uid == request.auth.uid;
       }
     }
   }
@@ -174,3 +143,4 @@ export function FirestoreRules() {
         </div>
     );
 }
+
