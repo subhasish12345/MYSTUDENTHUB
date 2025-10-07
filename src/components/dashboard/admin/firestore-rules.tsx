@@ -21,7 +21,7 @@ service cloud.firestore {
     // USER-RELATED COLLECTIONS
     match /users/{userId} {
       allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      // Any signed-in user can read any user's profile. This is required to break circular dependencies in other rules.
+      // Any signed-in user can read any user's profile. This is required for other rules to work.
       allow get: if isSignedIn();
       // Any signed-in user can create their own user document during profile setup.
       allow create: if isOwner(userId);
@@ -48,6 +48,14 @@ service cloud.firestore {
       match /semesters/{semesterId} {
         allow read: if isOwner(studentId) || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
         allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      }
+
+      // Students can manage their own focus sessions and submissions
+      match /focusSessions/{sessionId} {
+      	allow read, write: if isOwner(studentId);
+      }
+      match /submissions/{submissionId} {
+      	allow read, write: if isOwner(studentId);
       }
     }
     
@@ -82,18 +90,35 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow list, read: if isSignedIn();
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow update: if request.resource.data.authorRole == 'admin' || (request.resource.data.authorRole == 'teacher' && resource.data.postedBy == request.auth.uid);
-      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.postedBy == request.auth.uid);
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.postedBy == request.auth.uid);
     }
     
     // EVENTS
     match /events/{eventId} {
       allow list, read: if isSignedIn();
-      // Use the reliable pattern: check a role field sent with the data.
       allow create: if request.resource.data.authorRole == 'admin';
       allow update: if request.resource.data.authorRole == 'admin';
-      // For delete, check the role of the person making the request. The /users get rule is now permissive enough for this to work.
-      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow delete: if resource.data.authorRole == 'admin';
+    }
+
+    // ASSIGNMENTS
+    match /assignments/{assignmentId} {
+      allow read: if isSignedIn(); // Students/teachers can read assignments
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+
+    // CIRCLES (Community Groups)
+    match /circles/{circleId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn(); // Any user can create a circle
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.createdBy == request.auth.uid;
+
+      match /posts/{postId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn(); // Circle members can post
+        allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.authorId == request.auth.uid;
+      }
     }
   }
 }

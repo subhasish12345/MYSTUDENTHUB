@@ -20,7 +20,8 @@ import {
   LogOut,
   GraduationCap,
   ClipboardCheck,
-  Megaphone
+  Megaphone,
+  Briefcase
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -30,7 +31,7 @@ const allMenuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/notice-board", label: "Notice Board", icon: Megaphone },
   { href: "/dashboard/events", label: "Events", icon: Calendar },
-  { href: "/dashboard/assignments", label: "Assignments", icon: BookOpen },
+  { href: "/dashboard/assignments", label: "Assignments", icon: Briefcase },
   { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck, teacherOnly: true },
   { href: "/dashboard/circles", label: "Circles", icon: Users },
   { href: "/dashboard/focus", label: "Focus Session", icon: Timer },
