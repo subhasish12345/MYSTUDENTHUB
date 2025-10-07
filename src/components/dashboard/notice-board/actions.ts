@@ -57,32 +57,23 @@ export async function createNotice(data: CreateNoticeParams) {
 
 
 export async function updateNotice(noticeId: string, data: NoticeFormValues) {
-     const noticeRef = doc(db, "notices", noticeId);
+    const noticeRef = doc(db, "notices", noticeId);
     
-    const noticeData: DocumentData = {
+    // It's crucial to not update fields that determine ownership or creation time.
+    const updateData: DocumentData = {
         title: data.title,
         description: data.description,
-        imageUrl: data.imageUrl,
+        imageUrl: data.imageUrl || "", // Ensure it's not undefined
         target: {
             type: data.targetType,
+            degree: data.degree || null,
+            stream: data.stream || null,
+            batch: data.batch || null,
         },
         updatedAt: serverTimestamp(),
     };
 
-    if (data.targetType === 'degree' && data.degree) {
-        noticeData.target.degree = data.degree;
-    }
-    if (data.targetType === 'stream' && data.degree && data.stream) {
-        noticeData.target.degree = data.degree;
-        noticeData.target.stream = data.stream;
-    }
-    if (data.targetType === 'batch' && data.degree && data.stream && data.batch) {
-        noticeData.target.degree = data.degree;
-        noticeData.target.stream = data.stream;
-        noticeData.target.batch = data.batch;
-    }
-
-    await updateDoc(noticeRef, noticeData);
+    await updateDoc(noticeRef, updateData);
     revalidatePath('/dashboard/notice-board');
 }
 
