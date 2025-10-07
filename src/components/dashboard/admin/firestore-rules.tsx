@@ -76,9 +76,9 @@ service cloud.firestore {
     // NOTICE BOARD
     match /notices/{noticeId} {
       allow list, read: if isSignedIn();
-      // This rule is now safe because the client provides the 'authorRole'.
       allow create: if request.resource.data.authorRole == 'admin' || request.resource.data.authorRole == 'teacher';
-      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher' && resource.data.postedBy == request.auth.uid);
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || (resource.data.postedBy == request.auth.uid && (request.resource.data.authorRole == 'teacher' || request.resource.data.authorRole == 'admin'));
+      allow delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || resource.data.postedBy == request.auth.uid;
     }
   }
 }

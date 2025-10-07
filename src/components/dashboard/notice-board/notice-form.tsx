@@ -23,6 +23,7 @@ import { db } from "@/lib/firebase";
 import { Degree } from "../admin/degree-management";
 import { Stream } from "../admin/stream-management";
 import { Batch } from "../admin/batch-management";
+import { Notice } from "./notice-board";
 
 const formSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters."),
@@ -45,9 +46,10 @@ export type NoticeFormValues = z.infer<typeof formSchema>;
 interface NoticeFormProps {
   onSubmit: (values: NoticeFormValues) => Promise<void>;
   isSubmitting: boolean;
+  existingData?: Notice | null;
 }
 
-export function NoticeForm({ onSubmit, isSubmitting }: NoticeFormProps) {
+export function NoticeForm({ onSubmit, isSubmitting, existingData }: NoticeFormProps) {
   const [degrees, setDegrees] = useState<Degree[]>([]);
   const [streams, setStreams] = useState<Stream[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -63,6 +65,27 @@ export function NoticeForm({ onSubmit, isSubmitting }: NoticeFormProps) {
   });
 
   useEffect(() => {
+     if (existingData) {
+        form.reset({
+            title: existingData.title,
+            description: existingData.description,
+            imageUrl: existingData.imageUrl || "",
+            targetType: existingData.target.type,
+            degree: existingData.target.degree,
+            stream: existingData.target.stream,
+            batch: existingData.target.batch,
+        });
+    } else {
+        form.reset({
+          title: "",
+          description: "",
+          imageUrl: "",
+          targetType: 'global',
+        });
+    }
+  }, [existingData, form]);
+
+  useEffect(() => {
     const unsubDegrees = onSnapshot(collection(db, 'degrees'), snapshot => setDegrees(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Degree))));
     const unsubStreams = onSnapshot(collection(db, 'streams'), snapshot => setStreams(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Stream))));
     const unsubBatches = onSnapshot(collection(db, 'batches'), snapshot => setBatches(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Batch))));
@@ -76,7 +99,9 @@ export function NoticeForm({ onSubmit, isSubmitting }: NoticeFormProps) {
 
   const handleFormSubmit = async (values: NoticeFormValues) => {
     await onSubmit(values);
-    form.reset();
+    if (!existingData) {
+      form.reset();
+    }
   };
 
   return (
@@ -107,7 +132,7 @@ export function NoticeForm({ onSubmit, isSubmitting }: NoticeFormProps) {
            <FormField control={form.control} name="targetType" render={({ field }) => (
             <FormItem>
               <FormLabel>Target Audience</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                 <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                 <SelectContent>
                   <SelectItem value="global">Global (All Users)</SelectItem>
@@ -125,7 +150,7 @@ export function NoticeForm({ onSubmit, isSubmitting }: NoticeFormProps) {
             <FormField control={form.control} name="degree" render={({ field }) => (
                 <FormItem>
                 <FormLabel>Degree</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select a degree"/></SelectTrigger></FormControl>
                     <SelectContent>{degrees.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
                 </Select>
@@ -138,7 +163,7 @@ export function NoticeForm({ onSubmit, isSubmitting }: NoticeFormProps) {
             <FormField control={form.control} name="stream" render={({ field }) => (
                 <FormItem>
                 <FormLabel>Stream</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!watchedDegree}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} disabled={!watchedDegree}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select a stream"/></SelectTrigger></FormControl>
                     <SelectContent>{filteredStreams.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                 </Select>
@@ -151,7 +176,7 @@ export function NoticeForm({ onSubmit, isSubmitting }: NoticeFormProps) {
             <FormField control={form.control} name="batch" render={({ field }) => (
                 <FormItem>
                 <FormLabel>Batch</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select a batch"/></SelectTrigger></FormControl>
                     <SelectContent>{batches.map(b => <SelectItem key={b.id} value={b.id}>{b.batch_name}</SelectItem>)}</SelectContent>
                 </Select>
@@ -162,7 +187,7 @@ export function NoticeForm({ onSubmit, isSubmitting }: NoticeFormProps) {
 
         </div>
         <div className="flex justify-end pt-4 border-t pr-1">
-          <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Posting..." : "Post Notice"}</Button>
+          <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : (existingData ? "Save Changes" : "Post Notice")}</Button>
         </div>
       </form>
     </Form>

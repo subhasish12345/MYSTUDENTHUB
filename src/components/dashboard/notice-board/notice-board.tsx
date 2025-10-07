@@ -12,9 +12,19 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { NoticeForm, NoticeFormValues } from "./notice-form";
 import { NoticeList } from "./notice-list";
 import { useToast } from "@/hooks/use-toast";
-import { createNotice } from "./actions";
+import { createNotice, updateNotice, deleteNotice } from "./actions";
 import { StudentData } from "../admin/student-management";
 import { Roles } from "@/lib/roles";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 
 export interface Notice extends DocumentData {
@@ -44,6 +54,9 @@ export function NoticeBoard() {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [studentData, setStudentData] = useState<StudentData | null>(null);
+
+    const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
+    const [deletingNotice, setDeletingNotice] = useState<Notice | null>(null);
 
     useEffect(() => {
         if (!user) {
@@ -95,27 +108,57 @@ export function NoticeBoard() {
     }, [user, userRole, toast]);
 
 
-    const handleCreateNotice = async (values: NoticeFormValues) => {
+    const handleFormSubmit = async (values: NoticeFormValues) => {
         if (!user || !userRole || !userData) {
-            toast({ title: "Error", description: "You must be logged in to post a notice.", variant: "destructive" });
+            toast({ title: "Error", description: "You must be logged in to perform this action.", variant: "destructive" });
             return;
         }
         setIsSubmitting(true);
         try {
-            await createNotice({
-                ...values,
-                postedBy: user.uid,
-                postedByName: userData.name || "User",
-                authorRole: userRole,
-            });
-            toast({ title: "Success!", description: "Notice has been posted." });
+            if (editingNotice) {
+                await updateNotice(editingNotice.id, values);
+                toast({ title: "Success!", description: "Notice has been updated." });
+            } else {
+                 await createNotice({
+                    ...values,
+                    postedBy: user.uid,
+                    postedByName: userData.name || "User",
+                    authorRole: userRole,
+                });
+                toast({ title: "Success!", description: "Notice has been posted." });
+            }
             setIsSheetOpen(false);
+            setEditingNotice(null);
         } catch (error: any) {
             toast({ title: "Error", description: error.message, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
     }
+    
+    const handleEdit = (notice: Notice) => {
+        setEditingNotice(notice);
+        setIsSheetOpen(true);
+    };
+
+    const handleCreate = () => {
+        setEditingNotice(null);
+        setIsSheetOpen(true);
+    };
+
+    const handleDelete = async () => {
+        if (!deletingNotice) return;
+        
+        try {
+            await deleteNotice(deletingNotice.id);
+            toast({ title: "Success", description: "Notice has been deleted." });
+        } catch (error: any) {
+             toast({ title: "Error", description: error.message || "Failed to delete notice.", variant: "destructive" });
+        } finally {
+            setDeletingNotice(null);
+        }
+    };
+
 
     const filteredNotices = notices.filter(notice => {
         if (userRole === 'admin') return true; // Admins see all
@@ -139,6 +182,7 @@ export function NoticeBoard() {
     const canCreateNotice = userRole === 'admin' || userRole === 'teacher';
 
     return (
+        <>
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                 <div>
@@ -149,25 +193,54 @@ export function NoticeBoard() {
                     <p className="text-muted-foreground">Latest announcements and updates.</p>
                 </div>
                 {canCreateNotice && (
-                    <Button onClick={() => setIsSheetOpen(true)}>
+                    <Button onClick={handleCreate}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Create Notice
                     </Button>
                 )}
             </div>
 
-            <NoticeList notices={filteredNotices} loading={loading} />
+            <NoticeList 
+                notices={filteredNotices} 
+                loading={loading}
+                currentUser={user}
+                userRole={userRole}
+                onEdit={handleEdit}
+                onDelete={(notice) => setDeletingNotice(notice)}
+            />
 
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                 <SheetContent className="sm:max-w-2xl w-full">
                     <SheetHeader>
-                        <SheetTitle>Create New Notice</SheetTitle>
+                        <SheetTitle>{editingNotice ? 'Edit Notice' : 'Create New Notice'}</SheetTitle>
                         <SheetDescription>
-                            Post an announcement for students. You can target it to specific groups.
+                             {editingNotice ? 'Update the details of your announcement.' : 'Post an announcement for students. You can target it to specific groups.'}
                         </SheetDescription>
                     </SheetHeader>
-                    <NoticeForm onSubmit={handleCreateNotice} isSubmitting={isSubmitting} />
+                    <NoticeForm 
+                        onSubmit={handleFormSubmit} 
+                        isSubmitting={isSubmitting} 
+                        existingData={editingNotice}
+                    />
                 </SheetContent>
             </Sheet>
         </div>
+
+        <AlertDialog open={!!deletingNotice} onOpenChange={() => setDeletingNotice(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the notice.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                        Delete
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        </>
     );
 }

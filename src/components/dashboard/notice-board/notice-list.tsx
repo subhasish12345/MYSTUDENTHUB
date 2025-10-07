@@ -7,15 +7,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from "@/components/ui/badge";
-import { UserCircle } from "lucide-react";
+import { UserCircle, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { User } from "firebase/auth";
+import { Roles } from "@/lib/roles";
 
 
 interface NoticeListProps {
     notices: Notice[];
     loading: boolean;
+    currentUser: User | null;
+    userRole: Roles | null;
+    onEdit: (notice: Notice) => void;
+    onDelete: (notice: Notice) => void;
 }
 
-export function NoticeList({ notices, loading }: NoticeListProps) {
+export function NoticeList({ notices, loading, currentUser, userRole, onEdit, onDelete }: NoticeListProps) {
 
     if (loading) {
         return (
@@ -56,39 +64,63 @@ export function NoticeList({ notices, loading }: NoticeListProps) {
 
     return (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {notices.map(notice => (
-                <Card key={notice.id} className="flex flex-col">
-                    {notice.imageUrl && (
-                        <div className="relative h-40 w-full">
-                            <Image
-                                src={notice.imageUrl}
-                                alt={notice.title}
-                                layout="fill"
-                                objectFit="cover"
-                                className="rounded-t-lg"
-                                data-ai-hint="announcement poster"
-                            />
+            {notices.map(notice => {
+                const canModify = userRole === 'admin' || (userRole === 'teacher' && notice.postedBy === currentUser?.uid);
+                
+                return (
+                    <Card key={notice.id} className="flex flex-col">
+                        {notice.imageUrl && (
+                            <div className="relative h-40 w-full">
+                                <Image
+                                    src={notice.imageUrl}
+                                    alt={notice.title}
+                                    layout="fill"
+                                    objectFit="cover"
+                                    className="rounded-t-lg"
+                                    data-ai-hint="announcement poster"
+                                />
+                            </div>
+                        )}
+                        <CardHeader>
+                            <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                    <CardTitle>{notice.title}</CardTitle>
+                                    <CardDescription>
+                                        {formatDistanceToNow(notice.createdAt.toDate(), { addSuffix: true })}
+                                    </CardDescription>
+                                </div>
+                                {canModify && (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => onEdit(notice)}>
+                                                <Pencil className="mr-2 h-4 w-4" /> Edit
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onDelete(notice)} className="text-destructive focus:text-destructive">
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{notice.description}</p>
+                        </CardContent>
+                        <CardFooter className="flex justify-between items-center text-xs text-muted-foreground pt-4 border-t">
+                        <div className="flex items-center gap-2">
+                            <UserCircle className="h-4 w-4"/>
+                            <span>{notice.postedByName || 'Admin'}</span>
                         </div>
-                    )}
-                    <CardHeader>
-                        <CardTitle>{notice.title}</CardTitle>
-                        <CardDescription>
-                             {formatDistanceToNow(notice.createdAt.toDate(), { addSuffix: true })}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{notice.description}</p>
-                    </CardContent>
-                    <CardFooter className="flex justify-between items-center text-xs text-muted-foreground pt-4 border-t">
-                       <div className="flex items-center gap-2">
-                         <UserCircle className="h-4 w-4"/>
-                         <span>{notice.postedByName || 'Admin'}</span>
-                       </div>
-                       <Badge variant="outline">{getTargetAudience(notice)}</Badge>
-                    </CardFooter>
-                </Card>
-            ))}
+                        <Badge variant="outline">{getTargetAudience(notice)}</Badge>
+                        </CardFooter>
+                    </Card>
+                )
+            })}
         </div>
     );
 }
-
