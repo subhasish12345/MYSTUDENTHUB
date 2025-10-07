@@ -16,6 +16,7 @@ export async function createEvent(data: CreateEventParams) {
 
     const eventData: DocumentData = {
         ...data,
+        authorRole: data.authorRole, // Ensure role is on the doc
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
@@ -33,6 +34,7 @@ export async function updateEvent(eventId: string, data: UpdateEventParams) {
     
     const updateData: DocumentData = {
         ...data,
+        authorRole: data.authorRole, // Pass role with the update
         updatedAt: serverTimestamp(),
     };
 
@@ -40,6 +42,5 @@ export async function updateEvent(eventId: string, data: UpdateEventParams) {
 }
 
 export async function deleteEvent(eventId: string) {
-    // The security rule for delete now checks the role of the user making the request.
     await deleteDoc(doc(db, "events", eventId));
 }
