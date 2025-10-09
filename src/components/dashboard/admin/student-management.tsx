@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, setDoc, serverTimestamp, where, updateDoc, getDocs, getDoc, writeBatch } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -25,7 +26,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StudentForm, StudentFormValues } from "./student-form";
 import { useAuth } from "@/hooks/use-auth";
-import { createUserAndProfile } from "@/lib/createUserAndProfile";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createFirestoreUserDocuments } from "@/lib/createUserAndProfile";
 import { Degree } from "./degree-management";
 import { Stream } from "./stream-management";
 import { Batch } from "./batch-management";
@@ -231,20 +233,12 @@ unsubBatches();
 
     if (studentId) {
       try {
-        const batch = writeBatch(db);
         const studentDocRef = doc(db, "students", studentId);
-        const userDocRef = doc(db, "users", studentId);
-        
-        batch.update(studentDocRef, {
+        await updateDoc(studentDocRef, {
           ...profileData,
           updatedAt: serverTimestamp(),
         });
-        batch.update(userDocRef, {
-            name: values.name,
-        });
         
-        await batch.commit();
-
         toast({
           title: "Success",
           description: `Profile for ${values.name} has been updated.`,
@@ -264,12 +258,15 @@ unsubBatches();
       const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
 
       try {
-          await createUserAndProfile({
-            email: values.email,
-            password: password,
-            role: 'student',
-            initialProfile: profileData,
-            adminUid: adminUser.uid,
+          const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
+          const newStudentUid = userCredential.user.uid;
+
+          await createFirestoreUserDocuments(newStudentUid, {
+              email: values.email,
+              role: 'student',
+              name: values.name,
+              initialProfile: profileData,
+              adminUid: adminUser.uid,
           });
 
           toast({

@@ -47,12 +47,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const role = baseUserData.role as Roles;
             setUserRole(role);
 
-            // If the user is an admin, their full data is in the /users doc.
-            if (role === 'admin') {
-              setUserData(baseUserData);
-            } else {
-              // For teachers and students, fetch the detailed profile from the role-specific collection
-              const profileCollection = role === 'student' ? 'students' : 'teachers';
+            // Fetch the detailed profile from the role-specific collection
+            const profileCollection = role === 'student' ? 'students' : (role === 'teacher' ? 'teachers' : null);
+            
+            if (profileCollection) {
               const profileDocRef = doc(db, profileCollection, user.uid);
               const profileDoc = await getDoc(profileDocRef);
 
@@ -61,10 +59,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   setUserData({ ...baseUserData, ...profileDoc.data() });
               } else {
                   console.warn(`No profile document found for UID: ${user.uid} in collection: ${profileCollection}. Falling back to base user data.`);
-                  // If the detailed profile doesn't exist, use the base user data as a fallback
+                  // If the detailed profile doesn't exist, use the base user data as a fallback. This can happen if an admin creates a teacher/student but the full profile isn't synced.
                   setUserData(baseUserData);
               }
+            } else if (role === 'admin') {
+              // If the user is an admin, their full data is in the /users doc.
+              setUserData(baseUserData);
+            } else {
+              // Should not happen if roles are correctly assigned
+              setUserData(null);
             }
+
           } else {
             // This case is for a newly signed-up user who hasn't completed profile setup
             setUserRole(null);

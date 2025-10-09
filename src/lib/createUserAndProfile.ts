@@ -1,3 +1,4 @@
+
 // In production, this logic should be moved to a secure backend (e.g., a Cloud Function)
 // to avoid exposing user creation logic and credentials on the client-side.
 import { createUserWithEmailAndPassword } from "firebase/auth";
@@ -18,42 +19,62 @@ export async function createUserAndProfile({ email, password, role, initialProfi
   if (!password) {
     throw new Error("Password is required for user creation.");
   }
-  const cred = await createUserWithEmailAndPassword(auth, email, password);
-  const uid = cred.user.uid;
+  // This part of the logic assumes that you are handling authentication creation
+  // outside this function or you have a temporary admin auth instance.
+  // For this project, we'll assume auth creation is handled by the calling function if needed.
+  // The primary job here is to create the Firestore documents correctly.
 
-  const batch = writeBatch(db);
+  // The following is a placeholder for getting the user's UID.
+  // In a real app, you would get this from the Firebase Auth creation result.
+  // For the purpose of fixing the Firestore structure, we'll simulate this.
+  // const uid = "some-newly-created-uid"; // This would come from `cred.user.uid`
+  
+  // NOTE: This function as-is cannot create the auth user. It is only for creating the DB records.
+  // The `teacher-management.tsx` and `student-management.tsx` will handle the actual `createUserWithEmailAndPassword` call.
+  // This function will be called with the resulting UID.
 
-  // 2. ALWAYS create a document in /users (source of truth for role)
-  const userDocRef = doc(db, "users", uid);
-  batch.set(userDocRef, {
-    uid,
-    email,
-    role,
-    name: initialProfile.name, // Also store name here for easy access
-    status: "Active",
-    createdAt: serverTimestamp(),
-    createdBy: adminUid
-  });
+  // This function is intended to be called AFTER the user is created in Firebase Auth.
+  // Let's rename and repurpose it slightly for clarity.
+  // The caller will now be responsible for creating the auth user and passing the UID.
 
-  // 3. Create role-specific profile document in /teachers or /students
-  if (role === 'teacher' || role === 'student') {
-    const profileCollection = role === 'teacher' ? 'teachers' : 'students';
-    const profileDocRef = doc(db, profileCollection, uid);
-    
-    batch.set(profileDocRef, {
+  throw new Error("This function `createUserAndProfile` is deprecated. Logic moved to management components.");
+}
+
+
+export async function createFirestoreUserDocuments(uid: string, { email, role, name, initialProfile, adminUid }: { email: string, role: Roles, name: string, initialProfile: any, adminUid: string }) {
+    const batch = writeBatch(db);
+
+    // 2. ALWAYS create a document in /users (source of truth for role)
+    const userDocRef = doc(db, "users", uid);
+    batch.set(userDocRef, {
       uid,
       email,
       role,
-      ...initialProfile,
+      name: name,
+      status: "Active",
       createdAt: serverTimestamp(),
-      createdBy: adminUid,
-    }, { merge: true });
-  }
-  
-  // 4. Commit all writes at once
-  await batch.commit();
+      createdBy: adminUid
+    });
 
-  // 5. Return uid & password so admin can share it (for prototyping).
-  console.log(`User created successfully. UID: ${uid}, Email: ${email}, Password: ${password}`);
-  return { uid, password };
+    // 3. Create role-specific profile document in /teachers or /students
+    const profileCollection = role === 'teacher' ? 'teachers' : (role === 'student' ? 'students' : null);
+    
+    if (profileCollection) {
+        const profileDocRef = doc(db, profileCollection, uid);
+        batch.set(profileDocRef, {
+            uid,
+            email,
+            role,
+            ...initialProfile,
+            createdAt: serverTimestamp(),
+            createdBy: adminUid,
+        }, { merge: true });
+    } else if (role !== 'admin') {
+        throw new Error(`Invalid role specified: ${role}. Profile document not created.`);
+    }
+    
+    // 4. Commit all writes at once
+    await batch.commit();
+
+    console.log(`Firestore documents created successfully for UID: ${uid}`);
 }

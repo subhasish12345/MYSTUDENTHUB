@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, updateDoc, getDocs, getDoc, setDoc, writeBatch } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -26,7 +26,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Roles } from "@/lib/roles";
 import { useAuth } from "@/hooks/use-auth";
-import { createUserAndProfile } from "@/lib/createUserAndProfile";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createFirestoreUserDocuments } from "@/lib/createUserAndProfile";
+
 
 export interface UserData extends DocumentData {
   id: string;
@@ -132,20 +134,8 @@ export function TeacherManagement() {
     
     if (teacherId) { // This is an update
       try {
-        const batch = writeBatch(db);
         const teacherDocRef = doc(db, "teachers", teacherId);
-        const userDocRef = doc(db, "users", teacherId);
-
-        batch.update(teacherDocRef, {
-          ...values,
-          updatedAt: serverTimestamp(),
-        });
-        // Also update name in the /users collection for consistency
-        batch.update(userDocRef, {
-          name: values.name,
-        });
-
-        await batch.commit();
+        await updateDoc(teacherDocRef, { ...values, updatedAt: serverTimestamp() });
         
         toast({
           title: "Success",
@@ -172,11 +162,18 @@ export function TeacherManagement() {
       const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
       
       try {
-        await createUserAndProfile({
+        // This is a temporary solution for client-side user creation.
+        // In a real app, this should be a secure backend function.
+        // Create the user in Firebase Authentication
+        const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
+        const newTeacherUid = userCredential.user.uid;
+
+        // Now create the documents in Firestore
+        await createFirestoreUserDocuments(newTeacherUid, {
           email: values.email,
-          password: password,
-          role: 'teacher', // Correctly specify the role
-          initialProfile: values, // Pass the form values as the profile
+          role: 'teacher',
+          name: values.name,
+          initialProfile: values,
           adminUid: adminUser.uid,
         });
 
