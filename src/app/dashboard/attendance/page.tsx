@@ -35,10 +35,9 @@ interface Group extends DocumentData {
 }
 
 export default function AttendancePage() {
-    const { user, userRole } = useAuth();
+    const { user, userRole, userData } = useAuth();
     const { toast } = useToast();
 
-    const [teacherData, setTeacherData] = useState<UserData | null>(null);
     const [assignedGroups, setAssignedGroups] = useState<Group[]>([]);
     const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
     const [students, setStudents] = useState<StudentData[]>([]);
@@ -50,6 +49,7 @@ export default function AttendancePage() {
     const [loading, setLoading] = useState(true);
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [noGroupsExist, setNoGroupsExist] = useState(false);
 
     // Fetch Teacher's or Admin's Data and Assigned Groups
     useEffect(() => {
@@ -59,34 +59,28 @@ export default function AttendancePage() {
                 return;
             }
             try {
-                // Correctly determine the collection based on role
-                const collectionName = userRole === 'admin' ? 'users' : 'teachers';
-                const userDocRef = doc(db, collectionName, user.uid);
-                const userSnap = await getDoc(userDocRef);
+                let groupsQuery;
+                if (userRole === 'admin') {
+                    // Admins can see all groups
+                    groupsQuery = query(collection(db, "semesterGroups"));
+                } else if (userData && userData.assignedGroups && userData.assignedGroups.length > 0) {
+                    // Teachers see their assigned groups
+                    groupsQuery = query(collection(db, "semesterGroups"), where("groupId", "in", userData.assignedGroups));
+                }
                 
-                if (userSnap.exists()) {
-                    const data = userSnap.data() as UserData;
-                    setTeacherData(data);
-
-                    let groupsQuery;
-                    if (userRole === 'admin') {
-                        // Admins can see all groups
-                        groupsQuery = query(collection(db, "semesterGroups"));
-                    } else if (data.assignedGroups && data.assignedGroups.length > 0) {
-                        // Teachers see their assigned groups
-                        groupsQuery = query(collection(db, "semesterGroups"), where("groupId", "in", data.assignedGroups));
+                if (groupsQuery) {
+                    const groupsSnap = await getDocs(groupsQuery);
+                    if (groupsSnap.empty) {
+                        setNoGroupsExist(true);
+                    } else {
+                        setNoGroupsExist(false);
                     }
-                    
-                    if (groupsQuery) {
-                        const groupsSnap = await getDocs(groupsQuery);
-                        const groupsData = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group));
-                        setAssignedGroups(groupsData);
-                    } else if (userRole === 'teacher') {
-                        // Handle case where teacher has no assigned groups
-                        setAssignedGroups([]);
-                    }
-                } else {
-                     toast({ title: "Profile not found", description: `Your profile in the '${collectionName}' collection could not be found.`, variant: "destructive" });
+                    const groupsData = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group));
+                    setAssignedGroups(groupsData);
+                } else if (userRole === 'teacher') {
+                    // Handle case where teacher has no assigned groups
+                    setAssignedGroups([]);
+                     setNoGroupsExist(true); // Technically true if they are assigned none
                 }
             } catch (error: any) {
                 console.error("Error fetching user/group data:", error);
@@ -97,7 +91,7 @@ export default function AttendancePage() {
         };
 
         fetchData();
-    }, [user, userRole, toast]);
+    }, [user, userRole, userData, toast]);
 
     // Fetch Students when a group is selected
     useEffect(() => {
@@ -201,8 +195,13 @@ export default function AttendancePage() {
          return <p className="text-center text-destructive p-8">This page is only accessible to teachers and admins.</p>;
     }
     
-     if (assignedGroups.length === 0) {
-        return <p className="text-center text-muted-foreground p-8">You have not been assigned to any groups, or no groups exist yet. Please contact an administrator.</p>;
+     if (noGroupsExist) {
+        return <p className="text-center text-muted-foreground p-8">
+            {userRole === 'admin'
+                ? "No semester groups have been created yet. Please create one via the Student Management panel."
+                : "You have not been assigned to any groups, or no groups exist yet. Please contact an administrator."
+            }
+        </p>;
     }
 
     return (
