@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Check, Clipboard } from "lucide-react";
@@ -9,9 +10,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is signed in.
-    function isSignedIn() {
-      return request.auth != null;
+    // Helper Function to check if a user is signed in.
+    function isSignedIn() { 
+      return request.auth != null; 
     }
 
     // Helper function to safely get a user's role from the /users collection.
@@ -43,7 +44,9 @@ service cloud.firestore {
     }
 
     match /teachers/{teacherId} {
+      // Any authenticated user can read teacher profiles. Admins can get any document.
       allow get, list: if isSignedIn();
+      // Only admins can write to the teachers collection.
       allow write: if isSignedIn() && getUserRole() == 'admin';
     }
 

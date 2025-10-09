@@ -56,11 +56,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 // Combine base user data (for role) with specific profile data
                 setUserData({ ...profileDoc.data(), role: role });
             } else {
-                // If the detailed profile doesn't exist, use the base user data
+                console.warn(`No profile document found for UID: ${user.uid} in collection: ${profileCollection}`);
+                // If the detailed profile doesn't exist, use the base user data as a fallback
                 setUserData(baseUserData);
             }
 
           } else {
+            // This case is for a newly signed-up user who hasn't completed profile setup
             setUserRole(null);
             setUserData(null);
           }

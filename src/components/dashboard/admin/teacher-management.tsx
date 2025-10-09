@@ -65,79 +65,27 @@ export function TeacherManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // This is a one-time migration logic to ensure data consistency
-    const migrateAndFetchTeachers = async () => {
-      setLoading(true);
-      try {
-        const usersQuery = query(collection(db, "users"), where("role", "==", "teacher"));
-        const userDocs = await getDocs(usersQuery);
-
-        for (const userDoc of userDocs.docs) {
-            const userData = userDoc.data();
-            const teacherDocRef = doc(db, "teachers", userDoc.id);
-            const teacherDocSnap = await getDoc(teacherDocRef);
-
-            if (!teacherDocSnap.exists()) {
-                // If teacher profile doesn't exist, create it from user data
-                 await setDoc(teacherDocRef, {
-                    uid: userData.uid,
-                    email: userData.email,
-                    name: userData.name || "N/A",
-                    role: 'teacher',
-                    status: userData.status || "Active",
-                    createdAt: userData.createdAt || serverTimestamp(),
-                    // Add default empty values for other fields
-                    phone: userData.phone || "",
-                    department: userData.department || "",
-                    subjects: userData.subjects || [],
-                    assignedGroups: userData.assignedGroups || [],
-                    designation: userData.designation || "",
-                    employeeId: userData.employeeId || "",
-                    experienceYears: userData.experienceYears || 0,
-                    qualification: userData.qualification || "",
-                    createdBy: userData.createdBy || 'migration',
-                }, { merge: true });
-                console.log(`Migrated teacher: ${userDoc.id}`);
-            }
-        }
-      } catch (error) {
-          console.error("Error during teacher data migration:", error);
-      }
-
-      // Now, set up the real-time listener on the /teachers collection
-      const q = query(collection(db, "teachers"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const teachersData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        } as UserData));
-        setTeachers(teachersData);
-        setTeacherCount(snapshot.size);
-        setLoading(false);
-      }, (error) => {
-        console.error("Error fetching teachers:", error);
-        toast({
-            title: "Error Fetching Teachers",
-            description: "Missing or insufficient permissions. Check Firestore rules.",
-            variant: "destructive",
-        });
-        setLoading(false);
-    });
-      return unsubscribe;
-    };
-
-    let unsubscribe: (() => void) | undefined;
-    migrateAndFetchTeachers().then(unsub => {
-      if (unsub) {
-        unsubscribe = unsub;
-      }
+    // This listener will fetch all teacher profiles from the /teachers collection
+    const q = query(collection(db, "teachers"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const teachersData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      } as UserData));
+      setTeachers(teachersData);
+      setTeacherCount(snapshot.size);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching teachers:", error);
+      toast({
+          title: "Error Fetching Teachers",
+          description: "Missing or insufficient permissions. Check Firestore rules.",
+          variant: "destructive",
+      });
+      setLoading(false);
     });
 
-    return () => {
-        if (unsubscribe) {
-          unsubscribe();
-        }
-    };
+    return () => unsubscribe();
   }, [toast]);
 
   const handleAddClick = () => {
