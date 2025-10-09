@@ -47,20 +47,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const role = baseUserData.role as Roles;
             setUserRole(role);
 
-            // Fetch the detailed profile from the role-specific collection
-            const profileCollection = role === 'student' ? 'students' : (role === 'teacher' ? 'teachers' : 'users');
-            const profileDocRef = doc(db, profileCollection, user.uid);
-            const profileDoc = await getDoc(profileDocRef);
-
-            if (profileDoc.exists()) {
-                // Combine base user data (for role) with specific profile data
-                setUserData({ ...profileDoc.data(), role: role });
+            // If the user is an admin, their full data is in the /users doc.
+            if (role === 'admin') {
+              setUserData(baseUserData);
             } else {
-                console.warn(`No profile document found for UID: ${user.uid} in collection: ${profileCollection}`);
-                // If the detailed profile doesn't exist, use the base user data as a fallback
-                setUserData(baseUserData);
-            }
+              // For teachers and students, fetch the detailed profile from the role-specific collection
+              const profileCollection = role === 'student' ? 'students' : 'teachers';
+              const profileDocRef = doc(db, profileCollection, user.uid);
+              const profileDoc = await getDoc(profileDocRef);
 
+              if (profileDoc.exists()) {
+                  // Combine base user data (for role) with specific profile data
+                  setUserData({ ...baseUserData, ...profileDoc.data() });
+              } else {
+                  console.warn(`No profile document found for UID: ${user.uid} in collection: ${profileCollection}. Falling back to base user data.`);
+                  // If the detailed profile doesn't exist, use the base user data as a fallback
+                  setUserData(baseUserData);
+              }
+            }
           } else {
             // This case is for a newly signed-up user who hasn't completed profile setup
             setUserRole(null);

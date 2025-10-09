@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, updateDoc, getDocs, getDoc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, updateDoc, getDocs, getDoc, setDoc, writeBatch } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -105,8 +105,10 @@ export function TeacherManagement() {
   const confirmDelete = async () => {
     if (deletingTeacherId) {
       try {
-        await deleteDoc(doc(db, "teachers", deletingTeacherId));
-        await deleteDoc(doc(db, "users", deletingTeacherId));
+        const batch = writeBatch(db);
+        batch.delete(doc(db, "teachers", deletingTeacherId));
+        batch.delete(doc(db, "users", deletingTeacherId));
+        await batch.commit();
 
         toast({
           title: "Success",
@@ -130,11 +132,20 @@ export function TeacherManagement() {
     
     if (teacherId) { // This is an update
       try {
+        const batch = writeBatch(db);
         const teacherDocRef = doc(db, "teachers", teacherId);
-        await updateDoc(teacherDocRef, {
+        const userDocRef = doc(db, "users", teacherId);
+
+        batch.update(teacherDocRef, {
           ...values,
           updatedAt: serverTimestamp(),
         });
+        // Also update name in the /users collection for consistency
+        batch.update(userDocRef, {
+          name: values.name,
+        });
+
+        await batch.commit();
         
         toast({
           title: "Success",

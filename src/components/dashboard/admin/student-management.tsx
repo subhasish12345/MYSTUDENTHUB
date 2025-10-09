@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, setDoc, serverTimestamp, where, updateDoc, getDocs, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, deleteDoc, DocumentData, query, setDoc, serverTimestamp, where, updateDoc, getDocs, getDoc, writeBatch } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -194,8 +194,11 @@ unsubBatches();
   const confirmDelete = async () => {
     if (deletingStudentId) {
       try {
-        await deleteDoc(doc(db, "students", deletingStudentId));
-        await deleteDoc(doc(db, "users", deletingStudentId));
+        const batch = writeBatch(db);
+        batch.delete(doc(db, "students", deletingStudentId));
+        batch.delete(doc(db, "users", deletingStudentId));
+        await batch.commit();
+        
         toast({
           title: "Success",
           description: "Student record deleted. Remember to delete the user from Firebase Authentication manually if needed.",
@@ -228,12 +231,20 @@ unsubBatches();
 
     if (studentId) {
       try {
+        const batch = writeBatch(db);
         const studentDocRef = doc(db, "students", studentId);
-        await updateDoc(studentDocRef, {
+        const userDocRef = doc(db, "users", studentId);
+        
+        batch.update(studentDocRef, {
           ...profileData,
           updatedAt: serverTimestamp(),
         });
+        batch.update(userDocRef, {
+            name: values.name,
+        });
         
+        await batch.commit();
+
         toast({
           title: "Success",
           description: `Profile for ${values.name} has been updated.`,
