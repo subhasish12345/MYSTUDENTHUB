@@ -82,11 +82,11 @@ export function AssignmentTracker() {
                 // Setup the Firestore listener
                 let assignmentsQuery;
                 if (isTeacherOrAdmin) {
-                    // Teachers/Admins see all assignments
+                    // Teachers/Admins see all assignments, ordered by due date
                     assignmentsQuery = query(collection(db, "assignments"), orderBy("dueDate", "desc"));
                 } else if (studentGroupId) {
-                    // Students see assignments for their group
-                    assignmentsQuery = query(collection(db, "assignments"), where("groupId", "==", studentGroupId), orderBy("dueDate", "desc"));
+                    // Students see assignments for their group. Remove ordering to avoid needing a composite index.
+                    assignmentsQuery = query(collection(db, "assignments"), where("groupId", "==", studentGroupId));
                 } else {
                      setLoading(false);
                     return; // No query to run
@@ -94,17 +94,21 @@ export function AssignmentTracker() {
 
                  const unsubscribe = onSnapshot(assignmentsQuery, (snapshot) => {
                     const assignmentsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Assignment));
+                    // Sort on the client-side for students
+                    if (!isTeacherOrAdmin) {
+                        assignmentsData.sort((a, b) => b.dueDate.toDate() - a.dueDate.toDate());
+                    }
                     setAssignments(assignmentsData);
                     setLoading(false);
                 }, (error) => {
                     console.error("Error fetching assignments:", error);
-                    toast({ title: "Error", description: "Could not fetch assignments.", variant: "destructive" });
+                    toast({ title: "Error", description: error.message || "Could not fetch assignments.", variant: "destructive" });
                     setLoading(false);
                 });
 
                 return unsubscribe;
 
-            } catch (error) {
+            } catch (error: any) {
                  console.error("Error setting up assignment tracker:", error);
                  toast({ title: "Error", description: "Could not initialize assignment tracker.", variant: "destructive"});
                  setLoading(false);

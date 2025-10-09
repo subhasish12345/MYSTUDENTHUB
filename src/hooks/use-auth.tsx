@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setLoading(true);
+      // setLoading(true); // This was causing the redirect loop.
       if (user) {
         setUser(user);
         try {
@@ -59,19 +59,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   setUserData({ ...baseUserData, ...profileDoc.data() });
               } else {
                   console.warn(`No profile document found for UID: ${user.uid} in collection: ${profileCollection}. Falling back to base user data.`);
-                  // If the detailed profile doesn't exist, use the base user data as a fallback. This can happen if an admin creates a teacher/student but the full profile isn't synced.
                   setUserData(baseUserData);
               }
             } else if (role === 'admin') {
-              // If the user is an admin, their full data is in the /users doc.
               setUserData(baseUserData);
             } else {
-              // Should not happen if roles are correctly assigned
               setUserData(null);
             }
 
           } else {
-            // This case is for a newly signed-up user who hasn't completed profile setup
             setUserRole(null);
             setUserData(null);
           }
