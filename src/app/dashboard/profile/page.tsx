@@ -79,7 +79,7 @@ export default function ProfilePage() {
         const scaffoldData = { uid: user.uid, email: user.email, createdAt: serverTimestamp() };
         await setDoc(userDocRef, scaffoldData, { merge: true });
         const newDocSnap = await getDoc(userDocRef);
-        if(newDocSnap.exists()) {
+        if(newDocSnap.exists()) 
           setProfileData({ id: newDocSnap.id, ...newDocSnap.data() } as ProfileData);
           toast({ title: "Profile Initialized", description: "Your profile was created. Please fill in your details."});
         }
