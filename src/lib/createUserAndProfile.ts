@@ -3,11 +3,12 @@
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { Roles } from "./roles";
 
 interface CreateUserParams {
   email: string;
   password?: string; // Optional, can be generated if not provided
-  role: 'teacher' | 'student';
+  role: Roles;
   initialProfile: any;
   adminUid: string;
 }
@@ -32,14 +33,17 @@ export async function createUserAndProfile({ email, password, role, initialProfi
   });
 
   // 3. Create role-specific doc in /teachers or /students
+  // This is the corrected logic.
   const profileCollection = role === 'teacher' ? 'teachers' : 'students';
   const profileDocRef = doc(db, profileCollection, uid);
   
   await setDoc(profileDocRef, {
     uid,
     email,
+    role,
     ...initialProfile,
-    createdAt: serverTimestamp()
+    createdAt: serverTimestamp(),
+    createdBy: adminUid,
   }, { merge: true });
 
   // 4. Return uid & password so admin can share it (for prototyping).
