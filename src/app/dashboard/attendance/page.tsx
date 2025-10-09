@@ -51,14 +51,15 @@ export default function AttendancePage() {
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Fetch Teacher's Assigned Groups
+    // Fetch Teacher's or Admin's Data and Assigned Groups
     useEffect(() => {
-        const fetchTeacherData = async () => {
+        const fetchData = async () => {
             if (!user || userRole === 'student') {
                 setLoading(false);
                 return;
             }
             try {
+                // Correctly determine the collection based on role
                 const collectionName = userRole === 'admin' ? 'users' : 'teachers';
                 const userDocRef = doc(db, collectionName, user.uid);
                 const userSnap = await getDoc(userDocRef);
@@ -80,9 +81,12 @@ export default function AttendancePage() {
                         const groupsSnap = await getDocs(groupsQuery);
                         const groupsData = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Group));
                         setAssignedGroups(groupsData);
+                    } else if (userRole === 'teacher') {
+                        // Handle case where teacher has no assigned groups
+                        setAssignedGroups([]);
                     }
                 } else {
-                     toast({ title: "Profile not found", description: "Your profile could not be found.", variant: "destructive" });
+                     toast({ title: "Profile not found", description: `Your profile in the '${collectionName}' collection could not be found.`, variant: "destructive" });
                 }
             } catch (error: any) {
                 console.error("Error fetching user/group data:", error);
@@ -92,7 +96,7 @@ export default function AttendancePage() {
             }
         };
 
-        fetchTeacherData();
+        fetchData();
     }, [user, userRole, toast]);
 
     // Fetch Students when a group is selected
@@ -110,6 +114,7 @@ export default function AttendancePage() {
                 // Fetch in chunks of 30
                 for (let i = 0; i < studentIds.length; i += 30) {
                     const chunk = studentIds.slice(i, i + 30);
+                    if (chunk.length === 0) continue;
                     const studentPromises = chunk.map(uid => getDoc(doc(db, "students", uid)));
                     const studentDocs = await Promise.all(studentPromises);
                     const chunkData = studentDocs
@@ -182,7 +187,7 @@ export default function AttendancePage() {
 
     if (loading) {
         return (
-            <div className="space-y-6">
+            <div className="space-y-6 p-8">
                 <Skeleton className="h-10 w-1/3" />
                 <Skeleton className="h-6 w-1/2" />
                 <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -193,15 +198,15 @@ export default function AttendancePage() {
     }
     
     if (userRole === 'student') {
-         return <p className="text-center text-destructive">This page is only accessible to teachers and admins.</p>;
+         return <p className="text-center text-destructive p-8">This page is only accessible to teachers and admins.</p>;
     }
     
      if (assignedGroups.length === 0) {
-        return <p className="text-center text-muted-foreground">You have not been assigned to any groups, or no groups exist yet. Please contact an administrator.</p>;
+        return <p className="text-center text-muted-foreground p-8">You have not been assigned to any groups, or no groups exist yet. Please contact an administrator.</p>;
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 p-4 md:p-6 lg:p-8">
             <div>
                 <h1 className="font-headline text-3xl font-bold">Attendance Management</h1>
                 <p className="text-muted-foreground">Select a group to manage and view attendance.</p>

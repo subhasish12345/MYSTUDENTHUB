@@ -15,7 +15,6 @@ service cloud.firestore {
     }
 
     // Helper Function to get a user's role from the /users collection.
-    // This is the single source of truth for a user's role.
     function getUserRole() {
       // Use exists() to prevent errors if the user document is not yet created during signup.
       return exists(/databases/$(database)/documents/users/$(request.auth.uid))
@@ -36,8 +35,8 @@ service cloud.firestore {
     // =====================================================================
 
     match /users/{userId} {
-      // Any signed-in user can read their own user doc. Admins can read any.
-      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Admins can read any user document; users can only read their own.
+      allow get: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
       allow list: if isAdmin();
       allow create: if isSignedIn();
       allow update: if isAdmin() || request.auth.uid == userId;
@@ -45,12 +44,12 @@ service cloud.firestore {
     }
 
     match /teachers/{teacherId} {
-      allow get, list: if isSignedIn();
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
     match /students/{studentId} {
-      allow get, list: if isSignedIn();
+      allow read: if isSignedIn();
       allow create: if isAdmin() || request.auth.uid == studentId;
       allow update: if isAdmin() || request.auth.uid == studentId;
       allow delete: if isAdmin();
@@ -88,30 +87,28 @@ service cloud.firestore {
     // =====================================================================
 
     match /semesterGroups/{groupId} {
-      allow read: if isSignedIn();
+      allow read, list: if isSignedIn();
       allow write: if isAdmin() || isTeacher();
       
       match /attendance/{date} {
-        allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students || getUserRole() in ['admin', 'teacher']);
+        allow read: if isSignedIn() && (getUserRole() in ['admin', 'teacher'] || request.auth.uid in get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students);
         allow write: if isAdmin() || isTeacher();
       }
     }
 
     match /notices/{noticeId} {
-      allow get, list: if isSignedIn();
+      allow read, list: if isSignedIn();
       allow create, update: if isTeacher() || isAdmin();
       allow delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
     }
 
     match /events/{eventId} {
-      allow get, list: if isSignedIn();
+      allow read, list: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }
 
     match /assignments/{assignmentId} {
-      allow get: if isSignedIn();
-      // Allow teachers/admins to list all assignments. Students can't list the whole collection.
-      allow list: if isTeacher() || isAdmin();
+      allow get, list: if isSignedIn();
       allow create, update, delete: if isTeacher() || isAdmin();
     }
 
