@@ -6,57 +6,52 @@ import { Button } from "@/components/ui/button";
 
 const rules = `
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // =====================================================================
-    // Helper Functions
-    // =====================================================================
-
-    function isSignedIn() {
-      return request.auth != null;
+    function isSignedIn() { 
+      return request.auth != null; 
     }
-
-    function getUserRole() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-        : null;
-    }
-
+    
     function isAdmin() {
-      return isSignedIn() && getUserRole() == 'admin';
+      // The user must have permission to read their own /users document for this to work.
+      return isSignedIn() && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
     function isTeacher() {
-      return isSignedIn() && getUserRole() == 'teacher';
+      // Check if a user is a teacher by looking for their UID in the /teachers collection
+      return isSignedIn() && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher');
     }
 
-    // =====================================================================
-    //  User & Profile Collections
-    // =====================================================================
-
+    // USER-RELATED COLLECTIONS
     match /users/{userId} {
-      allow get: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
-      allow list: if isAdmin();
       allow create: if isSignedIn();
-      allow update: if isAdmin() || request.auth.uid == userId;
-      allow delete: if isAdmin();
+      allow read:   if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow update, delete: if isAdmin();
     }
 
     match /teachers/{teacherId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || request.auth.uid == teacherId;
+      allow delete: if isAdmin();
     }
 
     match /students/{studentId} {
-      allow read: if isSignedIn();
-      allow create: if isAdmin() || request.auth.uid == studentId;
+      allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
+      allow list: if isAdmin(); // Admin can query the list of all students
+      allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
       allow update: if isAdmin() || request.auth.uid == studentId;
       allow delete: if isAdmin();
 
       match /semesters/{semesterId} {
-        allow read, write: if isAdmin() || request.auth.uid == studentId;
+        allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
+        allow write: if isAdmin(); // Admin can add/edit semesters for students
       }
       match /focusSessions/{sessionId} {
         allow read, write: if request.auth.uid == studentId;
@@ -65,52 +60,56 @@ service cloud.firestore {
         allow read, write: if request.auth.uid == studentId;
       }
     }
-
-    // =====================================================================
-    //  Academic Structure
-    // =====================================================================
-
+    
+    // ACADEMIC STRUCTURE COLLECTIONS (Admin-only write access)
     match /degrees/{degreeId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow list, write: if isAdmin();
     }
+
     match /streams/{streamId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow list, write: if isAdmin();
     }
+
     match /batches/{batchId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow list, write: if isAdmin();
     }
 
-    // =====================================================================
-    //  App Features
-    // =====================================================================
-
+    // SEMESTER GROUPS for Attendance/Assignments
     match /semesterGroups/{groupId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isTeacher();
-      match /attendance/{date} {
-        allow read, write: if isAdmin() || isTeacher();
-      }
+        allow read: if isAdmin() || isTeacher();
+        allow list: if isAdmin() || isTeacher();
+        allow write: if isAdmin(); // Allow admin to create/update/delete groups
+
+        // Attendance subcollection
+        match /attendance/{date} {
+          allow read: if isSignedIn();
+          allow write: if isTeacher() || isAdmin();
+        }
     }
 
+    // NOTICE BOARD
     match /notices/{noticeId} {
       allow read: if isSignedIn();
       allow create, update: if isAdmin() || isTeacher();
       allow delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
     }
 
+    // EVENTS
     match /events/{eventId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }
 
+    // ASSIGNMENTS
     match /assignments/{assignmentId} {
       allow read: if isSignedIn();
       allow write: if isAdmin() || isTeacher();
     }
 
+    // CIRCLES
     match /circles/{circleId} {
       allow read: if isSignedIn();
       match /posts/{postId} {
@@ -120,13 +119,13 @@ service cloud.firestore {
     }
   }
 }
-`.trim();
+`;
 
 export function FirestoreRules() {
     const [hasCopied, setHasCopied] = useState(false);
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(rules);
+        navigator.clipboard.writeText(rules.trim());
         setHasCopied(true);
         setTimeout(() => setHasCopied(false), 2000);
     };
@@ -144,7 +143,7 @@ export function FirestoreRules() {
             </Button>
             <pre className="text-sm whitespace-pre-wrap font-mono">
                 <code>
-                    {rules}
+                    {rules.trim()}
                 </code>
             </pre>
         </div>
