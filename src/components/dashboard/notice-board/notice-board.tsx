@@ -47,7 +47,7 @@ export interface Notice extends DocumentData {
 
 
 export function NoticeBoard() {
-    const { user, userRole, userData } = useAuth();
+    const { user, userRole, userData, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const [notices, setNotices] = useState<Notice[]>([]);
     const [loading, setLoading] = useState(true);
@@ -59,15 +59,16 @@ export function NoticeBoard() {
     const [deletingNotice, setDeletingNotice] = useState<Notice | null>(null);
 
     useEffect(() => {
+        if (authLoading) return; // Wait for auth to be ready
+        setLoading(true);
+        
         if (!user) {
             setLoading(false);
             return;
         }
 
         const fetchInitialData = async () => {
-            setLoading(true);
             try {
-                // Fetch student data if the user is a student
                 if (userRole === 'student') {
                     const studentDocRef = doc(db, "students", user.uid);
                     const studentDoc = await getDoc(studentDocRef);
@@ -75,48 +76,38 @@ export function NoticeBoard() {
                         setStudentData(studentDoc.data() as StudentData);
                     }
                 }
-
-                // Set up the real-time listener for notices
-                const noticesQuery = query(collection(db, "notices"), orderBy("createdAt", "desc"));
-                const unsubscribe = onSnapshot(noticesQuery, (snapshot) => {
-                    const noticesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notice));
-                    setNotices(noticesData);
-                    setLoading(false);
-                }, (error) => {
-                    console.error("Error fetching notices: ", error);
-                    toast({ title: "Error", description: "Could not fetch notices. Check permissions.", variant: "destructive" });
-                    setLoading(false);
-                });
-                
-                return unsubscribe;
             } catch (error) {
-                console.error("Error setting up notice board:", error);
-                toast({ title: "Setup Error", description: "Could not initialize notice board.", variant: "destructive" });
-                setLoading(false);
+                 console.error("Error fetching student data:", error);
+                 toast({ title: "Error", description: "Could not fetch your profile data.", variant: "destructive" });
             }
         };
+        fetchInitialData();
 
-        const unsubscribePromise = fetchInitialData();
+        // Set up the real-time listener for notices
+        const noticesQuery = query(collection(db, "notices"), orderBy("createdAt", "desc"));
+        const unsubscribe = onSnapshot(noticesQuery, (snapshot) => {
+            const noticesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notice));
+            setNotices(noticesData);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching notices: ", error);
+            toast({ title: "Error", description: "Could not fetch notices. Check permissions.", variant: "destructive" });
+            setLoading(false);
+        });
 
-        return () => {
-            unsubscribePromise.then(unsubscribe => {
-                if (unsubscribe) {
-                    unsubscribe();
-                }
-            });
-        };
-    }, [user, userRole, toast]);
+        return () => unsubscribe();
+    }, [user, userRole, authLoading, toast]);
 
 
     const handleFormSubmit = async (values: NoticeFormValues) => {
         if (!user || !userRole || !userData) {
-            toast({ title: "Error", description: "You must be logged in to perform this action.", variant: "destructive" });
+            toast({ title: "Authentication Error", description: "You must be logged in and have a complete profile to perform this action.", variant: "destructive" });
             return;
         }
         setIsSubmitting(true);
         try {
             if (editingNotice) {
-                await updateNotice(editingNotice.id, { ...values, authorRole: userRole });
+                await updateNotice(editingNotice.id, values);
                 toast({ title: "Success!", description: "Notice has been updated." });
             } else {
                  await createNotice({
@@ -137,8 +128,12 @@ export function NoticeBoard() {
     }
     
     const handleEdit = (notice: Notice) => {
-        setEditingNotice(notice);
-        setIsSheetOpen(true);
+        if (userRole === 'admin' || notice.postedBy === user?.uid) {
+            setEditingNotice(notice);
+            setIsSheetOpen(true);
+        } else {
+            toast({ title: "Permission Denied", description: "You can only edit your own notices.", variant: "destructive"});
+        }
     };
 
     const handleCreate = () => {
@@ -146,9 +141,18 @@ export function NoticeBoard() {
         setIsSheetOpen(true);
     };
 
-    const handleDelete = async () => {
-        if (!deletingNotice) return;
+    const handleDeleteConfirm = async () => {
+        if (!deletingNotice || !user) {
+            setDeletingNotice(null);
+            return;
+        }
         
+        if (userRole !== 'admin' && deletingNotice.postedBy !== user.uid) {
+             toast({ title: "Permission Denied", description: "You can only delete your own notices.", variant: "destructive"});
+             setDeletingNotice(null);
+             return;
+        }
+
         try {
             await deleteNotice(deletingNotice.id);
             toast({ title: "Success", description: "Notice has been deleted." });
@@ -159,9 +163,9 @@ export function NoticeBoard() {
         }
     };
 
-
     const filteredNotices = notices.filter(notice => {
-        if (userRole === 'admin') return true; // Admins see all
+        if (userRole === 'admin' || userRole === 'teacher') return true; 
+
         if (notice.target.type === 'global') return true;
 
         if (userRole === 'student' && studentData) {
@@ -171,9 +175,6 @@ export function NoticeBoard() {
             if (target.type === 'stream' && target.degree === degree && target.stream === stream) return true;
             if (target.type === 'batch' && target.degree === degree && target.stream === stream && target.batch === batch_id) return true;
         }
-        
-        // A simple rule for teachers to see all non-student-specific notices
-        if(userRole === 'teacher') return true;
 
         return false;
     });
@@ -201,7 +202,7 @@ export function NoticeBoard() {
 
             <NoticeList 
                 notices={filteredNotices} 
-                loading={loading}
+                loading={loading || authLoading}
                 currentUser={user}
                 userRole={userRole}
                 onEdit={handleEdit}
@@ -235,7 +236,7 @@ export function NoticeBoard() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                    <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
                         Delete
                     </AlertDialogAction>
                 </AlertDialogFooter>

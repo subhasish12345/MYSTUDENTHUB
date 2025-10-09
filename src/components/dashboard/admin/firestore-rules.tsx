@@ -36,7 +36,8 @@ service cloud.firestore {
     // =====================================================================
 
     match /users/{userId} {
-      allow get: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
+      // Any signed-in user can read their own user doc. Admins can read any.
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow list: if isAdmin();
       allow create: if isSignedIn();
       allow update: if isAdmin() || request.auth.uid == userId;
@@ -91,7 +92,6 @@ service cloud.firestore {
       allow write: if isAdmin() || isTeacher();
       
       match /attendance/{date} {
-        // Teachers/Admins can write. Students can read if they are in the group.
         allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students || getUserRole() in ['admin', 'teacher']);
         allow write: if isAdmin() || isTeacher();
       }
@@ -99,7 +99,7 @@ service cloud.firestore {
 
     match /notices/{noticeId} {
       allow get, list: if isSignedIn();
-      allow create, update: if isAdmin() || isTeacher();
+      allow create, update: if isTeacher() || isAdmin();
       allow delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
     }
 
@@ -109,8 +109,10 @@ service cloud.firestore {
     }
 
     match /assignments/{assignmentId} {
-      allow get, list: if isSignedIn();
-      allow write: if isAdmin() || isTeacher();
+      allow get: if isSignedIn();
+      // Allow teachers/admins to list all assignments. Students can't list the whole collection.
+      allow list: if isTeacher() || isAdmin();
+      allow create, update, delete: if isTeacher() || isAdmin();
     }
 
     match /circles/{circleId} {

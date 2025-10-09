@@ -6,14 +6,14 @@ import { EventFormValues } from "./event-form";
 import { Roles } from "@/lib/roles";
 
 interface CreateEventParams extends EventFormValues {
-    createdBy: string;
+    postedBy: string;
     postedByName: string;
+    authorRole: Roles;
 }
 
 export async function createEvent(data: CreateEventParams) {
     const eventData: DocumentData = {
         ...data,
-        authorRole: 'admin', // Hardcoded to admin as only admins can create
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
@@ -27,6 +27,13 @@ export async function updateEvent(eventId: string, data: EventFormValues) {
         ...data,
         updatedAt: serverTimestamp(),
     };
+
+    // Don't overwrite authorship details
+    delete updateData.postedBy;
+    delete updateData.postedByName;
+    delete updateData.authorRole;
+    delete updateData.createdAt;
+
     await updateDoc(eventRef, updateData);
 }
 

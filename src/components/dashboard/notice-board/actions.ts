@@ -49,6 +49,12 @@ export async function updateNotice(noticeId: string, data: NoticeFormValues) {
     } else {
         updateData.target = { type: 'global' };
     }
+    
+    // Don't overwrite authorship details
+    delete updateData.postedBy;
+    delete updateData.postedByName;
+    delete updateData.authorRole;
+    delete updateData.createdAt;
 
     await updateDoc(noticeRef, updateData);
 }
