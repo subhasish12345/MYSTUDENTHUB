@@ -9,123 +9,123 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() { 
-      return request.auth != null; 
-    }
-    
-    function isAdmin() {
-      // The user must have permission to read their own /users document for this to work.
-      return isSignedIn() && 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    // Helper function to check if a user is signed in.
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    function isTeacher() {
-      // Check if a user is a teacher by looking for their UID in the /teachers collection
-      return isSignedIn() && 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher');
+    // Helper function to safely get a user's role from the /users collection.
+    // This is the single source of truth for a user's role.
+    function getUserRole() {
+      // Check if the user document exists before trying to access its data.
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : 'student'; // Default to least privileged role if doc doesn't exist.
     }
 
-    // USER-RELATED COLLECTIONS
+    // =====================================================================
+    //  User & Profile Collections
+    // =====================================================================
+
     match /users/{userId} {
+      // Admins can read any user document; users can only read their own.
+      allow get: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == userId);
+      allow list: if isSignedIn() && getUserRole() == 'admin';
+      
+      // Any authenticated user can create their own user document.
       allow create: if isSignedIn();
-      allow read:   if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow update, delete: if isAdmin();
+      
+      // A user can update their own document, or an admin can update any user document.
+      allow update: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
+
+      // Only an admin can delete a user document.
+      allow delete: if isSignedIn() && getUserRole() == 'admin';
     }
 
     match /teachers/{teacherId} {
-      allow read: if isSignedIn();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin() || request.auth.uid == teacherId;
-      allow delete: if isAdmin();
+      allow get, list: if isSignedIn();
+      allow write: if isSignedIn() && getUserRole() == 'admin';
     }
 
     match /students/{studentId} {
-      allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-      allow list: if isAdmin(); // Admin can query the list of all students
-      allow create: if isAdmin() || (isSignedIn() && request.auth.uid == studentId);
-      allow update: if isAdmin() || request.auth.uid == studentId;
-      allow delete: if isAdmin();
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == studentId);
+      allow update: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == studentId);
+      allow delete: if isSignedIn() && getUserRole() == 'admin';
 
       match /semesters/{semesterId} {
-        allow read: if isSignedIn() && (request.auth.uid == studentId || isAdmin() || isTeacher());
-        allow write: if isAdmin(); // Admin can add/edit semesters for students
+        allow read, write: if isSignedIn() && (request.auth.uid == studentId || getUserRole() == 'admin');
       }
       match /focusSessions/{sessionId} {
-        allow read, write: if request.auth.uid == studentId;
+        allow read, write: if isSignedIn() && request.auth.uid == studentId;
       }
       match /submissions/{submissionId} {
-        allow read, write: if request.auth.uid == studentId;
+        allow read, write: if isSignedIn() && request.auth.uid == studentId;
       }
     }
-    
-    // ACADEMIC STRUCTURE COLLECTIONS (Admin-only write access)
+
+    // =====================================================================
+    //  Academic Structure Collections (Admin Write-Only)
+    // =====================================================================
+
     match /degrees/{degreeId} {
       allow read: if isSignedIn();
-      allow list, write: if isAdmin();
+      allow write: if isSignedIn() && getUserRole() == 'admin';
     }
-
     match /streams/{streamId} {
       allow read: if isSignedIn();
-      allow list, write: if isAdmin();
+      allow write: if isSignedIn() && getUserRole() == 'admin';
     }
-
     match /batches/{batchId} {
       allow read: if isSignedIn();
-      allow list, write: if isAdmin();
+      allow write: if isSignedIn() && getUserRole() == 'admin';
     }
-
-    // SEMESTER GROUPS for Attendance/Assignments
     match /semesterGroups/{groupId} {
-        allow read: if isAdmin() || isTeacher();
-        allow list: if isAdmin() || isTeacher();
-        allow write: if isAdmin(); // Allow admin to create/update/delete groups
-
-        // Attendance subcollection
-        match /attendance/{date} {
-          allow read: if isSignedIn();
-          allow write: if isTeacher() || isAdmin();
-        }
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+      
+      match /attendance/{date} {
+        allow read, write: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+      }
     }
 
-    // NOTICE BOARD
+    // =====================================================================
+    //  Content & Feature Collections
+    // =====================================================================
+
     match /notices/{noticeId} {
       allow read: if isSignedIn();
-      allow create, update: if isAdmin() || isTeacher();
-      allow delete: if isAdmin() || (isTeacher() && resource.data.postedBy == request.auth.uid);
+      allow create, update: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+      allow delete: if isSignedIn() && (getUserRole() == 'admin' || resource.data.postedBy == request.auth.uid);
     }
 
-    // EVENTS
     match /events/{eventId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isSignedIn() && getUserRole() == 'admin';
     }
 
-    // ASSIGNMENTS
     match /assignments/{assignmentId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin() || isTeacher();
+      allow write: if isSignedIn() && getUserRole() in ['teacher', 'admin'];
     }
 
-    // CIRCLES
     match /circles/{circleId} {
       allow read: if isSignedIn();
+      
       match /posts/{postId} {
         allow read, create: if isSignedIn();
-        allow update, delete: if isAdmin() || resource.data.author.uid == request.auth.uid;
+        allow update, delete: if isSignedIn() && (resource.data.author.uid == request.auth.uid || getUserRole() == 'admin');
       }
     }
   }
 }
-`;
+`.trim();
 
 export function FirestoreRules() {
     const [hasCopied, setHasCopied] = useState(false);
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(rules.trim());
+        navigator.clipboard.writeText(rules);
         setHasCopied(true);
         setTimeout(() => setHasCopied(false), 2000);
     };
@@ -143,7 +143,7 @@ export function FirestoreRules() {
             </Button>
             <pre className="text-sm whitespace-pre-wrap font-mono">
                 <code>
-                    {rules.trim()}
+                    {rules}
                 </code>
             </pre>
         </div>

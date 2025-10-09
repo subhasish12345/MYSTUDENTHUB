@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -6,7 +5,7 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy, DocumentData } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { format, isPast } from "date-fns";
+import { format } from "date-fns";
 import { Button } from '../ui/button';
 import { PlusCircle, Edit, Trash2, ExternalLink, UserCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
@@ -40,7 +39,6 @@ export function EventCalendar() {
     
     const [events, setEvents] = useState<Event[]>([]);
     const [loading, setLoading] = useState(true);
-    const [date, setDate] = useState<Date | undefined>(new Date());
     const [categoryFilter, setCategoryFilter] = useState('All');
     const [timeFilter, setTimeFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
 
@@ -68,19 +66,17 @@ export function EventCalendar() {
     }, [toast]);
 
     const handleFormSubmit = async (values: EventFormValues) => {
-        if (!user || !userRole || !userData) {
+        if (!user || !userData) {
             toast({ title: "Authentication Error", description: "You must be logged in.", variant: "destructive" });
             return;
         }
         setIsSubmitting(true);
         try {
             if (editingEvent) {
-                // Pass the userRole for the security rule check on update
-                await updateEvent(editingEvent.id, { ...values, authorRole: userRole });
+                await updateEvent(editingEvent.id, values);
                 toast({ title: "Success", description: "Event has been updated." });
             } else {
-                // Pass user info and role for the security rule check on create
-                await createEvent({ ...values, createdBy: user.uid, postedByName: userData.name, authorRole: userRole });
+                await createEvent({ ...values, createdBy: user.uid, postedByName: userData.name });
                 toast({ title: "Success", description: "New event has been created." });
             }
             setIsSheetOpen(false);
@@ -193,7 +189,7 @@ export function EventCalendar() {
                             <Card key={event.id} className="flex flex-col shadow-md">
                                 {event.imageUrl && (
                                     <div className="relative h-40 w-full">
-                                        <Image src={event.imageUrl} alt={event.title} fill objectFit="cover" className="rounded-t-lg" data-ai-hint="event poster" />
+                                        <Image src={event.imageUrl} alt={event.title} fill style={{objectFit: "cover"}} className="rounded-t-lg" data-ai-hint="event poster" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
                                     </div>
                                 )}
                                 <CardHeader>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -12,17 +11,8 @@ import { BookOpen, Calendar, Users } from "lucide-react";
 
 export default function TeacherDashboardPage() {
   const { user, userData: teacherData, loading: authLoading } = useAuth();
-  const [loading, setLoading] = useState(true);
-
-  // This combines the auth loading state with any additional data loading
-  useEffect(() => {
-    if (!authLoading) {
-      setLoading(false);
-    }
-  }, [authLoading]);
-
-  // While waiting for client-side render and data fetching, show skeletons
-  if (loading) {
+  
+  if (authLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-1/3" />
@@ -36,12 +26,10 @@ export default function TeacherDashboardPage() {
     );
   }
   
-  // After loading, if there's no user, prompt login (though routing should handle this)
   if (!user) {
     return <p className="text-center text-muted-foreground">Please log in to view your dashboard.</p>;
   }
 
-  // If user is logged in but profile data doesn't exist in Firestore
   if (!teacherData) {
       return <p className="text-center text-destructive">No teacher profile found. Please contact an administrator or complete your profile setup.</p>;
   }

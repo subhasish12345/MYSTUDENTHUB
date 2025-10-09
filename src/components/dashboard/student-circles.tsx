@@ -33,7 +33,7 @@ function ClientOnly({ children }: { children: React.ReactNode }) {
     }, []);
 
     if (!hasMounted) {
-        return null;
+        return null; // On the server, render nothing.
     }
 
     return <>{children}</>;

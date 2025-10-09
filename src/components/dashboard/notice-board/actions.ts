@@ -1,7 +1,7 @@
-"use server";
+'use server';
 
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp, DocumentData, updateDoc, doc, getDoc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, DocumentData, updateDoc, doc, deleteDoc } from "firebase/firestore";
 import { NoticeFormValues } from "./notice-form";
 import { Roles } from "@/lib/roles";
 
@@ -32,11 +32,7 @@ export async function createNotice(data: CreateNoticeParams) {
     await addDoc(collection(db, "notices"), noticeData);
 }
 
-interface UpdateNoticeParams extends NoticeFormValues {
-    authorRole: Roles;
-}
-
-export async function updateNotice(noticeId: string, data: UpdateNoticeParams) {
+export async function updateNotice(noticeId: string, data: NoticeFormValues) {
     const noticeRef = doc(db, "notices", noticeId);
     
     const updateData: DocumentData = {

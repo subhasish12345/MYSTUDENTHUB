@@ -89,9 +89,10 @@ export function NoticeList({ notices, loading, currentUser, userRole, onEdit, on
                                     src={notice.imageUrl}
                                     alt={notice.title}
                                     fill
-                                    objectFit="cover"
+                                    style={{objectFit: "cover"}}
                                     className="rounded-t-lg"
                                     data-ai-hint="announcement poster"
+                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                 />
                             </div>
                         )}

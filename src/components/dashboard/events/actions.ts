@@ -1,4 +1,4 @@
-"use server";
+'use server';
 
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, DocumentData, updateDoc, doc, deleteDoc } from "firebase/firestore";
@@ -8,25 +8,20 @@ import { Roles } from "@/lib/roles";
 interface CreateEventParams extends EventFormValues {
     createdBy: string;
     postedByName: string;
-    authorRole: Roles;
 }
 
-// The 'authorRole' is now required and will be checked by security rules.
 export async function createEvent(data: CreateEventParams) {
     const eventData: DocumentData = {
         ...data,
+        authorRole: 'admin', // Hardcoded to admin as only admins can create
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
     await addDoc(collection(db, "events"), eventData);
 }
 
-interface UpdateEventParams extends EventFormValues {
-    authorRole: Roles;
-}
 
-// The 'authorRole' is passed with the update to be checked by security rules.
-export async function updateEvent(eventId: string, data: UpdateEventParams) {
+export async function updateEvent(eventId: string, data: EventFormValues) {
     const eventRef = doc(db, "events", eventId);
     const updateData: DocumentData = {
         ...data,
