@@ -83,7 +83,6 @@ export default function ProfilePage() {
           setProfileData({ id: newDocSnap.id, ...newDocSnap.data() } as ProfileData);
           toast({ title: "Profile Initialized", description: "Your profile was created. Please fill in your details."});
         }
-      }
     } catch (error) {
        console.error("Error fetching user data:", error);
        toast({ title: "Error", description: "Could not fetch your profile data.", variant: "destructive" });
