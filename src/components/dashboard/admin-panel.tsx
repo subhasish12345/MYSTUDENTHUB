@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { FirestoreRules } from "@/components/dashboard/admin/firestore-rules";
+import { FeedbackViewer } from "./feedback/feedback-viewer";
 
 
 export function AdminPanel() {
@@ -22,12 +23,13 @@ export function AdminPanel() {
             </div>
 
             <Tabs defaultValue="teachers" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-7">
                     <TabsTrigger value="teachers">Teachers</TabsTrigger>
                     <TabsTrigger value="students">Students</TabsTrigger>
                     <TabsTrigger value="degrees">Degrees</TabsTrigger>
                     <TabsTrigger value="streams">Streams</TabsTrigger>
                     <TabsTrigger value="batches">Batches</TabsTrigger>
+                    <TabsTrigger value="feedback">Feedback</TabsTrigger>
                     <TabsTrigger value="rules">Rules</TabsTrigger>
                 </TabsList>
                 <TabsContent value="teachers">
@@ -44,6 +46,9 @@ export function AdminPanel() {
                 </TabsContent>
                 <TabsContent value="batches">
                     <BatchManagement />
+                </TabsContent>
+                <TabsContent value="feedback">
+                    <FeedbackViewer />
                 </TabsContent>
                  <TabsContent value="rules">
                     <Card>
