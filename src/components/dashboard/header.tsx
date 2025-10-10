@@ -15,12 +15,16 @@ import { Bell } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 
 export function DashboardHeader() {
   const { user } = useAuth();
+  const router = useRouter();
 
   const handleLogout = () => {
-    auth.signOut();
+    auth.signOut().then(() => {
+      router.replace('/');
+    });
   };
 
   return (
@@ -54,10 +58,6 @@ export function DashboardHeader() {
               <Link href="/dashboard/profile">Profile</Link>
             </DropdownMenuItem>
             <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
-              Logout
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
