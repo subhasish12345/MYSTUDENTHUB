@@ -73,7 +73,7 @@ export function PostCard({ post, groupId }: PostCardProps) {
     const formatTimestamp = (timestamp: any) => {
         if (!timestamp) return 'Just now';
         // Firestore timestamps can be either a Timestamp object or, in our new case for replies, a JS Date object.
-        const date = timestamp.toDate ? timestamp.toDate() : timestamp;
+        const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
         return formatDistanceToNow(date, { addSuffix: true });
     };
 
