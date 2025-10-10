@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, orderBy, query, addDoc, serverTimestamp, DocumentData } from "firebase/firestore";
@@ -42,7 +42,9 @@ export function ChatPanel({ group }: { group: DocumentData }) {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    const postsCollectionRef = collection(db, "circles", group.id, "posts");
+    const postsCollectionRef = useMemo(() => {
+        return collection(db, "circles", group.id, "posts");
+    }, [group.id]);
 
     useEffect(() => {
         setLoading(true);
