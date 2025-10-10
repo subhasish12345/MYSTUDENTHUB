@@ -80,11 +80,13 @@ service cloud.firestore {
     }
     
     match /semesterGroups/{groupId} {
-      // Admins/Teachers can query all groups. Students can only query for groups they are in.
-      allow list: if isSignedIn() && (getUserRole() in ['admin', 'teacher'] || (request.query.where.field == 'students' && request.query.where.op == 'array-contains' && request.query.where.value == request.auth.uid));
-      // Any authorized user can read a specific group document (needed for other rules to work).
+      // Any signed-in user can get a specific group document if they know its ID.
+      // The app logic ensures they only know the IDs of groups they belong to.
       allow get: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() in ['admin'];
+      // Admins and teachers can query/list all groups.
+      allow list: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+      // Only admins can create/update/delete groups.
+      allow write: if isSignedIn() && getUserRole() == 'admin';
       
       match /attendance/{date} {
         // Students can read attendance for groups they are in.
@@ -96,13 +98,13 @@ service cloud.firestore {
     // --- NOTICE BOARD ---
     match /notices/{noticeId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+      allow write: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
     }
 
     // --- EVENTS ---
     match /events/{eventId} {
       allow read: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isSignedIn() && getUserRole() == 'admin';
     }
     
     // --- ASSIGNMENTS ---
@@ -114,8 +116,8 @@ service cloud.firestore {
     // --- STUDENT CIRCLES ---
     match /circles/{groupId}/posts/{postId} {
         function isGroupMember() {
-            let groupData = get(/databases/$(database)/documents/semesterGroups/$(groupId)).data;
-            return 'students' in groupData && request.auth.uid in groupData.students;
+            let groupDoc = get(/databases/$(database)/documents/semesterGroups/$(groupId));
+            return 'students' in groupDoc.data && request.auth.uid in groupDoc.data.students;
         }
 
         function isTeacherOfGroup() {
@@ -125,17 +127,15 @@ service cloud.firestore {
 
         function isAuthorizedReader() {
             let role = getUserRole();
-            return role == 'admin' || (role == 'teacher' && isTeacherOfGroup()) || isGroupMember();
+            return role == 'admin' || (role == 'teacher' && isTeacherOfGroup()) || (role == 'student' && isGroupMember());
         }
         
         function isAuthorizedWriter() {
-            // Check if the user is an admin or is a member/teacher of the group.
             let role = getUserRole();
-            return role == 'admin' || isGroupMember() || (role == 'teacher' && isTeacherOfGroup());
+            return role == 'admin' || (role == 'student' && isGroupMember()) || (role == 'teacher' && isTeacherOfGroup());
         }
 
         allow read, create: if isSignedIn() && isAuthorizedReader();
-        // Allow updates (like adding a reply) if the user is authorized to write in the group.
         allow update: if isSignedIn() && isAuthorizedWriter();
         allow delete: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == resource.data.author.uid);
     }

@@ -7,6 +7,7 @@ import { collection, doc, getDoc, getDocs, query, where, DocumentData, orderBy }
 import { Skeleton } from "@/components/ui/skeleton";
 import { GroupSelector } from "@/components/dashboard/circles/group-selector";
 import { ChatPanel } from "@/components/dashboard/circles/chat-panel";
+import { StudentData } from "@/components/dashboard/admin/student-management";
 
 export interface SemesterGroup extends DocumentData {
     id: string;
@@ -24,29 +25,59 @@ export default function CirclesPage() {
         setLoading(true);
 
         try {
-            let groupsQuery;
+            let groups: SemesterGroup[] = [];
+            
             if (userRole === 'admin') {
-                groupsQuery = query(collection(db, "semesterGroups"), orderBy("groupId", "asc"));
+                const groupsQuery = query(collection(db, "semesterGroups"), orderBy("groupId", "asc"));
+                const groupsSnap = await getDocs(groupsQuery);
+                groups = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as SemesterGroup));
             } else if (userRole === 'teacher' && userData?.assignedGroups?.length > 0) {
                 const sortedGroupIds = [...userData.assignedGroups].sort();
-                groupsQuery = query(collection(db, "semesterGroups"), where("groupId", "in", sortedGroupIds));
-            } else if (userRole === 'student') {
-                groupsQuery = query(collection(db, "semesterGroups"), where("students", "array-contains", user.uid));
-            }
-            
-            if (groupsQuery) {
+                const groupsQuery = query(collection(db, "semesterGroups"), where("groupId", "in", sortedGroupIds));
                 const groupsSnap = await getDocs(groupsQuery);
-                const groups = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as SemesterGroup));
-                
-                if (groups.length > 0) {
-                    const sortedGroups = groups.sort((a,b) => (b.semester_no || 0) - (a.semester_no || 0));
-                    setAccessibleGroups(sortedGroups);
-                    setSelectedGroup(sortedGroups[0]); // Default to the latest semester group
-                } else {
-                    setAccessibleGroups([]);
-                    setSelectedGroup(null);
+                 groups = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as SemesterGroup));
+            } else if (userRole === 'student') {
+                // For students, get groups from their own profile's semester subcollection
+                const studentDocRef = doc(db, "students", user.uid);
+                const studentSnap = await getDoc(studentDocRef);
+
+                if (studentSnap.exists()) {
+                    const studentData = studentSnap.data() as StudentData;
+                    const degreeSnap = await getDoc(doc(db, 'degrees', studentData.degree));
+                    const streamSnap = await getDoc(doc(db, 'streams', studentData.stream));
+                    const batchSnap = await getDoc(doc(db, 'batches', studentData.batch_id));
+
+                    if (degreeSnap.exists() && streamSnap.exists() && batchSnap.exists()) {
+                        const degreeName = degreeSnap.data().name;
+                        const streamName = streamSnap.data().name;
+                        const batchName = batchSnap.data().batch_name;
+
+                        const semestersQuery = query(collection(studentDocRef, "semesters"));
+                        const semestersSnap = await getDocs(semestersQuery);
+                        
+                        const groupPromises = semestersSnap.docs.map(semDoc => {
+                            const semData = semDoc.data();
+                            const groupId = `${degreeName}_${streamName}_${batchName}_sem${semData.semester_no}_${semData.section}`.replace(/\s+/g, '_');
+                            return getDoc(doc(db, "semesterGroups", groupId));
+                        });
+                        
+                        const groupDocs = await Promise.all(groupPromises);
+                        groups = groupDocs
+                            .filter(d => d.exists())
+                            .map(d => ({ id: d.id, ...d.data() } as SemesterGroup));
+                    }
                 }
             }
+            
+            if (groups.length > 0) {
+                const sortedGroups = groups.sort((a,b) => (b.semester_no || 0) - (a.semester_no || 0));
+                setAccessibleGroups(sortedGroups);
+                setSelectedGroup(sortedGroups[0]); // Default to the latest semester group
+            } else {
+                setAccessibleGroups([]);
+                setSelectedGroup(null);
+            }
+
         } catch (error) {
             console.error("Error fetching accessible groups:", error);
         } finally {
