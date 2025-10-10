@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
+import { collection, query, onSnapshot, where } from "firebase/firestore";
 import { UserData } from "../admin/teacher-management";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,17 +18,19 @@ export function MentorList() {
     useEffect(() => {
         if (authLoading) return;
 
-        // Only students should see the mentor list.
         if (userRole !== 'student') {
             setLoading(false);
             return;
         }
 
         setLoading(true);
-        const q = query(collection(db, "teachers"), where("status", "==", "Active"), orderBy("name"));
+        // Simplified query to avoid needing a composite index.
+        const q = query(collection(db, "teachers"), where("status", "==", "Active"));
         
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const teachersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
+            // Sort the data client-side
+            teachersData.sort((a, b) => a.name.localeCompare(b.name));
             setMentors(teachersData);
             setLoading(false);
         }, (error) => {
