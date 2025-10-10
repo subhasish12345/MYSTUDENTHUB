@@ -41,7 +41,7 @@ service cloud.firestore {
 
     match /teachers/{teacherId} {
       allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow create, update, delete: if isSignedIn() && getUserRole() == 'admin';
     }
 
     match /students/{studentId} {
@@ -92,23 +92,14 @@ service cloud.firestore {
 
     // --- NOTICE BOARD ---
     match /notices/{noticeId} {
-      allow get, list: if isSignedIn();
-
-      // Admins and teachers can create notices.
-      allow create: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
-
-      // Admins can update any notice. Teachers can only update their own.
-      allow update: if isSignedIn() && (getUserRole() == 'admin' || (getUserRole() == 'teacher' && resource.data.postedBy == request.auth.uid));
-
-      // Admins can delete any notice. Teachers can only delete their own.
-      allow delete: if isSignedIn() && (getUserRole() == 'admin' || resource.data.postedBy == request.auth.uid);
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (getUserRole() == 'admin' || getUserRole() == 'teacher');
     }
 
     // --- EVENTS ---
     match /events/{eventId} {
-      allow get, list: if isSignedIn();
-      // Only admins can create, update, or delete events. This rule is now simple and robust.
-      allow create, update, delete: if isSignedIn() && getUserRole() == 'admin';
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && getUserRole() == 'admin';
     }
     
     // --- ASSIGNMENTS ---
@@ -118,13 +109,13 @@ service cloud.firestore {
     }
     
     // --- STUDENT CIRCLES ---
-    match /circles/{circleId} {
-      allow read: if isSignedIn();
-      match /posts/{postId} {
-        allow get, list, create: if isSignedIn();
-        // An admin can delete any post. A user can only delete their own.
-        allow update, delete: if isSignedIn() && (getUserRole() == 'admin' || resource.data.author.uid == request.auth.uid);
+    match /circles/{groupId}/posts/{postId} {
+      function isMember() {
+        return request.auth.uid in get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students;
       }
+      
+      // Admins, teachers assigned to the group, and student members can read/write.
+      allow read, write: if isSignedIn() && (getUserRole() == 'admin' || isMember() || getUserRole() == 'teacher');
     }
   }
 }
