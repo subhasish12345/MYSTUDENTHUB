@@ -81,7 +81,7 @@ service cloud.firestore {
     
     match /semesterGroups/{groupId} {
       allow get, list: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
-      allow write: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+      allow write: if isSignedIn() && getUserRole() in ['admin'];
       
       match /attendance/{date} {
         // Students can read attendance for groups they are in.
@@ -93,7 +93,7 @@ service cloud.firestore {
     // --- NOTICE BOARD ---
     match /notices/{noticeId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && (getUserRole() == 'admin' || getUserRole() == 'teacher');
+      allow write: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
     }
 
     // --- EVENTS ---
@@ -110,12 +110,19 @@ service cloud.firestore {
     
     // --- STUDENT CIRCLES ---
     match /circles/{groupId}/posts/{postId} {
-      function isMember() {
+      function isGroupMember() {
         return request.auth.uid in get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students;
       }
-      
-      // Admins, teachers assigned to the group, and student members can read/write.
-      allow read, write: if isSignedIn() && (getUserRole() == 'admin' || isMember() || getUserRole() == 'teacher');
+      function isTeacherOfGroup() {
+        let teacherData = get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data;
+        return 'assignedGroups' in teacherData && groupId in teacherData.assignedGroups;
+      }
+
+      // Admins, assigned teachers, and student members of the group can perform actions.
+      allow read: if isSignedIn() && (getUserRole() == 'admin' || isGroupMember() || (getUserRole() == 'teacher' && isTeacherOfGroup()));
+      allow create: if isSignedIn() && (getUserRole() == 'admin' || isGroupMember() || (getUserRole() == 'teacher' && isTeacherOfGroup()));
+      allow update: if isSignedIn() && (getUserRole() == 'admin' || isGroupMember() || (getUserRole() == 'teacher' && isTeacherOfGroup()));
+      allow delete: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == resource.data.author.uid);
     }
   }
 }

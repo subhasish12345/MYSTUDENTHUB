@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
-import { collection, doc, getDoc, getDocs, query, where, DocumentData } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where, DocumentData, orderBy } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GroupSelector } from "@/components/dashboard/circles/group-selector";
 import { ChatPanel } from "@/components/dashboard/circles/chat-panel";
@@ -30,25 +30,8 @@ export default function CirclesPage() {
             } else if (userRole === 'teacher' && userData?.assignedGroups?.length > 0) {
                 groupsQuery = query(collection(db, "semesterGroups"), where("groupId", "in", userData.assignedGroups));
             } else if (userRole === 'student') {
-                // Find the student's current semester group
-                const studentDoc = await getDoc(doc(db, "students", user.uid));
-                if (studentDoc.exists()) {
-                    const studentData = studentDoc.data();
-                    const semestersSnap = await getDocs(query(collection(db, `students/${user.uid}/semesters`)));
-                    if (!semestersSnap.empty) {
-                        // This logic assumes the student has one primary group.
-                        // A more complex app might need to let the student choose.
-                         const latestSem = semestersSnap.docs.sort((a,b) => b.data().semester_no - a.data().semester_no)[0].data();
-                         const degreeDoc = await getDoc(doc(db, 'degrees', studentData.degree));
-                         const streamDoc = await getDoc(doc(db, 'streams', studentData.stream));
-                         const batchDoc = await getDoc(doc(db, 'batches', studentData.batch_id));
-                        
-                        if(degreeDoc.exists() && streamDoc.exists() && batchDoc.exists()) {
-                            const groupId = `${degreeDoc.data().name}_${streamDoc.data().name}_${batchDoc.data().batch_name}_sem${latestSem.semester_no}_${latestSem.section}`.replace(/\s+/g, '_');
-                            groupsQuery = query(collection(db, "semesterGroups"), where("groupId", "==", groupId));
-                        }
-                    }
-                }
+                // Find all groups the student is a member of
+                 groupsQuery = query(collection(db, "semesterGroups"), where("students", "array-contains", user.uid));
             }
             
             if (groupsQuery) {
@@ -56,7 +39,9 @@ export default function CirclesPage() {
                 const groups = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as SemesterGroup));
                 setAccessibleGroups(groups);
                 if (groups.length > 0) {
-                    setSelectedGroup(groups[0]);
+                    // Sort by semester number descending to select the latest one
+                    const sortedGroups = groups.sort((a,b) => (b.semester_no || 0) - (a.semester_no || 0));
+                    setSelectedGroup(sortedGroups[0]);
                 }
             }
         } catch (error) {
