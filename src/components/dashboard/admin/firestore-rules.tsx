@@ -122,32 +122,6 @@ service cloud.firestore {
         allow update: if isGroupMember() || isTeacherOfGroup() || getUserRole(request.auth.uid) == 'admin';
         allow delete: if getUserRole(request.auth.uid) == 'admin' || (isSignedIn() && request.auth.uid == resource.data.author.uid);
     }
-
-    // --- MENTOR CONNECT ---
-    match /directMessages/{chatId} {
-        function isParticipant() {
-          return request.auth.uid in resource.data.participants;
-        }
-        function isValidChat() {
-          let participantRoles = request.resource.data.participantRoles;
-          let studentRole = 'student';
-          let teacherRole = 'teacher';
-          let roles = participantRoles.values();
-          // A chat is valid if it's between a student and a teacher.
-          return (roles.hasAll([studentRole, teacherRole]));
-        }
-
-        // Allow a user to check if a chat document exists if their UID is in the doc ID.
-        // This is crucial for the "first message" scenario.
-        allow get: if isSignedIn() && request.auth.uid in chatId.split('_');
-
-        // Allow creation of a chat only if it's a valid student-teacher pairing.
-        allow create: if isSignedIn() && isValidChat();
-
-        match /messages/{messageId} {
-           allow read, write: if isSignedIn() && isParticipant();
-        }
-    }
   }
 }
 `.trim();

@@ -1,85 +1,51 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, where, getDoc, doc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
 import { UserData } from "../admin/teacher-management";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Mail, Phone, MessageSquare } from "lucide-react";
-import { DirectMessagePanel } from "./direct-message-panel";
-import { StudentData } from "../admin/student-management";
-
+import { Mail, Phone } from "lucide-react";
 
 export function MentorList() {
-    const { user, userRole, loading: authLoading } = useAuth();
+    const { userRole, loading: authLoading } = useAuth();
     const [mentors, setMentors] = useState<UserData[]>([]);
-    const [conversations, setConversations] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedMentor, setSelectedMentor] = useState<UserData | null>(null);
 
     useEffect(() => {
         if (authLoading) return;
-        setLoading(true);
 
-        let unsubscribe: () => void = () => {};
-
-        if (userRole === 'student') {
-            const q = query(collection(db, "teachers"), where("status", "==", "Active"), orderBy("name"));
-            unsubscribe = onSnapshot(q, (snapshot) => {
-                const teachersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
-                setMentors(teachersData);
-                setLoading(false);
-            }, (error) => {
-                console.error("Error fetching mentors:", error);
-                setLoading(false);
-            });
-        } else if (userRole === 'teacher' && user) {
-            const q = query(collection(db, "directMessages"), where("participants", "array-contains", user.uid));
-            unsubscribe = onSnapshot(q, async (snapshot) => {
-                const convos = await Promise.all(snapshot.docs.map(async docSnap => {
-                    const data = docSnap.data();
-                    const studentId = data.participants.find((p: string) => p !== user.uid);
-                    if (!studentId) return null;
-
-                    const studentRole = data.participantRoles?.[studentId];
-                    if (studentRole !== 'student') return null;
-
-                    const studentDoc = await getDoc(doc(db, "students", studentId));
-                    return studentDoc.exists() ? { id: studentId, ...studentDoc.data() } as StudentData : null;
-                }));
-                setConversations(convos.filter(Boolean));
-                setLoading(false);
-            }, (error) => {
-                console.error("Error fetching conversations:", error);
-                setLoading(false);
-            });
-        } else {
+        // Only students should see the mentor list.
+        if (userRole !== 'student') {
             setLoading(false);
+            return;
         }
+
+        setLoading(true);
+        const q = query(collection(db, "teachers"), where("status", "==", "Active"), orderBy("name"));
+        
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const teachersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
+            setMentors(teachersData);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching mentors:", error);
+            setLoading(false);
+        });
 
         return () => unsubscribe();
 
-    }, [user, userRole, authLoading]);
+    }, [userRole, authLoading]);
     
-    const handleSelectConversation = (participant: UserData | StudentData) => {
-        setSelectedMentor(participant as UserData);
-    };
-    
-    if (selectedMentor) {
-        return <DirectMessagePanel mentor={selectedMentor} onBack={() => setSelectedMentor(null)} />;
-    }
-
     return (
         <div className="space-y-6">
              <div>
-                <h1 className="font-headline text-3xl font-bold">Mentor Connect</h1>
+                <h1 className="font-headline text-3xl font-bold">Faculty Directory</h1>
                 <p className="text-muted-foreground">
-                    {userRole === 'student' ? 'Connect with faculty for guidance and support.' : 'View and manage your conversations with students.'}
+                    Contact faculty for guidance and support.
                 </p>
             </div>
 
@@ -105,12 +71,17 @@ export function MentorList() {
                                 <p className="text-sm text-muted-foreground">{mentor.department}</p>
                             </CardContent>
                             <CardFooter className="flex-col gap-4">
-                                 <Button className="w-full" onClick={() => setSelectedMentor(mentor)}>
-                                    <MessageSquare className="mr-2 h-4 w-4"/> Message
-                                </Button>
                                 <div className="flex justify-center gap-4 text-muted-foreground">
-                                    {mentor.email && <a href={`mailto:${mentor.email}`} className="hover:text-primary"><Mail className="h-5 w-5" /></a>}
-                                    {mentor.phone && <a href={`tel:${mentor.phone}`} className="hover:text-primary"><Phone className="h-5 w-5" /></a>}
+                                    {mentor.email && (
+                                        <a href={`mailto:${mentor.email}`} className="hover:text-primary p-2 rounded-full hover:bg-accent" aria-label="Email mentor">
+                                            <Mail className="h-5 w-5" />
+                                        </a>
+                                    )}
+                                    {mentor.phone && (
+                                        <a href={`tel:${mentor.phone}`} className="hover:text-primary p-2 rounded-full hover:bg-accent" aria-label="Call mentor">
+                                            <Phone className="h-5 w-5" />
+                                        </a>
+                                    )}
                                 </div>
                             </CardFooter>
                         </Card>
@@ -121,38 +92,12 @@ export function MentorList() {
                         </div>
                     )}
                 </div>
-            ) : userRole === 'teacher' ? (
-                 <div className="space-y-4">
-                     {conversations.length > 0 ? (
-                         conversations.map(student => (
-                            <Card key={student.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleSelectConversation(student)}>
-                                <CardHeader className="flex flex-row items-center gap-4">
-                                     <Avatar className="h-12 w-12">
-                                        <AvatarImage src={student.photoURL} alt={student.name} data-ai-hint="person face" />
-                                        <AvatarFallback>{student.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <CardTitle>{student.name}</CardTitle>
-                                        <CardDescription>Click to view conversation</CardDescription>
-                                    </div>
-                                </CardHeader>
-                            </Card>
-                         ))
-                     ) : (
-                        <div className="text-center py-16 border-dashed border-2 rounded-lg">
-                            <h3 className="font-headline text-2xl font-semibold">No Conversations Yet</h3>
-                            <p className="text-muted-foreground">When a student sends you a message, it will appear here.</p>
-                        </div>
-                     )}
-                 </div>
             ) : (
                 <div className="text-center py-16 border-dashed border-2 rounded-lg">
                     <h3 className="font-headline text-2xl font-semibold">Feature Not Available</h3>
-                    <p className="text-muted-foreground">This feature is available for Students and Teachers.</p>
+                    <p className="text-muted-foreground">This faculty directory is available for students.</p>
                 </div>
             )}
         </div>
     );
 }
-
-    
