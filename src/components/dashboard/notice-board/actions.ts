@@ -4,7 +4,6 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, DocumentData, updateDoc, doc, deleteDoc, getDoc } from "firebase/firestore";
 import { NoticeFormValues } from "./notice-form";
 import { Roles } from "@/lib/roles";
-import { revalidatePath } from "next/cache";
 
 interface CreateNoticeParams extends NoticeFormValues {
     postedBy: string;
@@ -13,8 +12,27 @@ interface CreateNoticeParams extends NoticeFormValues {
 }
 
 export async function createNotice(data: CreateNoticeParams) {
+    const { title, description, imageUrl, targetType, degree, stream, batch } = data;
+
+    const target: any = { type: targetType };
+    if (targetType === 'degree' || targetType === 'stream' || targetType === 'batch') {
+        target.degree = degree;
+    }
+    if (targetType === 'stream' || targetType === 'batch') {
+        target.stream = stream;
+    }
+    if (targetType === 'batch') {
+        target.batch = batch;
+    }
+
     const noticeData: DocumentData = {
-        ...data,
+        title,
+        description,
+        imageUrl,
+        target,
+        postedBy: data.postedBy,
+        postedByName: data.postedByName,
+        authorRole: data.authorRole,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
@@ -25,16 +43,26 @@ export async function createNotice(data: CreateNoticeParams) {
 export async function updateNotice(noticeId: string, data: NoticeFormValues) {
     const noticeRef = doc(db, "notices", noticeId);
     
-    // Ensure critical authorship fields are not overwritten from the client form
+    const { title, description, imageUrl, targetType, degree, stream, batch } = data;
+
+    const target: any = { type: targetType };
+    if (targetType === 'degree' || targetType === 'stream' || targetType === 'batch') {
+        target.degree = degree;
+    }
+    if (targetType === 'stream' || targetType === 'batch') {
+        target.stream = stream;
+    }
+    if (targetType === 'batch') {
+        target.batch = batch;
+    }
+    
     const updateData: DocumentData = {
-        ...data,
+        title,
+        description,
+        imageUrl,
+        target,
         updatedAt: serverTimestamp(),
     };
-    
-    delete updateData.postedBy;
-    delete updateData.postedByName;
-    delete updateData.authorRole;
-    delete updateData.createdAt;
 
     await updateDoc(noticeRef, updateData);
 }
