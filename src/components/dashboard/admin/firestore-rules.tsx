@@ -93,13 +93,13 @@ service cloud.firestore {
     // --- NOTICE BOARD ---
     match /notices/{noticeId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+      allow create, update, delete: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
     }
 
     // --- EVENTS ---
     match /events/{eventId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow create, update, delete: if isSignedIn() && getUserRole() == 'admin';
     }
     
     // --- ASSIGNMENTS ---
@@ -110,19 +110,24 @@ service cloud.firestore {
     
     // --- STUDENT CIRCLES ---
     match /circles/{groupId}/posts/{postId} {
-      function isGroupMember() {
-        return request.auth.uid in get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students;
-      }
-      function isTeacherOfGroup() {
-        let teacherData = get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data;
-        return 'assignedGroups' in teacherData && groupId in teacherData.assignedGroups;
-      }
+        function isGroupMember() {
+            let groupData = get(/databases/$(database)/documents/semesterGroups/$(groupId)).data;
+            return 'students' in groupData && request.auth.uid in groupData.students;
+        }
 
-      // Admins, assigned teachers, and student members of the group can perform actions.
-      allow read: if isSignedIn() && (getUserRole() == 'admin' || isGroupMember() || (getUserRole() == 'teacher' && isTeacherOfGroup()));
-      allow create: if isSignedIn() && (getUserRole() == 'admin' || isGroupMember() || (getUserRole() == 'teacher' && isTeacherOfGroup()));
-      allow update: if isSignedIn() && (getUserRole() == 'admin' || isGroupMember() || (getUserRole() == 'teacher' && isTeacherOfGroup()));
-      allow delete: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == resource.data.author.uid);
+        function isTeacherOfGroup() {
+            let teacherData = get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data;
+            return 'assignedGroups' in teacherData && groupId in teacherData.assignedGroups;
+        }
+
+        function isAuthorizedReader() {
+            let role = getUserRole();
+            return role == 'admin' || (role == 'teacher' && isTeacherOfGroup()) || isGroupMember();
+        }
+
+        allow read, create: if isSignedIn() && isAuthorizedReader();
+        allow update: if isSignedIn() && isAuthorizedReader(); // For adding replies
+        allow delete: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == resource.data.author.uid);
     }
   }
 }
