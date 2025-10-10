@@ -16,69 +16,56 @@ import { StudentData } from "../admin/student-management";
 
 
 export function MentorList() {
-    const { user, userRole } = useAuth();
+    const { user, userRole, loading: authLoading } = useAuth();
     const [mentors, setMentors] = useState<UserData[]>([]);
-    const [conversations, setConversations] = useState<any[]>([]); // For teachers to see their conversations
+    const [conversations, setConversations] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedMentor, setSelectedMentor] = useState<UserData | null>(null);
 
-    // If the user is a teacher, fetch their existing conversations with students
     useEffect(() => {
-        if (userRole !== 'teacher' || !user) return;
-        
+        if (authLoading) return;
         setLoading(true);
-        const q = query(collection(db, "directMessages"), where("participants", "array-contains", user.uid));
-        
-        const unsubscribe = onSnapshot(q, async (snapshot) => {
-            const convos = await Promise.all(snapshot.docs.map(async docSnap => {
-                const data = docSnap.data();
-                const studentId = data.participants.find((p: string) => p !== user.uid);
-                if (!studentId) return null;
 
-                const studentRole = data.participantRoles?.[studentId];
-                if (studentRole !== 'student') return null; // Ensure the other participant is a student
+        let unsubscribe: () => void = () => {};
 
-                const studentDoc = await getDoc(doc(db, "students", studentId));
-                return studentDoc.exists() ? { id: studentId, ...studentDoc.data() } as StudentData : null;
-            }));
-            setConversations(convos.filter(Boolean));
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching conversations:", error);
-            setLoading(false);
-        });
-        
-        return () => unsubscribe();
+        if (userRole === 'student') {
+            const q = query(collection(db, "teachers"), where("status", "==", "Active"), orderBy("name"));
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                const teachersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
+                setMentors(teachersData);
+                setLoading(false);
+            }, (error) => {
+                console.error("Error fetching mentors:", error);
+                setLoading(false);
+            });
+        } else if (userRole === 'teacher' && user) {
+            const q = query(collection(db, "directMessages"), where("participants", "array-contains", user.uid));
+            unsubscribe = onSnapshot(q, async (snapshot) => {
+                const convos = await Promise.all(snapshot.docs.map(async docSnap => {
+                    const data = docSnap.data();
+                    const studentId = data.participants.find((p: string) => p !== user.uid);
+                    if (!studentId) return null;
 
-    }, [user, userRole]);
+                    const studentRole = data.participantRoles?.[studentId];
+                    if (studentRole !== 'student') return null;
 
-    // If the user is a student, fetch all available mentors (teachers)
-    useEffect(() => {
-        if (userRole !== 'student') return;
-
-        setLoading(true);
-        const q = query(collection(db, "teachers"), where("status", "==", "Active"), orderBy("name"));
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const teachersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
-            setMentors(teachersData);
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching mentors:", error);
-            setLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [userRole]);
-
-    // If user is neither student nor teacher, stop loading
-    useEffect(() => {
-        if (userRole && userRole !== 'student' && userRole !== 'teacher') {
+                    const studentDoc = await getDoc(doc(db, "students", studentId));
+                    return studentDoc.exists() ? { id: studentId, ...studentDoc.data() } as StudentData : null;
+                }));
+                setConversations(convos.filter(Boolean));
+                setLoading(false);
+            }, (error) => {
+                console.error("Error fetching conversations:", error);
+                setLoading(false);
+            });
+        } else {
             setLoading(false);
         }
-    }, [userRole]);
 
+        return () => unsubscribe();
 
+    }, [user, userRole, authLoading]);
+    
     const handleSelectConversation = (participant: UserData | StudentData) => {
         setSelectedMentor(participant as UserData);
     };
@@ -96,7 +83,7 @@ export function MentorList() {
                 </p>
             </div>
 
-            {loading ? (
+            {loading || authLoading ? (
                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {Array.from({ length: 8 }).map((_, i) => (
                         <Card key={i}><CardContent className="p-6"><Skeleton className="h-48 w-full" /></CardContent></Card>
@@ -104,7 +91,7 @@ export function MentorList() {
                 </div>
             ) : userRole === 'student' ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {mentors.map(mentor => (
+                    {mentors.length > 0 ? mentors.map(mentor => (
                         <Card key={mentor.id} className="shadow-md flex flex-col">
                             <CardHeader className="items-center text-center">
                                 <Avatar className="h-24 w-24 mb-4">
@@ -127,7 +114,12 @@ export function MentorList() {
                                 </div>
                             </CardFooter>
                         </Card>
-                    ))}
+                    )) : (
+                        <div className="md:col-span-2 lg:col-span-3 xl:col-span-4 text-center py-16 border-dashed border-2 rounded-lg">
+                            <h3 className="font-headline text-2xl font-semibold">No Mentors Available</h3>
+                            <p className="text-muted-foreground">There are currently no active teachers available for mentorship.</p>
+                        </div>
+                    )}
                 </div>
             ) : userRole === 'teacher' ? (
                  <div className="space-y-4">
@@ -162,3 +154,5 @@ export function MentorList() {
         </div>
     );
 }
+
+    
