@@ -137,7 +137,11 @@ service cloud.firestore {
           return (roles.hasAll([studentRole, teacherRole]));
         }
 
-        allow get: if isSignedIn() && isParticipant();
+        // Allow a user to check if a chat document exists if their UID is in the doc ID.
+        // This is crucial for the "first message" scenario.
+        allow get: if isSignedIn() && request.auth.uid in chatId.split('_');
+
+        // Allow creation of a chat only if it's a valid student-teacher pairing.
         allow create: if isSignedIn() && isValidChat();
 
         match /messages/{messageId} {

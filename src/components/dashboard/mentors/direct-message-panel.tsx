@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, DocumentData, where, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, DocumentData, where, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
 import { UserData } from "../admin/teacher-management";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -53,7 +53,13 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
         }, (error) => {
             console.error("Error fetching messages:", error);
             if (error.code === 'permission-denied') {
-                setPermissionError(true);
+                // This might happen if the chat document doesn't exist yet. We'll allow the user to try and create it.
+                // The real error will be caught on send if they truly don't have permission.
+                 if (messages.length === 0) {
+                    setPermissionError(false);
+                 } else {
+                    setPermissionError(true);
+                 }
             } else {
                 toast({ title: "Error", description: "Could not load messages.", variant: "destructive" });
             }
@@ -61,7 +67,7 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
         });
 
         return () => unsubscribe();
-    }, [chatId, toast]);
+    }, [chatId, toast, messages.length]);
     
     // Auto-scroll to the latest message
     useEffect(() => {
@@ -72,17 +78,21 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
         if (!user || !chatId || newMessage.trim() === "" || !userRole || !mentor.role) return;
         setIsSubmitting(true);
         try {
-            // First, ensure the parent chat document exists to store participant info
             const chatDocRef = doc(db, "directMessages", chatId);
-            await setDoc(chatDocRef, {
-                participants: [user.uid, mentor.id],
-                participantRoles: {
-                    [user.uid]: userRole,
-                    [mentor.id]: mentor.role,
-                },
-                lastMessage: newMessage,
-                updatedAt: serverTimestamp(),
-            }, { merge: true });
+            const chatDoc = await getDoc(chatDocRef);
+
+            // If the chat document doesn't exist, create it first.
+            if (!chatDoc.exists()) {
+                 await setDoc(chatDocRef, {
+                    participants: [user.uid, mentor.id],
+                    participantRoles: {
+                        [user.uid]: userRole,
+                        [mentor.id]: mentor.role,
+                    },
+                    lastMessage: newMessage,
+                    updatedAt: serverTimestamp(),
+                });
+            }
 
             // Then, add the new message to the subcollection
             const messagesColRef = collection(db, "directMessages", chatId, "messages");
@@ -91,6 +101,12 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
                 senderId: user.uid,
                 timestamp: serverTimestamp(),
             });
+            
+            // If the chat doc existed, update its `lastMessage` field
+            if (chatDoc.exists()) {
+                await setDoc(chatDocRef, { lastMessage: newMessage, updatedAt: serverTimestamp() }, { merge: true });
+            }
+
             setNewMessage("");
         } catch (error: any) {
             toast({ title: "Error", description: `Failed to send message: ${error.message}`, variant: "destructive" });
