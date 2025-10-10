@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -18,7 +19,8 @@ import {
   GraduationCap,
   ClipboardCheck,
   BookOpen,
-  Briefcase
+  Briefcase,
+  Calculator
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -31,6 +33,7 @@ const allMenuItems = [
   { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck, teacherOnly: true },
   { href: "/dashboard/materials", label: "Study Materials", icon: BookOpen },
   { href: "/dashboard/circles", label: "Circles", icon: Users },
+  { href: "/dashboard/gpa-calculator", label: "GPA Calculator", icon: Calculator, studentOnly: true },
   { href: "/dashboard/focus", label: "Focus Session", icon: Timer },
   { href: "/dashboard/admin", label: "Admin", icon: Settings, adminOnly: true },
 ];
@@ -43,6 +46,7 @@ export function DashboardSidebar() {
   const menuItems = allMenuItems.filter(item => {
     if (item.adminOnly) return userRole === "admin";
     if (item.teacherOnly) return userRole === "teacher" || userRole === "admin";
+    if (item.studentOnly) return userRole === "student";
     return true;
   });
 
