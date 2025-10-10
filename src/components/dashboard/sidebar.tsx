@@ -11,14 +11,13 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
-  Calendar,
   Users,
   Timer,
   Settings,
   LogOut,
   GraduationCap,
   ClipboardCheck,
-  Megaphone,
+  BookOpen,
   Briefcase
 } from "lucide-react";
 import Link from "next/link";
@@ -30,6 +29,7 @@ const allMenuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/assignments", label: "Assignments", icon: Briefcase },
   { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck, teacherOnly: true },
+  { href: "/dashboard/materials", label: "Study Materials", icon: BookOpen },
   { href: "/dashboard/circles", label: "Circles", icon: Users },
   { href: "/dashboard/focus", label: "Focus Session", icon: Timer },
   { href: "/dashboard/admin", label: "Admin", icon: Settings, adminOnly: true },
