@@ -23,8 +23,9 @@ import {
   Briefcase
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
+import { auth } from "@/lib/firebase";
 
 const allMenuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -39,6 +40,7 @@ const allMenuItems = [
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { userRole } = useAuth();
 
   const menuItems = allMenuItems.filter(item => {
@@ -46,6 +48,12 @@ export function DashboardSidebar() {
     if (item.teacherOnly) return userRole === "teacher" || userRole === "admin";
     return true;
   });
+
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.replace('/'); // Force a clean redirect to the login page.
+  };
+
 
   return (
     <Sidebar>
@@ -78,11 +86,9 @@ export function DashboardSidebar() {
       <SidebarFooter>
         <SidebarMenu>
             <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={{ children: "Logout" }}>
-                    <Link href="/">
-                        <LogOut />
-                        <span>Logout</span>
-                    </Link>
+                <SidebarMenuButton onClick={handleLogout} tooltip={{ children: "Logout" }}>
+                    <LogOut />
+                    <span>Logout</span>
                 </SidebarMenuButton>
             </SidebarMenuItem>
         </SidebarMenu>
