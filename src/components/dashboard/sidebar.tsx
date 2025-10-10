@@ -28,6 +28,7 @@ import { auth } from "@/lib/firebase";
 
 const allMenuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/notice-board", label: "Notice Board", icon: Megaphone },
   { href: "/dashboard/assignments", label: "Assignments", icon: Briefcase },
   { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck, teacherOnly: true },
   { href: "/dashboard/circles", label: "Circles", icon: Users },
@@ -68,7 +69,7 @@ export function DashboardSidebar() {
             <SidebarMenuItem key={item.label}>
               <SidebarMenuButton
                 asChild
-                isActive={pathname === item.href}
+                isActive={pathname.startsWith(item.href)}
                 tooltip={{ children: item.label }}
               >
                 <Link href={item.href}>

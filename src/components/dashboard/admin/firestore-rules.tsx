@@ -65,6 +65,12 @@ service cloud.firestore {
     // =====================================================================
     //  Academic Structure & App Features
     // =====================================================================
+    
+    // --- NOTICES ---
+    match /notices/{noticeId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+    }
 
     match /degrees/{degreeId} {
       allow get, list: if isSignedIn();
@@ -81,7 +87,9 @@ service cloud.firestore {
     
     match /semesterGroups/{groupId} {
       allow get: if isSignedIn();
-      allow list: if isSignedIn() && (getUserRole() in ['admin', 'teacher'] || request.auth.uid in resource.data.students);
+      // Admins/teachers can list all groups. Students cannot list all groups.
+      // Students find their groups by getting specific group IDs from their own profile, which is allowed by the `get` rule.
+      allow list: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
       allow write: if isSignedIn() && getUserRole() == 'admin';
       
       match /attendance/{date} {
@@ -99,18 +107,26 @@ service cloud.firestore {
     // --- STUDENT CIRCLES ---
     match /circles/{groupId}/posts/{postId} {
         function isGroupMember() {
+            // This checks the group document's 'students' array.
+            // It assumes the student has `get` access to the semesterGroup document.
             let groupDoc = get(/databases/$(database)/documents/semesterGroups/$(groupId));
-            return 'students' in groupDoc.data && request.auth.uid in groupDoc.data.students;
+            return isSignedIn() && request.auth.uid in groupDoc.data.students;
         }
 
         function isTeacherOfGroup() {
+            // This checks the teacher's own profile.
             let teacherData = get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data;
-            return 'assignedGroups' in teacherData && groupId in teacherData.assignedGroups;
+            return isSignedIn() && 'assignedGroups' in teacherData && groupId in teacherData.assignedGroups;
         }
+
+        // Allow read/create for group members, teachers of the group, or admins.
+        allow read, create: if isGroupMember() || isTeacherOfGroup() || getUserRole() == 'admin';
         
-        allow read, create: if isSignedIn() && (isGroupMember() || isTeacherOfGroup() || getUserRole() == 'admin');
-        allow update: if isSignedIn() && (isGroupMember() || isTeacherOfGroup() || getUserRole() == 'admin');
-        allow delete: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == resource.data.author.uid);
+        // Allow updates (replies) if the user is a member/teacher/admin.
+        allow update: if isGroupMember() || isTeacherOfGroup() || getUserRole() == 'admin';
+        
+        // Allow deletion only for the post author or an admin.
+        allow delete: if getUserRole() == 'admin' || (isSignedIn() && request.auth.uid == resource.data.author.uid);
     }
   }
 }
