@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { submitFeedback } from './actions';
 import { UserData } from '../admin/teacher-management';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   feedbackType: z.enum(['Faculty', 'Event'], { required_error: 'You must select a feedback type.' }),
