@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -221,7 +222,7 @@ export default function ProfilePage() {
 
   const displayName = profileData.name || "User";
   const displayEmail = profileData.email || user?.email || "No email";
-  const displayDegree = isStudent ? (degreeMap[(profileData as StudentData).degree] || (profileData as StudentData).degree) : (profileData as UserData).designation;
+  const displayDegree = isStudent && studentProfile ? (degreeMap[studentProfile.degree] || studentProfile.degree) : (profileData as UserData).designation;
 
   return (
     <>
@@ -429,3 +430,4 @@ const InfoItem = ({ label, value, children }: { label: string; value?: string | 
         </div>
     )
 }
+
