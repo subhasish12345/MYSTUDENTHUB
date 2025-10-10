@@ -129,7 +129,7 @@ service cloud.firestore {
           return request.auth.uid in resource.data.participants;
         }
         function isValidChat() {
-          let participantRoles = resource.data.participantRoles;
+          let participantRoles = request.resource.data.participantRoles;
           let studentRole = 'student';
           let teacherRole = 'teacher';
           let roles = participantRoles.values();

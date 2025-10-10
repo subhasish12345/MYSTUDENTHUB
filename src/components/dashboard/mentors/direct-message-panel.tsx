@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -62,7 +61,7 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
         });
 
         return () => unsubscribe();
-    }, [chatId, toast, userRole, mentor.role]);
+    }, [chatId, toast]);
     
     // Auto-scroll to the latest message
     useEffect(() => {
@@ -70,7 +69,7 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
     }, [messages]);
 
     const handleSendMessage = async () => {
-        if (!user || !chatId || newMessage.trim() === "") return;
+        if (!user || !chatId || newMessage.trim() === "" || !userRole || !mentor.role) return;
         setIsSubmitting(true);
         try {
             // First, ensure the parent chat document exists to store participant info
