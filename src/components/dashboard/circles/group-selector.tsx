@@ -2,24 +2,22 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SemesterGroup } from "@/app/dashboard/circles/page";
-import { Roles } from "@/lib/roles";
 
 interface GroupSelectorProps {
     groups: SemesterGroup[];
     selectedGroup: SemesterGroup | null;
     onSelectGroup: (group: SemesterGroup | null) => void;
-    userRole: Roles | null;
 }
 
-export function GroupSelector({ groups, selectedGroup, onSelectGroup, userRole }: GroupSelectorProps) {
+export function GroupSelector({ groups, selectedGroup, onSelectGroup }: GroupSelectorProps) {
 
     const handleSelect = (groupId: string) => {
         const group = groups.find(g => g.id === groupId) || null;
         onSelectGroup(group);
     }
     
-    // A student only belongs to one group, so we don't need a selector.
-    if (userRole === 'student') {
+    // Only show the selector if there is more than one group to choose from.
+    if (groups.length <= 1) {
         return null;
     }
 

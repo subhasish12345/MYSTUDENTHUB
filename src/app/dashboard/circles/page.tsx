@@ -26,22 +26,25 @@ export default function CirclesPage() {
         try {
             let groupsQuery;
             if (userRole === 'admin') {
-                groupsQuery = query(collection(db, "semesterGroups"));
+                groupsQuery = query(collection(db, "semesterGroups"), orderBy("groupId", "asc"));
             } else if (userRole === 'teacher' && userData?.assignedGroups?.length > 0) {
-                groupsQuery = query(collection(db, "semesterGroups"), where("groupId", "in", userData.assignedGroups));
+                const sortedGroupIds = [...userData.assignedGroups].sort();
+                groupsQuery = query(collection(db, "semesterGroups"), where("groupId", "in", sortedGroupIds));
             } else if (userRole === 'student') {
-                // Find all groups the student is a member of
-                 groupsQuery = query(collection(db, "semesterGroups"), where("students", "array-contains", user.uid));
+                groupsQuery = query(collection(db, "semesterGroups"), where("students", "array-contains", user.uid));
             }
             
             if (groupsQuery) {
                 const groupsSnap = await getDocs(groupsQuery);
                 const groups = groupsSnap.docs.map(d => ({ id: d.id, ...d.data() } as SemesterGroup));
-                setAccessibleGroups(groups);
+                
                 if (groups.length > 0) {
-                    // Sort by semester number descending to select the latest one
                     const sortedGroups = groups.sort((a,b) => (b.semester_no || 0) - (a.semester_no || 0));
-                    setSelectedGroup(sortedGroups[0]);
+                    setAccessibleGroups(sortedGroups);
+                    setSelectedGroup(sortedGroups[0]); // Default to the latest semester group
+                } else {
+                    setAccessibleGroups([]);
+                    setSelectedGroup(null);
                 }
             }
         } catch (error) {
@@ -83,7 +86,6 @@ export default function CirclesPage() {
                         groups={accessibleGroups}
                         selectedGroup={selectedGroup}
                         onSelectGroup={setSelectedGroup}
-                        userRole={userRole}
                     />
                     {selectedGroup && <ChatPanel group={selectedGroup} />}
                 </>
