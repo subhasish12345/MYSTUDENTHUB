@@ -36,12 +36,12 @@ export function GpaCalculator() {
                 const querySnapshot = await getDocs(semestersQuery);
                 const semesterData = querySnapshot.docs
                     .map(doc => doc.data() as Semester)
-                    .filter(sem => typeof sem.sgpa === 'number') as SemesterWithGpa[];
+                    .filter(sem => sem.sgpa !== null && sem.sgpa !== undefined) as SemesterWithGpa[];
                 
                 setSemesters(semesterData);
 
                 if (semesterData.length > 0) {
-                    const totalSgpa = semesterData.reduce((sum, sem) => sum + sem.sgpa, 0);
+                    const totalSgpa = semesterData.reduce((sum, sem) => sum + (sem.sgpa || 0), 0);
                     const averageCgpa = totalSgpa / semesterData.length;
                     setCgpa(averageCgpa);
                 }
@@ -105,7 +105,7 @@ export function GpaCalculator() {
                                 {semesters.map((sem) => (
                                     <TableRow key={sem.semester_no}>
                                         <TableCell className="font-medium">Semester {sem.semester_no}</TableCell>
-                                        <TableCell className="text-right font-semibold">{sem.sgpa.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right font-semibold">{(sem.sgpa || 0).toFixed(2)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
