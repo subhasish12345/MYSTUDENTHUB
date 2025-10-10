@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -22,8 +23,8 @@ export function MentorList() {
     const [selectedMentor, setSelectedMentor] = useState<UserData | null>(null);
 
     useEffect(() => {
-        // Only fetch teachers, not all users. This prevents admins from showing up.
-        const q = query(collection(db, "users"), where("role", "==", "teacher"), orderBy("name"));
+        // Fetch teachers directly from the 'teachers' collection, which contains their full profiles.
+        const q = query(collection(db, "teachers"), orderBy("name"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const teachersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
             setMentors(teachersData);
