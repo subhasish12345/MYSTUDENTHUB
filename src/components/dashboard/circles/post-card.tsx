@@ -11,7 +11,7 @@ import { MessageSquare, Send } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc, arrayUnion, serverTimestamp, collection } from "firebase/firestore";
+import { doc, updateDoc, arrayUnion, serverTimestamp, collection, Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 interface PostCardProps {
@@ -53,7 +53,7 @@ export function PostCard({ post, groupId }: PostCardProps) {
                 uid: user.uid,
             },
             content: replyContent,
-            timestamp: serverTimestamp(),
+            timestamp: new Date(), // Use client-side timestamp for arrayUnion
         };
 
         try {
@@ -69,6 +69,13 @@ export function PostCard({ post, groupId }: PostCardProps) {
             setIsSubmitting(false);
         }
     };
+    
+    const formatTimestamp = (timestamp: any) => {
+        if (!timestamp) return 'Just now';
+        // Firestore timestamps can be either a Timestamp object or, in our new case for replies, a JS Date object.
+        const date = timestamp.toDate ? timestamp.toDate() : timestamp;
+        return formatDistanceToNow(date, { addSuffix: true });
+    };
 
 
     return (
@@ -82,7 +89,7 @@ export function PostCard({ post, groupId }: PostCardProps) {
                     <p className="font-semibold">{post.author.name}</p>
                     <p className="text-xs text-muted-foreground">
                         <ClientOnly>
-                          {post.timestamp ? formatDistanceToNow(post.timestamp.toDate(), { addSuffix: true }) : 'Just now'}
+                          {formatTimestamp(post.timestamp)}
                         </ClientOnly>
                     </p>
                 </div>
@@ -119,7 +126,7 @@ export function PostCard({ post, groupId }: PostCardProps) {
                 )}
                  {post.replies && post.replies.length > 0 && (
                     <div className="w-full space-y-4 pt-4">
-                        {post.replies.sort((a,b) => a.timestamp.toMillis() - b.timestamp.toMillis()).map((reply: any, index: number) => (
+                        {post.replies.sort((a,b) => (b.timestamp?.toDate?.() || b.timestamp) - (a.timestamp?.toDate?.() || a.timestamp)).map((reply: any, index: number) => (
                              <div key={reply.id || index} className="flex items-start gap-3 pl-4 border-l-2 ml-4">
                                 <Avatar className="w-8 h-8">
                                     <AvatarImage src={reply.author.avatarUrl} alt={reply.author.name} data-ai-hint="person face" />
@@ -130,7 +137,7 @@ export function PostCard({ post, groupId }: PostCardProps) {
                                         <p className="font-semibold text-sm">{reply.author.name}</p>
                                         <p className="text-xs text-muted-foreground">
                                            <ClientOnly>
-                                             {reply.timestamp ? formatDistanceToNow(reply.timestamp.toDate(), { addSuffix: true }) : 'Just now'}
+                                             {formatTimestamp(reply.timestamp)}
                                            </ClientOnly>
                                         </p>
                                     </div>
