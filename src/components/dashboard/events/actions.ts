@@ -20,15 +20,15 @@ export async function createEvent(data: CreateEventParams) {
     await addDoc(collection(db, "events"), eventData);
 }
 
-
 export async function updateEvent(eventId: string, data: EventFormValues) {
     const eventRef = doc(db, "events", eventId);
+    
     const updateData: DocumentData = {
         ...data,
         updatedAt: serverTimestamp(),
     };
 
-    // Don't overwrite authorship details
+    // Ensure critical authorship fields are not overwritten from the client form
     delete updateData.postedBy;
     delete updateData.postedByName;
     delete updateData.authorRole;

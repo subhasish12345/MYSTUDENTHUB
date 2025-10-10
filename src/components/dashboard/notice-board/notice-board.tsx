@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -101,14 +99,26 @@ export function NoticeBoard() {
 
     const handleFormSubmit = async (values: NoticeFormValues) => {
         if (!user || !userRole || !userData) {
-            toast({ title: "Authentication Error", description: "You must be logged in and have a complete profile to perform this action.", variant: "destructive" });
+            toast({ title: "Authentication Error", description: "You must be logged in to perform this action.", variant: "destructive" });
             return;
         }
+        
+        const canPerformAction = userRole === 'admin' || userRole === 'teacher';
+        if (!canPerformAction) {
+             toast({ title: "Permission Denied", description: "You are not authorized to create or edit notices.", variant: "destructive" });
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             if (editingNotice) {
-                await updateNotice(editingNotice.id, values);
-                toast({ title: "Success!", description: "Notice has been updated." });
+                // Ensure only admin or the original author can update
+                if (userRole === 'admin' || editingNotice.postedBy === user.uid) {
+                    await updateNotice(editingNotice.id, values);
+                    toast({ title: "Success!", description: "Notice has been updated." });
+                } else {
+                    throw new Error("You don't have permission to edit this notice.");
+                }
             } else {
                  await createNotice({
                     ...values,
@@ -142,11 +152,12 @@ export function NoticeBoard() {
     };
 
     const handleDeleteConfirm = async () => {
-        if (!deletingNotice || !user) {
+        if (!deletingNotice || !user || !userRole) {
             setDeletingNotice(null);
             return;
         }
         
+        // Final check on the client side before calling the action
         if (userRole !== 'admin' && deletingNotice.postedBy !== user.uid) {
              toast({ title: "Permission Denied", description: "You can only delete your own notices.", variant: "destructive"});
              setDeletingNotice(null);
@@ -194,7 +205,7 @@ export function NoticeBoard() {
                     <p className="text-muted-foreground">Latest announcements and updates.</p>
                 </div>
                 {canCreateNotice && (
-                    <Button onClick={handleCreate}>
+                    <Button onClick={handleCreate} disabled={authLoading}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Create Notice
                     </Button>
                 )}

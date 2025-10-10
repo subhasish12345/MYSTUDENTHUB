@@ -66,7 +66,7 @@ export function EventCalendar() {
     }, [toast]);
 
     const handleFormSubmit = async (values: EventFormValues) => {
-        if (!user || !userData || userRole !== 'admin') {
+        if (!user || !userData || !userRole || userRole !== 'admin') {
             toast({ title: "Permission Denied", description: "Only admins can create or edit events.", variant: "destructive" });
             return;
         }
@@ -76,7 +76,7 @@ export function EventCalendar() {
                 await updateEvent(editingEvent.id, values);
                 toast({ title: "Success", description: "Event has been updated." });
             } else {
-                await createEvent({ ...values, postedBy: user.uid, postedByName: userData.name, authorRole: 'admin' });
+                await createEvent({ ...values, postedBy: user.uid, postedByName: userData.name, authorRole: userRole });
                 toast({ title: "Success", description: "New event has been created." });
             }
             setIsSheetOpen(false);
@@ -89,7 +89,8 @@ export function EventCalendar() {
     };
     
     const handleDeleteConfirm = async () => {
-        if (!deletingEvent || userRole !== 'admin') {
+        if (!deletingEvent || !userRole || userRole !== 'admin') {
+            toast({ title: "Permission Denied", description: "Only admins can delete events.", variant: "destructive" });
             setDeletingEvent(null);
             return;
         }

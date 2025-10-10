@@ -1,9 +1,10 @@
 'use server';
 
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp, DocumentData, updateDoc, doc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, DocumentData, updateDoc, doc, deleteDoc, getDoc } from "firebase/firestore";
 import { NoticeFormValues } from "./notice-form";
 import { Roles } from "@/lib/roles";
+import { revalidatePath } from "next/cache";
 
 interface CreateNoticeParams extends NoticeFormValues {
     postedBy: string;
@@ -12,22 +13,11 @@ interface CreateNoticeParams extends NoticeFormValues {
 }
 
 export async function createNotice(data: CreateNoticeParams) {
-
     const noticeData: DocumentData = {
         ...data,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     };
-
-    if (data.targetType === 'degree' && data.degree) {
-        noticeData.target = { type: 'degree', degree: data.degree };
-    } else if (data.targetType === 'stream' && data.degree && data.stream) {
-        noticeData.target = { type: 'stream', degree: data.degree, stream: data.stream };
-    } else if (data.targetType === 'batch' && data.degree && data.stream && data.batch) {
-        noticeData.target = { type: 'batch', degree: data.degree, stream: data.stream, batch: data.batch };
-    } else {
-        noticeData.target = { type: 'global' };
-    }
 
     await addDoc(collection(db, "notices"), noticeData);
 }
@@ -35,22 +25,12 @@ export async function createNotice(data: CreateNoticeParams) {
 export async function updateNotice(noticeId: string, data: NoticeFormValues) {
     const noticeRef = doc(db, "notices", noticeId);
     
+    // Ensure critical authorship fields are not overwritten from the client form
     const updateData: DocumentData = {
         ...data,
         updatedAt: serverTimestamp(),
     };
     
-    if (data.targetType === 'degree' && data.degree) {
-        updateData.target = { type: 'degree', degree: data.degree };
-    } else if (data.targetType === 'stream' && data.degree && data.stream) {
-        updateData.target = { type: 'stream', degree: data.degree, stream: data.stream };
-    } else if (data.targetType === 'batch' && data.degree && data.stream && data.batch) {
-        updateData.target = { type: 'batch', degree: data.degree, stream: data.stream, batch: data.batch };
-    } else {
-        updateData.target = { type: 'global' };
-    }
-    
-    // Don't overwrite authorship details
     delete updateData.postedBy;
     delete updateData.postedByName;
     delete updateData.authorRole;
