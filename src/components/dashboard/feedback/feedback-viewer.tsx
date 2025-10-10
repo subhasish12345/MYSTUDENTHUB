@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Star } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface Feedback extends DocumentData {
     id: string;
@@ -49,7 +50,10 @@ export function FeedbackViewer() {
                 {[...Array(5)].map((_, i) => (
                     <Star
                         key={i}
-                        className={`h-4 w-4 ${i < rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground"}`}
+                        className={cn(
+                            "h-4 w-4",
+                            i < rating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground"
+                        )}
                     />
                 ))}
             </div>
@@ -90,7 +94,7 @@ export function FeedbackViewer() {
                             feedbackList.map((feedback) => (
                                 <TableRow key={feedback.id}>
                                     <TableCell className="text-muted-foreground text-xs">
-                                        {formatDistanceToNow(feedback.createdAt.toDate(), { addSuffix: true })}
+                                        {feedback.createdAt ? formatDistanceToNow(feedback.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant={feedback.isAnonymous ? "secondary" : "outline"}>
