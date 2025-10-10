@@ -88,7 +88,7 @@ service cloud.firestore {
     match /semesterGroups/{groupId} {
       allow get: if isSignedIn();
       // Admins/teachers can list all groups. Students cannot list all groups.
-      // Students find their groups by getting specific group IDs from their own profile, which is allowed by the `get` rule.
+      // Students find their groups by getting specific group IDs from their own profile, which is allowed by the 'get' rule.
       allow list: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
       allow write: if isSignedIn() && getUserRole() == 'admin';
       
@@ -108,7 +108,7 @@ service cloud.firestore {
     match /circles/{groupId}/posts/{postId} {
         function isGroupMember() {
             // This checks the group document's 'students' array.
-            // It assumes the student has `get` access to the semesterGroup document.
+            // It assumes the student has get access to the semesterGroup document.
             let groupDoc = get(/databases/$(database)/documents/semesterGroups/$(groupId));
             return isSignedIn() && request.auth.uid in groupDoc.data.students;
         }
