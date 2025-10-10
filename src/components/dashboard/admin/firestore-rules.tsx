@@ -66,12 +66,6 @@ service cloud.firestore {
     //  Academic Structure & App Features
     // =====================================================================
     
-    // --- NOTICES ---
-    match /notices/{noticeId} {
-        allow read: if isSignedIn();
-        allow create, update, delete: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
-    }
-
     match /degrees/{degreeId} {
       allow get, list: if isSignedIn();
       allow write: if isSignedIn() && getUserRole() == 'admin';
