@@ -125,6 +125,15 @@ service cloud.firestore {
         allow update: if isGroupMember() || isTeacherOfGroup() || getUserRole() == 'admin';
         allow delete: if getUserRole() == 'admin' || (isSignedIn() && request.auth.uid == resource.data.author.uid);
     }
+
+    // --- MENTOR CONNECT ---
+    match /directMessages/{chatId} {
+      allow read, write: if isSignedIn() && request.auth.uid in chatId.split('_');
+      
+      match /messages/{messageId} {
+         allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/directMessages/$(chatId)).data.participants;
+      }
+    }
   }
 }
 `.trim();

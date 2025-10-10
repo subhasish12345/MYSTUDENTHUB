@@ -21,7 +21,9 @@ import {
   BookOpen,
   Briefcase,
   Calculator,
-  CalendarDays
+  CalendarDays,
+  Handshake,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -34,7 +36,8 @@ const allMenuItems = [
   { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck, teacherOnly: true },
   { href: "/dashboard/materials", label: "Study Materials", icon: BookOpen },
   { href: "/dashboard/syllabus", label: "Syllabus & Timetable", icon: CalendarDays },
-  { href: "/dashboard/circles", label: "Circles", icon: Users },
+  { href: "/dashboard/circles", label: "Circles", icon: MessageSquare },
+  { href: "/dashboard/mentor-connect", label: "Mentor Connect", icon: Handshake },
   { href: "/dashboard/gpa-calculator", label: "GPA Calculator", icon: Calculator, studentOnly: true },
   { href: "/dashboard/focus", label: "Focus Session", icon: Timer },
   { href: "/dashboard/admin", label: "Admin", icon: Settings, adminOnly: true },
