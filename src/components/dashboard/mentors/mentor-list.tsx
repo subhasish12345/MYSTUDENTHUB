@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, where, getDoc, doc } from "firebase/firestore";
 import { UserData } from "../admin/teacher-management";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +22,8 @@ export function MentorList() {
     const [selectedMentor, setSelectedMentor] = useState<UserData | null>(null);
 
     useEffect(() => {
-        const q = query(collection(db, "teachers"), orderBy("name"));
+        // Only fetch teachers, not all users. This prevents admins from showing up.
+        const q = query(collection(db, "users"), where("role", "==", "teacher"), orderBy("name"));
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const teachersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
             setMentors(teachersData);
@@ -43,6 +44,7 @@ export function MentorList() {
             const convos = await Promise.all(snapshot.docs.map(async docSnap => {
                 const data = docSnap.data();
                 const studentId = data.participants.find((p: string) => p !== user.uid);
+                if (!studentId) return null; // Should not happen in a 2-person chat
                 const studentDoc = await getDoc(doc(db, "students", studentId));
                 return studentDoc.exists() ? { id: studentId, ...studentDoc.data() } as StudentData : null;
             }));

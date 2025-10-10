@@ -15,11 +15,8 @@ service cloud.firestore {
     }
 
     // Helper Function to safely get a user's role from the /users collection.
-    function getUserRole() {
-      // Use exists() to check if the document exists before trying to access its data.
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-        : null;
+    function getUserRole(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role;
     }
     
     // =====================================================================
@@ -27,27 +24,27 @@ service cloud.firestore {
     // =====================================================================
 
     match /users/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
-      allow list: if isSignedIn() && getUserRole() == 'admin';
+      allow get: if isSignedIn() && (request.auth.uid == userId || getUserRole(request.auth.uid) == 'admin');
+      allow list: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
-      allow delete: if isSignedIn() && getUserRole() == 'admin';
+      allow update: if isSignedIn() && (request.auth.uid == userId || getUserRole(request.auth.uid) == 'admin');
+      allow delete: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
 
     match /teachers/{teacherId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && getUserRole() == 'admin';
+      allow create, update, delete: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
 
     match /students/{studentId} {
       allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == studentId);
-      allow update: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == studentId);
-      allow delete: if isSignedIn() && getUserRole() == 'admin';
+      allow create: if isSignedIn() && (getUserRole(request.auth.uid) == 'admin' || request.auth.uid == studentId);
+      allow update: if isSignedIn() && (getUserRole(request.auth.uid) == 'admin' || request.auth.uid == studentId);
+      allow delete: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
 
       // --- Student Sub-collections ---
       match /semesters/{semesterId} {
-        allow read, write: if isSignedIn() && (request.auth.uid == studentId || getUserRole() == 'admin');
+        allow read, write: if isSignedIn() && (request.auth.uid == studentId || getUserRole(request.auth.uid) == 'admin');
       }
       match /focusSessions/{sessionId} {
         allow read, write: if isSignedIn() && request.auth.uid == studentId;
@@ -63,48 +60,48 @@ service cloud.firestore {
     
     match /degrees/{degreeId} {
       allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
     match /streams/{streamId} {
       allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
     match /batches/{batchId} {
       allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
     
     match /semesterGroups/{groupId} {
       allow get: if isSignedIn();
-      allow list: if getUserRole() in ['admin', 'teacher'];
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow list: if getUserRole(request.auth.uid) in ['admin', 'teacher'];
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
       
       match /attendance/{date} {
-        allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students || getUserRole() in ['admin', 'teacher']);
-        allow write: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+        allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students || getUserRole(request.auth.uid) in ['admin', 'teacher']);
+        allow write: if isSignedIn() && getUserRole(request.auth.uid) in ['admin', 'teacher'];
       }
     }
     
     // --- ASSIGNMENTS ---
     match /assignments/{assignmentId} {
         allow get, list: if isSignedIn();
-        allow create, update, delete: if isSignedIn() && getUserRole() in ['teacher', 'admin'];
+        allow create, update, delete: if isSignedIn() && getUserRole(request.auth.uid) in ['teacher', 'admin'];
     }
 
     // --- STUDY MATERIALS ---
     match /studyMaterials/{materialId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+      allow create, update, delete: if isSignedIn() && getUserRole(request.auth.uid) in ['admin', 'teacher'];
     }
 
     // --- SYLLABUS & TIMETABLE ---
     match /syllabi/{syllabusId} {
       allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
     match /timetables/{timetableId} {
       allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
     
     // --- STUDENT CIRCLES ---
@@ -118,21 +115,34 @@ service cloud.firestore {
             let teacherData = get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data;
             return isSignedIn() && 
                    'assignedGroups' in teacherData &&
-                   teacherData.assignedGroups.hasAny([groupId]);
+                   groupId in teacherData.assignedGroups;
         }
 
-        allow read, create: if isGroupMember() || isTeacherOfGroup() || getUserRole() == 'admin';
-        allow update: if isGroupMember() || isTeacherOfGroup() || getUserRole() == 'admin';
-        allow delete: if getUserRole() == 'admin' || (isSignedIn() && request.auth.uid == resource.data.author.uid);
+        allow read, create: if isGroupMember() || isTeacherOfGroup() || getUserRole(request.auth.uid) == 'admin';
+        allow update: if isGroupMember() || isTeacherOfGroup() || getUserRole(request.auth.uid) == 'admin';
+        allow delete: if getUserRole(request.auth.uid) == 'admin' || (isSignedIn() && request.auth.uid == resource.data.author.uid);
     }
 
     // --- MENTOR CONNECT ---
     match /directMessages/{chatId} {
-      allow read, write: if isSignedIn() && request.auth.uid in chatId.split('_');
-      
-      match /messages/{messageId} {
-         allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/directMessages/$(chatId)).data.participants;
-      }
+        function isParticipant() {
+          return request.auth.uid in resource.data.participants;
+        }
+        function isValidChat() {
+          let participantRoles = resource.data.participantRoles;
+          let studentRole = 'student';
+          let teacherRole = 'teacher';
+          let roles = participantRoles.values();
+          // A chat is valid if it's between a student and a teacher.
+          return (roles.hasAll([studentRole, teacherRole]));
+        }
+
+        allow get: if isSignedIn() && isParticipant();
+        allow create: if isSignedIn() && isValidChat();
+
+        match /messages/{messageId} {
+           allow read, write: if isSignedIn() && isParticipant();
+        }
     }
   }
 }

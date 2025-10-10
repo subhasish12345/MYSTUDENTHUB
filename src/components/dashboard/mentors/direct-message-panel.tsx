@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, ArrowLeft } from "lucide-react";
+import { Send, ArrowLeft, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
@@ -23,12 +23,13 @@ interface Message {
 }
 
 export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBack: () => void }) {
-    const { user, userData } = useAuth();
+    const { user, userData, userRole } = useAuth();
     const { toast } = useToast();
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [permissionError, setPermissionError] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const chatId = useMemo(() => {
@@ -43,19 +44,31 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
             return;
         }
 
+        // Pre-flight check: students can only message teachers.
+        if (userRole === 'student' && mentor.role !== 'teacher') {
+            setPermissionError(true);
+            setLoading(false);
+            return;
+        }
+
         const messagesQuery = query(collection(db, "directMessages", chatId, "messages"), orderBy("timestamp", "asc"));
         const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
             const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
             setMessages(msgs);
             setLoading(false);
+            setPermissionError(false);
         }, (error) => {
             console.error("Error fetching messages:", error);
-            toast({ title: "Error", description: "Could not load messages.", variant: "destructive" });
+            if (error.code === 'permission-denied') {
+                setPermissionError(true);
+            } else {
+                toast({ title: "Error", description: "Could not load messages.", variant: "destructive" });
+            }
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [chatId, toast]);
+    }, [chatId, toast, userRole, mentor.role]);
     
     // Auto-scroll to the latest message
     useEffect(() => {
@@ -70,6 +83,10 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
             const chatDocRef = doc(db, "directMessages", chatId);
             await setDoc(chatDocRef, {
                 participants: [user.uid, mentor.id],
+                participantRoles: {
+                    [user.uid]: userRole,
+                    [mentor.id]: mentor.role,
+                },
                 lastMessage: newMessage,
                 updatedAt: serverTimestamp(),
             }, { merge: true });
@@ -103,7 +120,7 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
                 </Avatar>
                 <div>
                     <CardTitle>{mentor.name}</CardTitle>
-                    <CardDescription>{mentor.designation || 'Student'}</CardDescription>
+                    <CardDescription>{mentor.designation || mentor.role}</CardDescription>
                 </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -112,6 +129,12 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
                         <Skeleton className="h-16 w-2/3" />
                         <Skeleton className="h-16 w-2/3 ml-auto" />
                         <Skeleton className="h-16 w-2/3" />
+                    </div>
+                 ) : permissionError ? (
+                    <div className="text-center text-destructive h-full flex flex-col items-center justify-center">
+                        <ShieldAlert className="h-12 w-12 mb-4"/>
+                        <p className="font-semibold">Permission Denied</p>
+                        <p className="text-sm">You do not have permission to access this chat.</p>
                     </div>
                 ) : messages.length > 0 ? (
                     messages.map(msg => (
@@ -144,8 +167,9 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
                             }
                         }}
                         className="min-h-0 h-10 max-h-24"
+                        disabled={permissionError}
                     />
-                    <Button onClick={handleSendMessage} disabled={isSubmitting || newMessage.trim() === ""}>
+                    <Button onClick={handleSendMessage} disabled={isSubmitting || newMessage.trim() === "" || permissionError}>
                        <Send className="h-4 w-4"/>
                        <span className="sr-only">Send</span>
                     </Button>
