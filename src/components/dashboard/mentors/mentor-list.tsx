@@ -22,9 +22,43 @@ export function MentorList() {
     const [loading, setLoading] = useState(true);
     const [selectedMentor, setSelectedMentor] = useState<UserData | null>(null);
 
+    // If the user is a teacher, fetch their existing conversations with students
     useEffect(() => {
-        // Fetch teachers directly from the 'teachers' collection, which contains their full profiles.
-        const q = query(collection(db, "teachers"), orderBy("name"));
+        if (userRole !== 'teacher' || !user) return;
+        
+        setLoading(true);
+        const q = query(collection(db, "directMessages"), where("participants", "array-contains", user.uid));
+        
+        const unsubscribe = onSnapshot(q, async (snapshot) => {
+            const convos = await Promise.all(snapshot.docs.map(async docSnap => {
+                const data = docSnap.data();
+                const studentId = data.participants.find((p: string) => p !== user.uid);
+                if (!studentId) return null;
+
+                const studentRole = data.participantRoles?.[studentId];
+                if (studentRole !== 'student') return null; // Ensure the other participant is a student
+
+                const studentDoc = await getDoc(doc(db, "students", studentId));
+                return studentDoc.exists() ? { id: studentId, ...studentDoc.data() } as StudentData : null;
+            }));
+            setConversations(convos.filter(Boolean));
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching conversations:", error);
+            setLoading(false);
+        });
+        
+        return () => unsubscribe();
+
+    }, [user, userRole]);
+
+    // If the user is a student, fetch all available mentors (teachers)
+    useEffect(() => {
+        if (userRole !== 'student') return;
+
+        setLoading(true);
+        const q = query(collection(db, "teachers"), where("status", "==", "Active"), orderBy("name"));
+        
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const teachersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserData));
             setMentors(teachersData);
@@ -33,32 +67,19 @@ export function MentorList() {
             console.error("Error fetching mentors:", error);
             setLoading(false);
         });
-        return () => unsubscribe();
-    }, []);
-    
-     // If the user is a teacher, fetch their existing conversations
-    useEffect(() => {
-        if (userRole !== 'teacher' || !user) return;
-        
-        const q = query(collection(db, "directMessages"), where("participants", "array-contains", user.uid));
-        const unsubscribe = onSnapshot(q, async (snapshot) => {
-            const convos = await Promise.all(snapshot.docs.map(async docSnap => {
-                const data = docSnap.data();
-                const studentId = data.participants.find((p: string) => p !== user.uid);
-                if (!studentId) return null; // Should not happen in a 2-person chat
-                const studentDoc = await getDoc(doc(db, "students", studentId));
-                return studentDoc.exists() ? { id: studentId, ...studentDoc.data() } as StudentData : null;
-            }));
-            setConversations(convos.filter(Boolean));
-        });
-        
-        return () => unsubscribe();
 
-    }, [user, userRole]);
+        return () => unsubscribe();
+    }, [userRole]);
+
+    // If user is neither student nor teacher, stop loading
+    useEffect(() => {
+        if (userRole && userRole !== 'student' && userRole !== 'teacher') {
+            setLoading(false);
+        }
+    }, [userRole]);
 
 
     const handleSelectConversation = (participant: UserData | StudentData) => {
-        // In this context, the 'mentor' is the other participant in the chat
         setSelectedMentor(participant as UserData);
     };
     
@@ -108,7 +129,7 @@ export function MentorList() {
                         </Card>
                     ))}
                 </div>
-            ) : ( // Teacher's view of their conversations
+            ) : userRole === 'teacher' ? (
                  <div className="space-y-4">
                      {conversations.length > 0 ? (
                          conversations.map(student => (
@@ -132,6 +153,11 @@ export function MentorList() {
                         </div>
                      )}
                  </div>
+            ) : (
+                <div className="text-center py-16 border-dashed border-2 rounded-lg">
+                    <h3 className="font-headline text-2xl font-semibold">Feature Not Available</h3>
+                    <p className="text-muted-foreground">This feature is available for Students and Teachers.</p>
+                </div>
             )}
         </div>
     );

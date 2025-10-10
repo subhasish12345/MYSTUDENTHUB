@@ -30,7 +30,6 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
     const [newMessage, setNewMessage] = useState("");
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [permissionError, setPermissionError] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const chatId = useMemo(() => {
@@ -46,29 +45,21 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
         }
 
         const messagesQuery = query(collection(db, "directMessages", chatId, "messages"), orderBy("timestamp", "asc"));
+        
         const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
             const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
             setMessages(msgs);
             setLoading(false);
-            setPermissionError(false);
         }, (error) => {
-            console.error("Error fetching messages:", error);
-            if (error.code === 'permission-denied') {
-                // This might happen if the chat document doesn't exist yet. We'll allow the user to try and create it.
-                // The real error will be caught on send if they truly don't have permission.
-                 if (messages.length === 0) {
-                    setPermissionError(false);
-                 } else {
-                    setPermissionError(true);
-                 }
-            } else {
-                toast({ title: "Error", description: "Could not load messages.", variant: "destructive" });
-            }
+            // This error often means the collection doesn't exist yet, which is fine for new chats.
+            // We'll let the handleSendMessage function create it.
+            console.warn("Could not fetch messages (this is expected for new chats):", error.message);
+            setMessages([]); // Ensure messages are cleared if there's an issue
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [chatId, toast, messages.length]);
+    }, [chatId]);
     
     // Auto-scroll to the latest message
     useEffect(() => {
@@ -76,13 +67,19 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
     }, [messages]);
 
     const handleSendMessage = async () => {
-        if (!user || !chatId || newMessage.trim() === "" || !userRole || !mentor.role) return;
+        if (!user || !chatId || newMessage.trim() === "" || !userRole || !mentor.role) {
+            toast({ title: "Error", description: "Cannot send message. Missing user data.", variant: "destructive"});
+            return;
+        }
+
         setIsSubmitting(true);
+        
         try {
             const chatDocRef = doc(db, "directMessages", chatId);
             const chatDoc = await getDoc(chatDocRef);
 
             // If the chat document doesn't exist, create it first.
+            // This is the crucial step for initiating a new chat.
             if (!chatDoc.exists()) {
                  await setDoc(chatDocRef, {
                     participants: [user.uid, mentor.id],
@@ -93,24 +90,24 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
                     lastMessage: newMessage,
                     updatedAt: serverTimestamp(),
                 });
+            } else {
+                // If it exists, just update the last message timestamp
+                await setDoc(chatDocRef, { lastMessage: newMessage, updatedAt: serverTimestamp() }, { merge: true });
             }
 
-            // Then, add the new message to the subcollection
+            // Now, add the new message to the subcollection
             const messagesColRef = collection(db, "directMessages", chatId, "messages");
             await addDoc(messagesColRef, {
                 text: newMessage,
                 senderId: user.uid,
                 timestamp: serverTimestamp(),
             });
-            
-            // If the chat doc existed, update its `lastMessage` field
-            if (chatDoc.exists()) {
-                await setDoc(chatDocRef, { lastMessage: newMessage, updatedAt: serverTimestamp() }, { merge: true });
-            }
 
             setNewMessage("");
+
         } catch (error: any) {
-            toast({ title: "Error", description: `Failed to send message: ${error.message}`, variant: "destructive" });
+            console.error("Failed to send message: ", error);
+            toast({ title: "Error Sending Message", description: `Could not send message. Please check your permissions.`, variant: "destructive" });
         } finally {
             setIsSubmitting(false);
         }
@@ -140,13 +137,7 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
                         <Skeleton className="h-16 w-2/3 ml-auto" />
                         <Skeleton className="h-16 w-2/3" />
                     </div>
-                 ) : permissionError ? (
-                    <div className="text-center text-destructive h-full flex flex-col items-center justify-center">
-                        <ShieldAlert className="h-12 w-12 mb-4"/>
-                        <p className="font-semibold">Permission Denied</p>
-                        <p className="text-sm">You do not have permission to access this chat.</p>
-                    </div>
-                ) : messages.length > 0 ? (
+                 ) : messages.length > 0 ? (
                     messages.map(msg => (
                         <div key={msg.id} className={cn("flex items-end gap-2", isMyMessage(msg.senderId) ? "justify-end" : "justify-start")}>
                             <div className={cn("max-w-xs md:max-w-md lg:max-w-lg p-3 rounded-lg", isMyMessage(msg.senderId) ? "bg-primary text-primary-foreground" : "bg-muted")}>
@@ -177,9 +168,8 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
                             }
                         }}
                         className="min-h-0 h-10 max-h-24"
-                        disabled={permissionError}
                     />
-                    <Button onClick={handleSendMessage} disabled={isSubmitting || newMessage.trim() === "" || permissionError}>
+                    <Button onClick={handleSendMessage} disabled={isSubmitting || newMessage.trim() === ""}>
                        <Send className="h-4 w-4"/>
                        <span className="sr-only">Send</span>
                     </Button>
