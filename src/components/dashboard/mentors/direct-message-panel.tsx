@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -40,13 +41,6 @@ export function DirectMessagePanel({ mentor, onBack }: { mentor: UserData, onBac
 
     useEffect(() => {
         if (!chatId) {
-            setLoading(false);
-            return;
-        }
-
-        // Pre-flight check: students can only message teachers.
-        if (userRole === 'student' && mentor.role !== 'teacher') {
-            setPermissionError(true);
             setLoading(false);
             return;
         }
