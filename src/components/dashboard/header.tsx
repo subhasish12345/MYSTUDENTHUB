@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import { ModeToggle } from "../mode-toggle";
 
 export function DashboardHeader() {
   const { user } = useAuth();
@@ -38,6 +39,7 @@ export function DashboardHeader() {
       </div>
 
       <div className="flex items-center gap-4">
+        <ModeToggle />
         <Button variant="ghost" size="icon" className="rounded-full">
             <Bell className="h-5 w-5"/>
             <span className="sr-only">Notifications</span>
