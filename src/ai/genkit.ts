@@ -4,9 +4,8 @@ import {googleAI} from '@genkit-ai/googleai';
 export const ai = genkit({
   plugins: [
     googleAI({
-      apiKey: process.env.OPENROUTER_API_KEY,
-      baseUrl: 'https://openrouter.ai/api/v1',
+      apiKey: process.env.GEMINI_API_KEY,
     }),
   ],
-  model: 'google/gemini-pro',
+  model: 'gemini-pro',
 });

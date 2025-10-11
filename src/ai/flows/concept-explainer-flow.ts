@@ -29,7 +29,7 @@ const prompt = ai.definePrompt({
     Keep your tone encouraging and supportive. Do not answer questions that are not related to academic topics. 
     If the user asks a non-academic question, politely decline and steer them back to learning.
 
-    User's question: ${"{{prompt}}"}
+    User's question: {{prompt}}
   `,
 });
 
@@ -40,7 +40,7 @@ const conceptExplainerFlow = ai.defineFlow(
     outputSchema: ConceptExplainerOutputSchema,
   },
   async (promptText) => {
-    const { output } = await prompt(promptText);
+    const { output } = await prompt({ prompt: promptText });
     return output!;
   }
 );
