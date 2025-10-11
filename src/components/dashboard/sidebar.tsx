@@ -37,6 +37,8 @@ const allMenuItems = [
   { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck, teacherOnly: true },
   { href: "/dashboard/materials", label: "Study Materials", icon: BookOpen },
   { href: "/dashboard/syllabus", label: "Syllabus & Timetable", icon: CalendarDays },
+  { href: "/dashboard/notice-board", label: "Notice Board", icon: Megaphone },
+  { href: "/dashboard/events", label: "Events", icon: CalendarDays },
   { href: "/dashboard/circles", label: "Circles", icon: MessageSquare },
   { href: "/dashboard/mentor-connect", label: "Mentor Connect", icon: Handshake },
   { href: "/dashboard/gpa-calculator", label: "GPA Calculator", icon: Calculator, studentOnly: true },

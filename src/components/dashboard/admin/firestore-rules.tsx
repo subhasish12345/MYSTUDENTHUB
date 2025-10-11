@@ -134,6 +134,11 @@ service cloud.firestore {
       allow read, list: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
       allow update, delete: if isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
+    // --- NOTICES ---
+    match /notices/{noticeId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isSignedIn() && getUserRole(request.auth.uid) in ['admin', 'teacher'];
+    }
   }
 }
 `.trim();
