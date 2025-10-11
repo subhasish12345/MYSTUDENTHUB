@@ -7,5 +7,5 @@ export const ai = genkit({
       // Will default to `GEMINI_API_KEY` environment variable.
     }),
   ],
-  model: 'google/gemini-pro',
+  model: 'gemini-pro',
 });
