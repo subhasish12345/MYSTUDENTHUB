@@ -100,10 +100,11 @@ This guide will help you get a local copy of the project up and running for deve
 
 ## 👨‍💻 About the Developer
 
-This project was brought to life by **[Your Name Here]**, a forward-thinking developer passionate about creating impactful and user-centric applications.
+This project was brought to life by **Subhasish Nayak (Team Nanites)**, a forward-thinking developer passionate about creating impactful and user-centric applications.
 
+- **Portfolio**: [https://subhasish-nayak.onrender.com](https://subhasish-nayak.onrender.com)
 - **LinkedIn**: [linkedin.com/in/your-profile](https://linkedin.com/in/your-profile)
 - **GitHub**: [github.com/your-username](https://github.com/your-username)
-- **Portfolio**: [your-portfolio.com](https://your-portfolio.com)
+
 
 This application serves as a testament to the synergy between human vision and AI-powered development, rapidly turning a complex idea into a tangible, high-quality product.
