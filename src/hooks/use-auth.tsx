@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -35,7 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setLoading(true); 
+      setLoading(true);
       if (user) {
         setUser(user);
         try {
@@ -64,26 +63,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             } else if (role === 'admin') {
               setUserData(baseUserData);
             } else {
-              setUserData(null);
+               console.warn(`No specific profile collection for role: ${role}. Only base user data will be available.`);
+               setUserData(baseUserData); // For admins or other roles without a separate profile doc
             }
 
           } else {
+             console.log(`No user document found for UID: ${user.uid}. User might need to complete profile setup.`);
             setUserRole(null);
             setUserData(null);
           }
         } catch (error) {
             console.error("Error fetching user data:", error);
+            setUser(null);
             setUserRole(null);
             setUserData(null);
-        } finally {
-          setLoading(false);
         }
       } else {
         setUser(null);
         setUserRole(null);
         setUserData(null);
-        setLoading(false);
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
