@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -9,6 +8,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
@@ -28,6 +28,8 @@ import {
   Badge,
   Globe,
   PackageSearch,
+  Info,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -87,7 +89,7 @@ export function DashboardSidebar() {
             <SidebarMenuItem key={item.label}>
               <SidebarMenuButton
                 asChild
-                isActive={pathname.startsWith(item.href)}
+                isActive={pathname === item.href}
                 tooltip={{ children: item.label }}
               >
                 <Link href={item.href}>
@@ -101,6 +103,17 @@ export function DashboardSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+            <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/about"} tooltip={{ children: "About App" }}>
+                    <Link href="/dashboard/about"><Info /><span>About App</span></Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/privacy-policy"} tooltip={{ children: "Privacy Policy" }}>
+                    <Link href="/dashboard/privacy-policy"><FileText /><span>Privacy Policy</span></Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarSeparator />
             <SidebarMenuItem>
                 <SidebarMenuButton onClick={handleLogout} tooltip={{ children: "Logout" }}>
                     <LogOut />
