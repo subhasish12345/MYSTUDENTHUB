@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, orderBy, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, DocumentData, addDoc, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Edit, Trash2, Download } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
@@ -11,7 +11,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { createSyllabus, updateSyllabus, deleteSyllabus } from './actions';
 import { SyllabusForm, SyllabusFormValues } from './syllabus-form';
 
 export interface Syllabus extends DocumentData {
@@ -84,10 +83,18 @@ export function SyllabusViewer() {
         setIsSubmitting(true);
         try {
             if (editingSyllabus) {
-                await updateSyllabus(editingSyllabus.id, values);
+                await updateDoc(doc(db, "syllabi", editingSyllabus.id), {
+                    ...values,
+                    updatedAt: serverTimestamp(),
+                });
                 toast({ title: "Success", description: "Syllabus has been updated." });
             } else {
-                await createSyllabus({ ...values, authorId: user.uid, authorName: userData.name });
+                await addDoc(collection(db, "syllabi"), {
+                    ...values,
+                    authorId: user.uid,
+                    authorName: userData.name,
+                    createdAt: serverTimestamp(),
+                });
                 toast({ title: "Success", description: "New syllabus has been added." });
             }
             setIsSheetOpen(false);
@@ -106,7 +113,7 @@ export function SyllabusViewer() {
             return;
         }
         try {
-            await deleteSyllabus(deletingSyllabus.id);
+            await deleteDoc(doc(db, "syllabi", deletingSyllabus.id));
             toast({ title: "Success", description: "Syllabus has been deleted."});
         } catch (error: any) {
             toast({ title: "Deletion Failed", description: error.message, variant: "destructive"});

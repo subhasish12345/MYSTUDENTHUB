@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, orderBy, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, DocumentData, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Edit, Trash2, Book } from 'lucide-react';
@@ -13,7 +13,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { MaterialForm, MaterialFormValues } from './material-form';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { createMaterial, updateMaterial, deleteMaterial } from './actions';
 
 export interface StudyMaterial extends DocumentData {
     id: string;
@@ -88,10 +87,18 @@ export function StudyMaterialList() {
         setIsSubmitting(true);
         try {
             if (editingMaterial) {
-                await updateMaterial(editingMaterial.id, values);
+                await updateDoc(doc(db, "studyMaterials", editingMaterial.id), {
+                    ...values,
+                    updatedAt: serverTimestamp(),
+                });
                 toast({ title: "Success", description: "Material has been updated." });
             } else {
-                await createMaterial({ ...values, authorId: user.uid, authorName: userData.name });
+                await addDoc(collection(db, "studyMaterials"), {
+                    ...values,
+                    authorId: user.uid,
+                    authorName: userData.name,
+                    createdAt: serverTimestamp(),
+                });
                 toast({ title: "Success", description: "New material has been added." });
             }
             setIsSheetOpen(false);
@@ -110,7 +117,7 @@ export function StudyMaterialList() {
             return;
         }
         try {
-            await deleteMaterial(deletingMaterial.id);
+            await deleteDoc(doc(db, "studyMaterials", deletingMaterial.id));
             toast({ title: "Success", description: "Material has been deleted."});
         } catch (error: any) {
             toast({ title: "Deletion Failed", description: error.message, variant: "destructive"});

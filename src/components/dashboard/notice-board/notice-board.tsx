@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, orderBy, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, DocumentData, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { format, formatDistanceToNow } from "date-fns";
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,6 @@ import { NoticeForm, NoticeFormValues } from './notice-form';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { createNotice, updateNotice, deleteNotice } from './actions';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -67,10 +66,20 @@ export function NoticeBoard() {
         setIsSubmitting(true);
         try {
             if (editingNotice) {
-                await updateNotice(editingNotice.id, values);
+                await updateDoc(doc(db, "notices", editingNotice.id), {
+                    ...values,
+                    updatedAt: serverTimestamp(),
+                });
                 toast({ title: "Success", description: "Notice has been updated." });
             } else {
-                await createNotice({ ...values, authorId: user.uid, authorName: userData.name, authorRole: userRole });
+                 await addDoc(collection(db, "notices"), {
+                    ...values,
+                    authorId: user.uid,
+                    authorName: userData.name,
+                    authorRole: userRole,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                });
                 toast({ title: "Success", description: "New notice has been posted." });
             }
             setIsSheetOpen(false);
@@ -90,7 +99,7 @@ export function NoticeBoard() {
         }
 
         try {
-            await deleteNotice(deletingNotice.id);
+            await deleteDoc(doc(db, "notices", deletingNotice.id));
             toast({ title: "Success", description: "Notice has been deleted."});
         } catch (error: any) {
             toast({ title: "Deletion Failed", description: error.message, variant: "destructive"});

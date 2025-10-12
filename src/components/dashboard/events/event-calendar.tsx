@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, orderBy, DocumentData } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, DocumentData, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { format } from "date-fns";
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,6 @@ import { EventForm, EventFormValues } from './event-form';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { createEvent, updateEvent, deleteEvent } from './actions';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -73,10 +72,20 @@ export function EventCalendar() {
         setIsSubmitting(true);
         try {
             if (editingEvent) {
-                await updateEvent(editingEvent.id, values);
+                await updateDoc(doc(db, "events", editingEvent.id), {
+                    ...values,
+                    updatedAt: serverTimestamp(),
+                });
                 toast({ title: "Success", description: "Event has been updated." });
             } else {
-                await createEvent({ ...values, postedBy: user.uid, postedByName: userData.name, authorRole: userRole });
+                await addDoc(collection(db, "events"), {
+                    ...values,
+                    postedBy: user.uid,
+                    postedByName: userData.name,
+                    authorRole: userRole,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                });
                 toast({ title: "Success", description: "New event has been created." });
             }
             setIsSheetOpen(false);
@@ -96,7 +105,7 @@ export function EventCalendar() {
         }
 
         try {
-            await deleteEvent(deletingEvent.id);
+            await deleteDoc(doc(db, "events", deletingEvent.id));
             toast({ title: "Success", description: "Event has been deleted."});
         } catch (error: any) {
             toast({ title: "Deletion Failed", description: error.message, variant: "destructive"});
