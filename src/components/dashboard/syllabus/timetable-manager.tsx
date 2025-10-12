@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TimetableForm } from "./timetable-form";
 import { TimetableViewer } from "./timetable-viewer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 interface SemesterGroup extends DocumentData {
     id: string;
@@ -83,10 +85,3 @@ export function TimetableManager() {
         </div>
     );
 }
-
-// Dummy Tabs components to make the compiler happy. 
-// They're not used because TimetableManager is wrapped in the real Tabs in syllabus-timetable.tsx
-const Tabs = ({children, ...props}: any) => <div {...props}>{children}</div>
-const TabsList = ({children, ...props}: any) => <div {...props}>{children}</div>
-const TabsTrigger = ({children, ...props}: any) => <button {...props}>{children}</button>
-const TabsContent = ({children, ...props}: any) => <div {...props}>{children}</div>
