@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Check, Clipboard } from "lucide-react";
@@ -170,6 +171,14 @@ service cloud.firestore {
     match /notices/{noticeId} {
       allow get, list: if isSignedIn();
       allow create, update, delete: if isSignedIn() && isAdminOrTeacher();
+    }
+    
+    // ===============================================================
+    //  🌐 Important Portals
+    // ===============================================================
+    match /portals/{portalId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isSignedIn() && isAdmin();
     }
   }
 }

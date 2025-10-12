@@ -26,6 +26,7 @@ import {
   MessageSquare,
   Megaphone,
   Badge,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -41,6 +42,7 @@ const allMenuItems = [
   { href: "/dashboard/syllabus", label: "Syllabus & Timetable", icon: CalendarDays },
   { href: "/dashboard/notice-board", label: "Notice Board", icon: Megaphone },
   { href: "/dashboard/events", label: "Events", icon: CalendarDays },
+  { href: "/dashboard/portals", label: "Important Portals", icon: Globe },
   { href: "/dashboard/circles", label: "Circles", icon: MessageSquare },
   { href: "/dashboard/mentor-connect", label: "Mentor Connect", icon: Handshake },
   { href: "/dashboard/gpa-calculator", label: "GPA Calculator", icon: Calculator, studentOnly: true },
