@@ -45,7 +45,7 @@ export function LoginForm() {
   };
   
   return (
-      <Card className="w-full max-w-sm mt-8 shadow-2xl">
+      <Card className="w-full max-w-sm shadow-2xl animate-in fade-in-0 slide-in-from-bottom-8 duration-1000">
         <CardHeader>
           <CardTitle className="font-headline text-2xl">Login</CardTitle>
           <CardDescription>Enter your credentials to access your account.</CardDescription>
