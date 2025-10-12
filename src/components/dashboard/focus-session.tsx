@@ -12,20 +12,22 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 
-// Component for a single number display (0-9)
-const FlipUnit = ({ value }: { value: number }) => {
-    const digits = Array.from({ length: 10 }, (_, i) => i);
-    
+const FlipUnit = ({ value, nextValue }: { value: number; nextValue: number }) => {
+    const [isFlipped, setIsFlipped] = useState(false);
+
+    useEffect(() => {
+        setIsFlipped(true);
+        const timer = setTimeout(() => setIsFlipped(false), 700);
+        return () => clearTimeout(timer);
+    }, [value]);
+
     return (
         <div className="nums">
             <div
-                className="nums-wrapper"
-                style={{ transform: `translateY(-${value * 100}px)` }}
-            >
-                {digits.map((digit) => (
-                     <div key={digit} className="num" data-num={digit} />
-                ))}
-            </div>
+                className={cn("num", isFlipped && "flipped")}
+                data-num={value}
+                data-num-next={nextValue}
+             />
         </div>
     );
 };
@@ -46,12 +48,17 @@ export function FocusSession() {
     const seconds = timer % 60;
 
     const timeDigits = useMemo(() => {
+        const getNextValue = (val: number) => (val === 0 ? 9 : val - 1);
         return {
             minTens: Math.floor(minutes / 10),
             minOnes: minutes % 10,
             secTens: Math.floor(seconds / 10),
             secOnes: seconds % 10,
-        }
+            nextMinTens: Math.floor(getNextValue(minutes) / 10),
+            nextMinOnes: getNextValue(minutes) % 10,
+            nextSecTens: Math.floor(getNextValue(seconds) / 10),
+            nextSecOnes: getNextValue(seconds) % 10,
+        };
     }, [minutes, seconds]);
     
     const saveSession = async () => {
@@ -121,11 +128,11 @@ export function FocusSession() {
                 </CardHeader>
                 <CardContent className="flex flex-col items-center gap-6">
                     <div className="flip-clock-container" aria-label={`${minutes} minutes and ${seconds} seconds remaining`}>
-                        <FlipUnit value={timeDigits.minTens} />
-                        <FlipUnit value={timeDigits.minOnes} />
+                        <FlipUnit value={timeDigits.minTens} nextValue={timeDigits.nextMinTens} />
+                        <FlipUnit value={timeDigits.minOnes} nextValue={timeDigits.nextMinOnes} />
                         <div className="clock-colon">:</div>
-                        <FlipUnit value={timeDigits.secTens} />
-                        <FlipUnit value={timeDigits.secOnes} />
+                        <FlipUnit value={timeDigits.secTens} nextValue={timeDigits.nextSecTens} />
+                        <FlipUnit value={timeDigits.secOnes} nextValue={timeDigits.nextSecOnes} />
                     </div>
                     
                     <div className="flex w-full max-w-sm gap-2">
