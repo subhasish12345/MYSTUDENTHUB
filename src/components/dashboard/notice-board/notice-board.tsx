@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy, DocumentData, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { format, formatDistanceToNow } from "date-fns";
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Edit, Trash2, UserCircle } from 'lucide-react';
@@ -159,44 +159,42 @@ export function NoticeBoard() {
                 </CardHeader>
             </Card>
 
-            <div className="grid gap-6 md:grid-cols-1">
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                  {loading || authLoading ? (
-                    Array.from({length: 3}).map((_, i) => (
-                         <Card key={i}><CardContent className='p-6'><Skeleton className="h-24 w-full" /></CardContent></Card>
+                    Array.from({length: 4}).map((_, i) => (
+                         <div key={i} className="pixar-card">
+                            <Skeleton className="h-full w-full" />
+                         </div>
                     ))
                  ) : filteredNotices.length > 0 ? (
                         filteredNotices.map(notice => (
-                            <Card key={notice.id} className="shadow-md">
-                                <CardHeader>
-                                    <div className="flex justify-between items-start gap-2">
-                                        <div className='flex-1'>
-                                            <CardTitle className='text-xl'>{notice.title}</CardTitle>
-                                            <CardDescription>
-                                                Posted {notice.createdAt ? formatDistanceToNow(notice.createdAt.toDate(), { addSuffix: true }) : 'just now'}
-                                            </CardDescription>
-                                        </div>
-                                        <Badge variant='secondary'>{notice.category}</Badge>
+                            <div key={notice.id} className="pixar-card">
+                                <div className="card-header-pixar">
+                                    <div className="card-avatar">
+                                        <UserCircle className="w-8 h-8" />
                                     </div>
-                                </CardHeader>
-                                <CardContent className="flex-grow space-y-2">
-                                    <p className="text-sm text-foreground/80 whitespace-pre-wrap">{notice.content}</p>
-                                </CardContent>
-                                <CardFooter className="flex justify-between items-center border-t pt-4 mt-4">
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <UserCircle className="h-4 w-4" />
-                                        <span>{notice.authorName || "Admin"} ({notice.authorRole})</span>
+                                    <p className="card-username">{notice.authorName}</p>
+                                </div>
+                                <div className="card-content-area">
+                                    <h3 className="card-title-pixar">{notice.title}</h3>
+                                    <p className="card-caption">{notice.content}</p>
+                                </div>
+                                 {canManage && (
+                                    <div className="card-actions">
+                                        <button className="action-button" aria-label="Edit Post" onClick={() => handleEditClick(notice)}>
+                                            <Edit className="action-button-icon" />
+                                            <span>Edit</span>
+                                        </button>
+                                        <button className="action-button delete-button" aria-label="Delete Post" onClick={() => setDeletingNotice(notice)}>
+                                            <Trash2 className="action-button-icon" />
+                                            <span>Delete</span>
+                                        </button>
                                     </div>
-                                    {canManage && (
-                                        <div className="flex gap-2">
-                                            <Button variant="outline" size="sm" onClick={() => handleEditClick(notice)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
-                                            <Button variant="destructive" size="sm" onClick={() => setDeletingNotice(notice)}><Trash2 className="mr-2 h-4 w-4" />Delete</Button>
-                                        </div>
-                                    )}
-                                </CardFooter>
-                            </Card>
+                                )}
+                            </div>
                         ))
                 ) : (
-                    <div className="lg:col-span-3 text-center py-16 border-dashed border-2 rounded-lg">
+                    <div className="lg:col-span-3 xl:col-span-4 text-center py-16 border-dashed border-2 rounded-lg">
                         <h3 className="font-headline text-2xl font-semibold">No Notices Found</h3>
                         <p className="text-muted-foreground">There are no notices matching your current filters.</p>
                     </div>

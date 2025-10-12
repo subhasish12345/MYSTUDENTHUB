@@ -347,3 +347,152 @@
     }
   }
 }
+
+/* Pixar Card Styles */
+@layer components {
+  .pixar-card {
+    --ui-blue: hsl(var(--primary));
+    --ui-blue-shadow: hsl(var(--primary) / 0.7);
+    --ui-green: #61c470;
+    --ui-green-shadow: #45a253;
+    --ui-red: hsl(var(--destructive));
+    --ui-red-shadow: hsl(var(--destructive) / 0.8);
+    --ui-cream: hsl(var(--card));
+    --ui-cream-shadow: hsl(var(--border));
+    --ui-dark: hsl(var(--card-foreground));
+    --button-press-depth: 0.15em;
+
+    position: relative;
+    width: 19em;
+    max-width: 300px;
+    background-color: var(--ui-cream);
+    border-radius: 1.5em;
+    padding: 1.2em;
+    border: 0.2em solid var(--ui-dark);
+    box-shadow: 0.6em 0.6em 0 var(--ui-dark);
+    display: flex;
+    flex-direction: column;
+    transition:
+      transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+      box-shadow 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .pixar-card:hover {
+    transform: translateY(-0.5em) rotate(-2deg);
+    box-shadow: 0.8em 0.8em 0 var(--ui-dark);
+  }
+
+  .card-header-pixar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1em;
+  }
+
+  .card-avatar {
+    width: 3.5em;
+    height: 3.5em;
+    border-radius: 50%;
+    background: linear-gradient(45deg, hsl(var(--accent)), hsl(var(--primary)));
+    border: 0.2em solid var(--ui-dark);
+    box-shadow: 0.2em 0.2em 0 var(--ui-dark);
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--ui-dark);
+  }
+
+  .pixar-card:hover .card-avatar {
+    transform: scale(1.05) rotate(5deg);
+  }
+
+  .card-username {
+    margin: 0 0 0 0.8em;
+    font-size: 1.2em;
+    font-weight: 700;
+    color: var(--ui-dark);
+  }
+
+  .card-content-area {
+    background-color: hsl(var(--muted));
+    border-radius: 1em;
+    padding: 0.8em;
+    border: 0.2em solid var(--ui-dark);
+    box-shadow: inset 0.2em 0.2em 0 var(--ui-cream-shadow);
+    flex-grow: 1;
+  }
+
+  .card-title-pixar {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: var(--ui-dark);
+    margin-bottom: 0.5em;
+  }
+
+  .card-caption {
+    margin: 0;
+    font-size: 0.9em;
+    line-height: 1.4;
+    color: var(--ui-dark);
+    font-weight: 600;
+    white-space: pre-wrap;
+  }
+
+  .card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1.5em;
+  }
+
+  .action-button {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    background: var(--ui-blue);
+    border: 0.2em solid var(--ui-dark);
+    border-radius: 1em;
+    padding: 0.5em 1em;
+    cursor: pointer;
+    box-shadow:
+      0 var(--button-press-depth) 0 var(--ui-blue-shadow),
+      0 0.4em 0 var(--ui-dark);
+    transition:
+      transform 0.1s ease,
+      box-shadow 0.1s ease;
+    font-weight: 700;
+    color: var(--ui-dark);
+  }
+
+  .action-button:active {
+    transform: translateY(var(--button-press-depth));
+    box-shadow:
+      0 0 0 var(--ui-blue-shadow),
+      0 var(--button-press-depth) 0 var(--ui-dark);
+  }
+  
+  .action-button.delete-button {
+    background: var(--ui-red);
+    box-shadow:
+      0 var(--button-press-depth) 0 var(--ui-red-shadow),
+      0 0.4em 0 var(--ui-dark);
+  }
+  
+   .action-button.delete-button:active {
+    box-shadow:
+      0 0 0 var(--ui-red-shadow),
+      0 var(--button-press-depth) 0 var(--ui-dark);
+  }
+
+  .action-button-icon {
+    width: 1.2em;
+    height: 1.2em;
+    stroke: var(--ui-dark);
+    stroke-width: 2.5;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: block;
+  }
+}
