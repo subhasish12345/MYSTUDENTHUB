@@ -11,8 +11,7 @@ import { PlusCircle, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
-import { saveTimetable } from "./actions";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const periodSchema = z.object({
@@ -69,10 +68,12 @@ export function TimetableForm({ group }: { group: any }) {
     const onSubmit = async (values: TimetableFormValues) => {
         setIsSubmitting(true);
         try {
-            await saveTimetable({
+            const timetableRef = doc(db, "timetables", group.id);
+            await setDoc(timetableRef, {
+                ...values,
                 groupId: group.id,
-                ...values
-            });
+                updatedAt: serverTimestamp(),
+            }, { merge: true });
             toast({ title: "Success", description: `Timetable for ${group.groupId.replace(/_/g, ' ')} has been saved.` });
         } catch (error: any) {
             toast({ title: "Error", description: error.message, variant: "destructive" });
