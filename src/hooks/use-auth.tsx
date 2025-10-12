@@ -46,27 +46,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const role = baseUserData.role as Roles;
             setUserRole(role);
 
-            // Fetch the detailed profile from the role-specific collection
-            const profileCollection = role === 'student' ? 'students' : (role === 'teacher' ? 'teachers' : null);
-            
-            if (profileCollection) {
-              const profileDocRef = doc(db, profileCollection, user.uid);
-              const profileDoc = await getDoc(profileDocRef);
-
-              if (profileDoc.exists()) {
-                  // Combine base user data (for role) with specific profile data
-                  setUserData({ ...baseUserData, ...profileDoc.data() });
-              } else {
-                  console.warn(`No profile document found for UID: ${user.uid} in collection: ${profileCollection}. Falling back to base user data.`);
-                  setUserData(baseUserData);
-              }
-            } else if (role === 'admin') {
+            // If the user is an admin, their data comes solely from the /users collection.
+            if (role === 'admin') {
               setUserData(baseUserData);
             } else {
-               console.warn(`No specific profile collection for role: ${role}. Only base user data will be available.`);
-               setUserData(baseUserData); // For admins or other roles without a separate profile doc
-            }
+              // For other roles, fetch the detailed profile from the role-specific collection
+              const profileCollection = role === 'student' ? 'students' : (role === 'teacher' ? 'teachers' : null);
+              
+              if (profileCollection) {
+                const profileDocRef = doc(db, profileCollection, user.uid);
+                const profileDoc = await getDoc(profileDocRef);
 
+                if (profileDoc.exists()) {
+                    // Combine base user data (for role) with specific profile data
+                    setUserData({ ...baseUserData, ...profileDoc.data() });
+                } else {
+                    console.warn(`No profile document found for UID: ${user.uid} in collection: ${profileCollection}. User may need to complete profile setup.`);
+                    // This case is important for profile setup flow.
+                    // Set userData to the base data so the app knows the role but can redirect to setup.
+                    setUserData(baseUserData); 
+                }
+              } else {
+                 // This case should ideally not be hit for defined roles other than admin
+                 console.warn(`No specific profile collection for role: ${role}. Only base user data will be available.`);
+                 setUserData(baseUserData);
+              }
+            }
           } else {
              console.log(`No user document found for UID: ${user.uid}. User might need to complete profile setup.`);
             setUserRole(null);
