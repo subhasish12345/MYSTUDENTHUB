@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, orderBy, DocumentData, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, DocumentData, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs, where, writeBatch } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { format, formatDistanceToNow } from "date-fns";
 import { Button } from '@/components/ui/button';
@@ -73,7 +73,7 @@ export function NoticeBoard() {
                 });
                 toast({ title: "Success", description: "Notice has been updated." });
             } else {
-                 await addDoc(collection(db, "notices"), {
+                const noticeRef = await addDoc(collection(db, "notices"), {
                     ...values,
                     authorId: user.uid,
                     authorName: userData.name,
@@ -82,6 +82,23 @@ export function NoticeBoard() {
                     updatedAt: serverTimestamp(),
                 });
                 toast({ title: "Success", description: "New notice has been posted." });
+
+                // Fan out notifications to all students
+                const studentsQuery = query(collection(db, "users"), where("role", "==", "student"));
+                const studentsSnap = await getDocs(studentsQuery);
+                const batch = writeBatch(db);
+                studentsSnap.forEach(studentDoc => {
+                    const notificationRef = doc(collection(db, "users", studentDoc.id, "notifications"));
+                    batch.set(notificationRef, {
+                        title: `New Notice: ${values.title}`,
+                        body: values.content.substring(0, 100),
+                        link: "/dashboard/notice-board",
+                        isRead: false,
+                        createdAt: serverTimestamp(),
+                    });
+                });
+                await batch.commit();
+
             }
             setIsSheetOpen(false);
             setEditingNotice(null);

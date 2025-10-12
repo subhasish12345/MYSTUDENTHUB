@@ -48,6 +48,12 @@ service cloud.firestore {
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow delete: if isSignedIn() && isAdmin();
+      
+      // --- User Notifications Subcollection ---
+      match /notifications/{notificationId} {
+        allow read, update, delete: if isSignedIn() && request.auth.uid == userId;
+        allow create: if isSignedIn(); // Allow backend functions/admins to create notifications
+      }
     }
 
     // ===============================================================
