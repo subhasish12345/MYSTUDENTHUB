@@ -195,7 +195,7 @@ export function EventCalendar() {
                 </CardHeader>
             </Card>
 
-            <div className="flex flex-wrap gap-8 justify-center">
+            <div className="flex flex-wrap gap-8 justify-center group">
                  {loading || authLoading ? (
                     Array.from({length: 4}).map((_, i) => (
                         <div key={i} className="w-80 h-80">
