@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -181,7 +182,7 @@ export default function AttendancePage() {
 
     if (loading) {
         return (
-            <div className="space-y-6 p-8">
+            <div className="space-y-6 p-4 md:p-8">
                 <Skeleton className="h-10 w-1/3" />
                 <Skeleton className="h-6 w-1/2" />
                 <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -309,7 +310,7 @@ export default function AttendancePage() {
                                                             />
                                                         </TableHead>
                                                         <TableHead>Name</TableHead>
-                                                        <TableHead>Registration No.</TableHead>
+                                                        <TableHead className="hidden sm:table-cell">Registration No.</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
@@ -322,7 +323,7 @@ export default function AttendancePage() {
                                                                 />
                                                             </TableCell>
                                                             <TableCell className="font-medium">{student.name}</TableCell>
-                                                            <TableCell>{student.reg_no}</TableCell>
+                                                            <TableCell className="hidden sm:table-cell">{student.reg_no}</TableCell>
                                                         </TableRow>
                                                     ))}
                                                 </TableBody>

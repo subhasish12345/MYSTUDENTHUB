@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -181,7 +182,7 @@ export function StudyMaterialList() {
                         <p className="text-muted-foreground">Download notes, presentations, and books for your courses.</p>
                     </div>
                     {canManage && (
-                        <Button onClick={handleCreateClick} disabled={authLoading}>
+                        <Button onClick={handleCreateClick} disabled={authLoading} className="w-full sm:w-auto">
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Add Material
                         </Button>
@@ -192,32 +193,32 @@ export function StudyMaterialList() {
                     <Accordion type="multiple" className="w-full space-y-4">
                         {Object.keys(organizedMaterials).map(degreeName => (
                             <AccordionItem key={degreeName} value={degreeName} className="border rounded-lg bg-card">
-                                <AccordionTrigger className="p-6 font-headline text-xl">
+                                <AccordionTrigger className="p-4 md:p-6 font-headline text-lg md:text-xl text-left">
                                     {degreeName}
                                 </AccordionTrigger>
-                                <AccordionContent className="p-6 pt-0">
+                                <AccordionContent className="p-4 md:p-6 pt-0">
                                     <Accordion type="multiple" className="w-full space-y-2">
                                         {Object.keys(organizedMaterials[degreeName]).map(streamName => (
                                             <AccordionItem key={streamName} value={streamName} className="border-t">
-                                                <AccordionTrigger className="py-4 font-semibold">{streamName}</AccordionTrigger>
+                                                <AccordionTrigger className="py-4 font-semibold text-left">{streamName}</AccordionTrigger>
                                                 <AccordionContent className="pb-4">
                                                     <Accordion type="multiple" className="w-full space-y-1">
                                                         {Object.keys(organizedMaterials[degreeName][streamName]).sort().map(semester => (
                                                             <AccordionItem key={semester} value={semester} className="border-t">
-                                                                <AccordionTrigger className="py-3 text-sm">{semester}</AccordionTrigger>
-                                                                <AccordionContent className="pt-2 pl-4">
+                                                                <AccordionTrigger className="py-3 text-sm text-left">{semester}</AccordionTrigger>
+                                                                <AccordionContent className="pt-2 pl-2 md:pl-4">
                                                                     {Object.keys(organizedMaterials[degreeName][streamName][semester]).map(subject => (
                                                                         <div key={subject} className="mb-4">
                                                                             <h4 className="font-semibold text-muted-foreground mb-2">{subject}</h4>
                                                                             <div className="space-y-2">
                                                                                 {organizedMaterials[degreeName][streamName][semester][subject].map((material: StudyMaterial) => (
-                                                                                    <div key={material.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
-                                                                                        <a href={material.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-primary hover:underline">
-                                                                                            <Book className="h-4 w-4" />
+                                                                                    <div key={material.id} className="flex flex-col sm:flex-row justify-between sm:items-center p-3 bg-muted/50 rounded-md gap-2">
+                                                                                        <a href={material.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-primary hover:underline break-all">
+                                                                                            <Book className="h-4 w-4 flex-shrink-0" />
                                                                                             <span className="font-medium">{material.title}</span>
                                                                                         </a>
                                                                                         {canManage && (
-                                                                                            <div className="flex gap-2">
+                                                                                            <div className="flex gap-2 self-end sm:self-center">
                                                                                                 <Button variant="ghost" size="icon" onClick={() => handleEditClick(material)}><Edit className="h-4 w-4" /></Button>
                                                                                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeletingMaterial(material)}><Trash2 className="h-4 w-4" /></Button>
                                                                                             </div>
@@ -250,7 +251,7 @@ export function StudyMaterialList() {
             </div>
             
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetContent className="sm:max-w-2xl w-full">
+                <SheetContent className="w-full max-w-full sm:max-w-2xl">
                     <SheetHeader>
                         <SheetTitle>{editingMaterial ? 'Edit Material' : 'Add New Study Material'}</SheetTitle>
                         <SheetDescription>Fill in the details and provide a link to the material.</SheetDescription>

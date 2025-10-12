@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -52,13 +53,13 @@ export function MentorList() {
             </div>
 
             {loading || authLoading ? (
-                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {Array.from({ length: 8 }).map((_, i) => (
                         <Card key={i}><CardContent className="p-6"><Skeleton className="h-48 w-full" /></CardContent></Card>
                     ))}
                 </div>
             ) : userRole === 'student' ? (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {mentors.length > 0 ? mentors.map(mentor => (
                         <Card key={mentor.id} className="shadow-md flex flex-col">
                             <CardHeader className="items-center text-center">
@@ -88,7 +89,7 @@ export function MentorList() {
                             </CardFooter>
                         </Card>
                     )) : (
-                        <div className="md:col-span-2 lg:col-span-3 xl:col-span-4 text-center py-16 border-dashed border-2 rounded-lg">
+                        <div className="col-span-full text-center py-16 border-dashed border-2 rounded-lg">
                             <h3 className="font-headline text-2xl font-semibold">No Mentors Available</h3>
                             <p className="text-muted-foreground">There are currently no active teachers available for mentorship.</p>
                         </div>

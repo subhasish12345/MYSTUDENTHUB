@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -73,7 +74,9 @@ export function TimetableManager() {
                         <TimetableForm group={selectedGroup} />
                     </TabsContent>
                     <TabsContent value="preview">
-                        <TimetableViewer specificGroup={selectedGroup} />
+                        <div className="overflow-x-auto">
+                            <TimetableViewer specificGroup={selectedGroup} />
+                        </div>
                     </TabsContent>
                 </Tabs>
             )}

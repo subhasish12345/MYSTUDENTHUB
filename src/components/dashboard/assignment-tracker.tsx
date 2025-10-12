@@ -164,7 +164,7 @@ export function AssignmentTracker() {
                         <p className="text-muted-foreground">Keep track of your assignments and due dates.</p>
                     </div>
                     {isTeacherOrAdmin && (
-                        <Button onClick={() => setIsSheetOpen(true)}>
+                        <Button onClick={() => setIsSheetOpen(true)} className="w-full sm:w-auto">
                             <PlusCircle className="mr-2 h-4 w-4" /> Create Assignment
                         </Button>
                     )}
@@ -183,8 +183,8 @@ export function AssignmentTracker() {
                                 <TableRow>
                                     <TableHead>Subject</TableHead>
                                     <TableHead>Title</TableHead>
-                                    <TableHead>Due Date</TableHead>
-                                    <TableHead>Status</TableHead>
+                                    <TableHead className="hidden md:table-cell">Due Date</TableHead>
+                                    <TableHead className="hidden sm:table-cell">Status</TableHead>
                                     <TableHead className="text-right">Action</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -194,8 +194,8 @@ export function AssignmentTracker() {
                                         <TableRow key={i}>
                                             <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                                             <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                                            <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                                            <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                                            <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-32" /></TableCell>
+                                            <TableCell className="hidden sm:table-cell"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
                                             <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
                                         </TableRow>
                                     ))
@@ -209,8 +209,8 @@ export function AssignmentTracker() {
                                             <TableRow key={assignment.id}>
                                                 <TableCell className="font-medium">{assignment.subject}</TableCell>
                                                 <TableCell>{assignment.title}</TableCell>
-                                                <TableCell>{format(dueDate, "PPP")}</TableCell>
-                                                <TableCell>
+                                                <TableCell className="hidden md:table-cell">{format(dueDate, "PPP")}</TableCell>
+                                                <TableCell className="hidden sm:table-cell">
                                                     <Badge variant={status.variant}>{status.text}</Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">
@@ -241,7 +241,7 @@ export function AssignmentTracker() {
                 </Card>
             </div>
              <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                <SheetContent className="sm:max-w-xl w-full">
+                <SheetContent className="w-full max-w-full sm:max-w-xl">
                     <SheetHeader>
                         <SheetTitle>Create New Assignment</SheetTitle>
                         <SheetDescription>
