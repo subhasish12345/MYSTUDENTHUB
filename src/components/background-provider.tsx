@@ -39,6 +39,8 @@ export const BackgroundProvider = ({ children }: { children: ReactNode }) => {
         <div className={cn("fixed inset-0 -z-10 transition-all duration-500", 
             theme === 'pattern-1' && 'bg-pattern-1',
             theme === 'pattern-3' && 'bg-pattern-3',
+            theme === 'pattern-4' && 'bg-pattern-4',
+            theme === 'pattern-5' && 'bg-pattern-5',
             theme === 'pattern-6' && 'bg-pattern-6'
           )} 
         />
