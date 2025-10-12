@@ -14,9 +14,12 @@ const themes = [
   { id: "pattern-1", name: "Cosmic Swirl", className: "bg-pattern-1" },
   { id: "pattern-2", name: "Digital Matrix", className: "bg-pattern-2" },
   { id: "pattern-3", name: "Retro Circles", className: "bg-pattern-3" },
-  { id: "pattern-4", name: "Lamp Scene", className: "bg-pattern-4" },
-  { id: "pattern-5", name: "Synthwave", className: "bg-pattern-5" },
-  { id: "pattern-6", name: "Rain", className: "bg-pattern-6" },
+  { id: "pattern-lamp-scene", name: "Lamp Scene", className: "bg-pattern-lamp-scene" },
+  { id: "pattern-synthwave", name: "Synthwave", className: "bg-pattern-synthwave" },
+  { id: "pattern-rain", name: "Rain", className: "bg-pattern-rain" },
+  { id: "pastel-aurora", name: "Pastel Aurora", className: "bg-pastel-aurora" },
+  { id: "blue-squares", name: "Blue Squares", className: "bg-blue-squares" },
+  { id: "quantum-grid", name: "Quantum Grid", className: "bg-quantum-grid" },
 ];
 
 export default function SettingsPage() {
