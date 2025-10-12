@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,28 +9,6 @@ import { useAuth } from '@/hooks/use-auth';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-
-
-const FlipUnit = ({ value, nextValue }: { value: number; nextValue: number }) => {
-    const [isFlipped, setIsFlipped] = useState(false);
-
-    useEffect(() => {
-        setIsFlipped(true);
-        const timer = setTimeout(() => setIsFlipped(false), 700);
-        return () => clearTimeout(timer);
-    }, [value]);
-
-    return (
-        <div className="nums">
-            <div
-                className={cn("num", isFlipped && "flipped")}
-                data-num={value}
-                data-num-next={nextValue}
-             />
-        </div>
-    );
-};
 
 export function FocusSession() {
     const { user } = useAuth();
@@ -46,20 +24,6 @@ export function FocusSession() {
     
     const minutes = Math.floor(timer / 60);
     const seconds = timer % 60;
-
-    const timeDigits = useMemo(() => {
-        const getNextValue = (val: number) => (val === 0 ? 9 : val - 1);
-        return {
-            minTens: Math.floor(minutes / 10),
-            minOnes: minutes % 10,
-            secTens: Math.floor(seconds / 10),
-            secOnes: seconds % 10,
-            nextMinTens: Math.floor(getNextValue(minutes) / 10),
-            nextMinOnes: getNextValue(minutes) % 10,
-            nextSecTens: Math.floor(getNextValue(seconds) / 10),
-            nextSecOnes: getNextValue(seconds) % 10,
-        };
-    }, [minutes, seconds]);
     
     const saveSession = async () => {
         if (!user) return;
@@ -110,13 +74,19 @@ export function FocusSession() {
         setTimer(newTimeInSeconds);
     };
 
+    const formatTime = (time: number) => {
+        const minutes = Math.floor(time / 60).toString().padStart(2, '0');
+        const seconds = (time % 60).toString().padStart(2, '0');
+        return `${minutes}:${seconds}`;
+    }
+
     return (
         <div className="flex flex-col items-center justify-center h-full space-y-6">
             <div>
                 <h1 className="font-headline text-3xl font-bold text-center">Focus Session</h1>
                 <p className="text-muted-foreground text-center">Minimize distractions and maximize productivity.</p>
             </div>
-            <Card className="w-full max-w-2xl shadow-2xl bg-transparent border-0">
+            <Card className="w-full max-w-md shadow-2xl">
                 <CardHeader className="text-center">
                     <Input 
                         className="text-center text-2xl font-headline border-0 shadow-none focus-visible:ring-0 bg-transparent"
@@ -127,12 +97,8 @@ export function FocusSession() {
                     <CardDescription>Stay focused on your goal.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center gap-6">
-                    <div className="flip-clock-container" aria-label={`${minutes} minutes and ${seconds} seconds remaining`}>
-                        <FlipUnit value={timeDigits.minTens} nextValue={timeDigits.nextMinTens} />
-                        <FlipUnit value={timeDigits.minOnes} nextValue={timeDigits.nextMinOnes} />
-                        <div className="clock-colon">:</div>
-                        <FlipUnit value={timeDigits.secTens} nextValue={timeDigits.nextSecTens} />
-                        <FlipUnit value={timeDigits.secOnes} nextValue={timeDigits.nextSecOnes} />
+                    <div className="font-mono text-8xl font-bold text-primary" aria-label={`${minutes} minutes and ${seconds} seconds remaining`}>
+                        {formatTime(timer)}
                     </div>
                     
                     <div className="flex w-full max-w-sm gap-2">
