@@ -195,7 +195,7 @@ export function EventCalendar() {
                 </CardHeader>
             </Card>
 
-            <div className="flex flex-wrap gap-8 justify-center group">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 justify-items-center group">
                  {loading || authLoading ? (
                     Array.from({length: 4}).map((_, i) => (
                         <div key={i} className="w-80 h-80">
@@ -213,7 +213,7 @@ export function EventCalendar() {
                             />
                         ))
                 ) : (
-                    <div className="w-full text-center py-16 border-dashed border-2 rounded-lg">
+                    <div className="w-full sm:col-span-2 md:col-span-3 lg:col-span-4 text-center py-16 border-dashed border-2 rounded-lg">
                         <h3 className="font-headline text-2xl font-semibold">No Events Found</h3>
                         <p className="text-muted-foreground">There are no events matching your current filters.</p>
                     </div>

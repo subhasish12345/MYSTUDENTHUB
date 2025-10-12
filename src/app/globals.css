@@ -537,8 +537,9 @@
     cursor: pointer;
     display: flex;
     flex-direction: column;
-    width: 20rem; /* 320px */
-    height: 20rem; /* 320px */
+    width: 100%;
+    max-width: 20rem; /* 320px */
+    height: 22rem; /* 352px */
     padding: 1.5rem;
     border-radius: 1rem;
     box-shadow: rgba(0, 0, 0, 0.4) 0px 2px 2px, rgba(0, 0, 0, 0.3) 0px 7px 13px -3px, rgba(0, 0, 0, 0.2) 0px -1px 0px inset;
