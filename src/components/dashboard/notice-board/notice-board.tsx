@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -171,7 +172,7 @@ export function NoticeBoard() {
                                         <div className='flex-1'>
                                             <CardTitle className='text-xl'>{notice.title}</CardTitle>
                                             <CardDescription>
-                                                Posted {formatDistanceToNow(notice.createdAt.toDate(), { addSuffix: true })}
+                                                Posted {notice.createdAt ? formatDistanceToNow(notice.createdAt.toDate(), { addSuffix: true }) : 'just now'}
                                             </CardDescription>
                                         </div>
                                         <Badge variant='secondary'>{notice.category}</Badge>
