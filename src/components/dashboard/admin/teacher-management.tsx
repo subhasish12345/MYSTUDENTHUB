@@ -26,8 +26,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Roles } from "@/lib/roles";
 import { useAuth } from "@/hooks/use-auth";
-import { createUserWithEmailAndPassword, getAuth, deleteApp } from "firebase/auth"; // Import getAuth and deleteApp
-import { initializeApp } from "firebase/app"; // Import initializeApp
+import { createUserWithEmailAndPassword, getAuth } from "firebase/auth"; // Import getAuth
+import { initializeApp, deleteApp } from "firebase/app"; // Import initializeApp and deleteApp
 import { createFirestoreUserDocuments } from "@/lib/createUserAndProfile";
 
 
@@ -339,3 +339,5 @@ export function TeacherManagement() {
     </>
   );
 }
+
+    
