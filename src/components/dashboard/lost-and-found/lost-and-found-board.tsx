@@ -24,6 +24,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow } from 'date-fns';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 export interface LostAndFoundItem extends DocumentData {
     id: string;
@@ -79,19 +82,27 @@ export function LostAndFoundBoard() {
             }
         }
         
-        try {
-            await addDoc(collection(db, "lostAndFoundItems"), {
-                ...values,
-                imageUrl,
-                authorId: user.uid,
-                authorName: userData.name,
-                createdAt: serverTimestamp(),
+        const itemData = {
+            ...values,
+            imageUrl,
+            authorId: user.uid,
+            authorName: userData.name,
+            createdAt: serverTimestamp(),
+        };
+
+        addDoc(collection(db, "lostAndFoundItems"), itemData)
+            .then(() => {
+                toast({ title: "Success", description: "Your item has been posted." });
+                setIsSheetOpen(false);
+            })
+            .catch(async (serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: 'lostAndFoundItems',
+                    operation: 'create',
+                    requestResourceData: itemData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
             });
-            toast({ title: "Success", description: "Your item has been posted." });
-            setIsSheetOpen(false);
-        } catch (error: any) {
-            toast({ title: "Post Failed", description: error.message, variant: "destructive"});
-        }
     };
     
     const handleDeleteConfirm = async () => {
