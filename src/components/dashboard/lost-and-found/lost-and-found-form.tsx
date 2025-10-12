@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -26,11 +27,11 @@ export type LostAndFoundFormValues = z.infer<typeof formSchema>;
 
 interface LostAndFoundFormProps {
   onSubmit: (values: LostAndFoundFormValues, imageDataUrl: string | null) => Promise<void>;
+  isSubmitting: boolean;
 }
 
-export function LostAndFoundForm({ onSubmit }: LostAndFoundFormProps) {
+export function LostAndFoundForm({ onSubmit, isSubmitting }: LostAndFoundFormProps) {
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -117,9 +118,7 @@ export function LostAndFoundForm({ onSubmit }: LostAndFoundFormProps) {
         toast({ title: "Image Required", description: "Please provide a picture of the item.", variant: "destructive"});
         return;
     }
-    setIsSubmitting(true);
     await onSubmit(values, imageDataUrl);
-    setIsSubmitting(false);
     form.reset();
     setImageDataUrl(null);
   };

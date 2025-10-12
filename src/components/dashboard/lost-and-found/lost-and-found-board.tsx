@@ -49,6 +49,7 @@ export function LostAndFoundBoard() {
     const [loading, setLoading] = useState(true);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [deletingItem, setDeletingItem] = useState<LostAndFoundItem | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const q = query(collection(db, "lostAndFoundItems"), orderBy("createdAt", "desc"));
@@ -70,39 +71,38 @@ export function LostAndFoundBoard() {
             return;
         }
 
+        setIsSubmitting(true);
         let imageUrl = '';
-        if (imageDataUrl) {
-            try {
+
+        try {
+            if (imageDataUrl) {
                 const storageRef = ref(storage, `lost-and-found/${user.uid}-${Date.now()}`);
                 const uploadResult = await uploadString(storageRef, imageDataUrl, 'data_url');
                 imageUrl = await getDownloadURL(uploadResult.ref);
-            } catch (error: any) {
-                toast({ title: "Image Upload Failed", description: error.message, variant: "destructive"});
-                return;
             }
-        }
-        
-        const itemData = {
-            ...values,
-            imageUrl,
-            authorId: user.uid,
-            authorName: userData.name,
-            createdAt: serverTimestamp(),
-        };
+            
+            const itemData = {
+                ...values,
+                imageUrl,
+                authorId: user.uid,
+                authorName: userData.name,
+                createdAt: serverTimestamp(),
+            };
 
-        addDoc(collection(db, "lostAndFoundItems"), itemData)
-            .then(() => {
-                toast({ title: "Success", description: "Your item has been posted." });
-                setIsSheetOpen(false);
-            })
-            .catch(async (serverError) => {
-                const permissionError = new FirestorePermissionError({
-                    path: 'lostAndFoundItems',
-                    operation: 'create',
-                    requestResourceData: itemData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-            });
+            await addDoc(collection(db, "lostAndFoundItems"), itemData);
+            toast({ title: "Success", description: "Your item has been posted." });
+            setIsSheetOpen(false);
+
+        } catch (error: any) {
+            console.error("Error submitting item:", error);
+            if (error instanceof FirestorePermissionError) {
+                 errorEmitter.emit('permission-error', error);
+            } else {
+                 toast({ title: "Submission Failed", description: error.message || "Could not post your item.", variant: "destructive"});
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
     };
     
     const handleDeleteConfirm = async () => {
@@ -150,7 +150,7 @@ export function LostAndFoundBoard() {
                                     Fill in the details below. Take a picture if you can!
                                 </SheetDescription>
                             </SheetHeader>
-                            <LostAndFoundForm onSubmit={handleFormSubmit} />
+                            <LostAndFoundForm onSubmit={handleFormSubmit} isSubmitting={isSubmitting} />
                         </SheetContent>
                     </Sheet>
                 </div>
