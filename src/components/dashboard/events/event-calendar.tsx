@@ -5,7 +5,7 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy, DocumentData } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { format } from "date-fns";
-import { Button } from '../ui/button';
+import { Button } from '@/components/ui/button';
 import { PlusCircle, Edit, Trash2, ExternalLink, UserCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { EventForm, EventFormValues } from './event-form';
@@ -14,9 +14,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { createEvent, updateEvent, deleteEvent } from './actions';
 import Image from 'next/image';
-import { Badge } from '../ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Skeleton } from '../ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface Event extends DocumentData {
     id: string;
