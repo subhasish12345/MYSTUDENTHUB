@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db, auth } from "@/lib/firebase";
+import { db, auth as primaryAuth, app as primaryApp } from "@/lib/firebase"; // Import primary app
 import { collection, onSnapshot, doc, deleteDoc, DocumentData, serverTimestamp, query, where, updateDoc, getDocs, getDoc, setDoc, writeBatch } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -26,7 +26,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Roles } from "@/lib/roles";
 import { useAuth } from "@/hooks/use-auth";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, getAuth, deleteApp } from "firebase/auth"; // Import getAuth and deleteApp
+import { initializeApp } from "firebase/app"; // Import initializeApp
 import { createFirestoreUserDocuments } from "@/lib/createUserAndProfile";
 
 
@@ -161,14 +162,17 @@ export function TeacherManagement() {
       const last4 = values.phone.slice(-4);
       const password = values.name.replace(/\s+/g, '').toLowerCase() + last4;
       
+      // Use a secondary app to create the user without signing them in
+      const secondaryAppName = `secondary-auth-app-${Date.now()}`;
+      const secondaryApp = initializeApp(primaryApp.options, secondaryAppName);
+      const secondaryAuth = getAuth(secondaryApp);
+      
       try {
-        // This is a temporary solution for client-side user creation.
-        // In a real app, this should be a secure backend function.
-        // Create the user in Firebase Authentication
-        const userCredential = await createUserWithEmailAndPassword(auth, values.email, password);
+        // Create the user in Firebase Authentication using the secondary app
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, values.email, password);
         const newTeacherUid = userCredential.user.uid;
 
-        // Now create the documents in Firestore
+        // Now create the documents in Firestore using the primary app (where admin is logged in)
         await createFirestoreUserDocuments(newTeacherUid, {
           email: values.email,
           role: 'teacher',
@@ -201,6 +205,8 @@ export function TeacherManagement() {
          }
       } finally {
           setIsSubmitting(false);
+          // Clean up the secondary app instance
+          await deleteApp(secondaryApp);
       }
     }
   };
