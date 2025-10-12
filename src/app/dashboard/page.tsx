@@ -4,9 +4,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { Skeleton } from "@/components/ui/skeleton";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { Loader } from "@/components/ui/loader";
 
 export default function DashboardPage() {
   const { user, userRole, userData, loading } = useAuth();
@@ -55,15 +53,9 @@ export default function DashboardPage() {
 
   // Show a full-page loading screen while checking auth and redirecting
   return (
-    <div className="flex items-center justify-center h-screen">
-        <div className="space-y-6 p-8 w-full max-w-md">
-            <Skeleton className="h-10 w-3/4 mx-auto" />
-            <Skeleton className="h-6 w-1/2 mx-auto" />
-            <div className="space-y-4 mt-8">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-40 w-full" />
-            </div>
-        </div>
+    <div className="flex flex-col items-center justify-center h-screen space-y-4">
+        <Loader />
+        <p className="text-muted-foreground">Loading your dashboard...</p>
     </div>
   );
 }
