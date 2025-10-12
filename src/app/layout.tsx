@@ -29,11 +29,12 @@ export default function RootLayout({
       <head>
         <title>MyStudentHub</title>
         <meta name="description" content="Your all-in-one platform for academic success." />
+        <link rel="icon" href="/icon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet" />
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#29ABE2" />
+        <meta name="theme-color" content="#1D232A" />
       </head>
       <body className="font-body antialiased">
         <ThemeProvider
