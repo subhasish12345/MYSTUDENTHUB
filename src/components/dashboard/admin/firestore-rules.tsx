@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Check, Clipboard } from "lucide-react";
@@ -51,7 +52,7 @@ service cloud.firestore {
       
       // --- User Notifications Subcollection ---
       match /notifications/{notificationId} {
-        allow read, update, delete: if isSignedIn() && request.auth.uid == userId;
+        allow read, write, update, delete: if isSignedIn() && request.auth.uid == userId;
         allow create: if isSignedIn(); // Allow backend functions/admins to create notifications
       }
     }
@@ -110,7 +111,7 @@ service cloud.firestore {
 
       match /attendance/{date} {
         allow read: if isSignedIn() && (
-          (request.auth.uid in get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students)
+          (get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students.hasAny([request.auth.uid]))
           || isAdminOrTeacher()
         );
         allow write: if isSignedIn() && isAdminOrTeacher();

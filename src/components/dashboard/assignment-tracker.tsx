@@ -1,10 +1,11 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, DocumentData, orderBy, doc, getDoc, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, where, DocumentData, orderBy, doc, getDoc, getDocs, addDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -148,6 +149,25 @@ export function AssignmentTracker() {
             });
             toast({ title: "Success", description: "Assignment created successfully."});
             setIsSheetOpen(false);
+
+            // Fan-out notifications to students in the group
+            const groupDoc = await getDoc(doc(db, "semesterGroups", values.groupId));
+            if (groupDoc.exists()) {
+                const studentIds = groupDoc.data().students || [];
+                const batch = writeBatch(db);
+                studentIds.forEach((studentId: string) => {
+                    const notificationRef = doc(collection(db, "users", studentId, "notifications"));
+                    batch.set(notificationRef, {
+                        title: `New Assignment: ${values.title}`,
+                        body: `A new assignment for ${values.subject} is due on ${format(values.dueDate, "PPP")}.`,
+                        link: "/dashboard/assignments",
+                        isRead: false,
+                        createdAt: serverTimestamp(),
+                    });
+                });
+                await batch.commit();
+            }
+
         } catch (error: any) {
             toast({ title: "Error", description: error.message, variant: "destructive" });
         } finally {

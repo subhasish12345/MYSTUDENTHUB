@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, orderBy, DocumentData, addDoc, serverTimestamp, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, DocumentData, addDoc, serverTimestamp, updateDoc, doc, deleteDoc, writeBatch, getDocs, where } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { format } from "date-fns";
 import { Button } from '@/components/ui/button';
@@ -87,6 +88,23 @@ export function EventCalendar() {
                     updatedAt: serverTimestamp(),
                 });
                 toast({ title: "Success", description: "New event has been created." });
+
+                // Fan out notifications to all students
+                const studentsQuery = query(collection(db, "users"), where("role", "==", "student"));
+                const studentsSnap = await getDocs(studentsQuery);
+                const batch = writeBatch(db);
+                studentsSnap.forEach(studentDoc => {
+                    const notificationRef = doc(collection(db, "users", studentDoc.id, "notifications"));
+                    batch.set(notificationRef, {
+                        title: `New Event: ${values.title}`,
+                        body: `Check out the new event: ${values.title} on ${format(values.date, "PPP")}.`,
+                        link: "/dashboard/events",
+                        isRead: false,
+                        createdAt: serverTimestamp(),
+                    });
+                });
+                await batch.commit();
+
             }
             setIsSheetOpen(false);
             setEditingEvent(null);
