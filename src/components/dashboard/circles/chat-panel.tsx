@@ -32,6 +32,7 @@ export interface Post extends DocumentData {
     content: string;
     timestamp: any;
     replies?: Reply[];
+    likes?: string[];
 }
 
 export function ChatPanel({ group }: { group: DocumentData }) {
@@ -75,6 +76,8 @@ export function ChatPanel({ group }: { group: DocumentData }) {
                     uid: user.uid,
                 },
                 timestamp: serverTimestamp(),
+                likes: [],
+                replies: [],
             });
             setNewPostContent("");
         } catch (error: any) {
@@ -109,10 +112,10 @@ export function ChatPanel({ group }: { group: DocumentData }) {
                 </CardFooter>
             </Card>
 
-            <div className="space-y-4">
+            <div className="space-y-8">
                  {loading ? (
                     Array.from({ length: 3 }).map((_, i) => (
-                        <Card key={i}><CardHeader><Skeleton className="h-24 w-full" /></CardHeader></Card>
+                        <Card key={i}><CardHeader><Skeleton className="h-48 w-full" /></CardHeader></Card>
                     ))
                 ) : posts.length > 0 ? (
                     posts.map(post => (
