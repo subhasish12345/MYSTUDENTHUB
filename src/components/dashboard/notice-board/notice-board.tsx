@@ -159,7 +159,7 @@ export function NoticeBoard() {
                 </CardHeader>
             </Card>
 
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="flex flex-wrap justify-center md:justify-start gap-8">
                  {loading || authLoading ? (
                     Array.from({length: 4}).map((_, i) => (
                          <div key={i} className="pixar-card">
@@ -194,7 +194,7 @@ export function NoticeBoard() {
                             </div>
                         ))
                 ) : (
-                    <div className="lg:col-span-3 xl:col-span-4 text-center py-16 border-dashed border-2 rounded-lg">
+                    <div className="w-full text-center py-16 border-dashed border-2 rounded-lg">
                         <h3 className="font-headline text-2xl font-semibold">No Notices Found</h3>
                         <p className="text-muted-foreground">There are no notices matching your current filters.</p>
                     </div>
