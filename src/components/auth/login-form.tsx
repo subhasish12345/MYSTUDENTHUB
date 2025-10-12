@@ -1,16 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { auth, db } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { signInWithEmailAndPassword, AuthError } from "firebase/auth";
 import { LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
 
 export function LoginForm() {
   const router = useRouter();
@@ -45,41 +40,40 @@ export function LoginForm() {
   };
   
   return (
-      <Card className="w-full max-w-sm shadow-2xl animate-in fade-in-0 slide-in-from-bottom-8 duration-1000">
-        <CardHeader>
-          <CardTitle className="font-headline text-2xl">Login</CardTitle>
-          <CardDescription>Enter your credentials to access your account.</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleEmailLogin}>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="m@example.com" 
-                required 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                required 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button className="w-full" type="submit" disabled={loading}>
-              {loading ? "Signing In..." : <><LogIn className="mr-2 h-4 w-4" /> Sign In</>}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+      <form onSubmit={handleEmailLogin} className="form-container w-full max-w-sm animate-in fade-in-0 slide-in-from-bottom-8 duration-1000">
+        <p>
+          Welcome,
+          <span>sign in to continue</span>
+        </p>
+        
+        <input 
+          id="email" 
+          type="email" 
+          placeholder="Email" 
+          required 
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="form-input"
+        />
+        
+        <input 
+          id="password" 
+          type="password"
+          placeholder="Password"
+          required 
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="form-input"
+        />
+
+        <button className="form-button" type="submit" disabled={loading}>
+          {loading ? "Signing In..." : (
+            <>
+              <LogIn />
+              Sign In
+            </>
+          )}
+        </button>
+      </form>
   );
 }
