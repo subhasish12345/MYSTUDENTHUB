@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { FirestoreRules } from "@/components/dashboard/admin/firestore-rules";
 import { FeedbackViewer } from "./feedback/feedback-viewer";
+import { ReportGeneration } from "./admin/report-generation";
 
 
 export function AdminPanel() {
@@ -30,6 +31,7 @@ export function AdminPanel() {
                     <TabsTrigger value="streams">Streams</TabsTrigger>
                     <TabsTrigger value="batches">Batches</TabsTrigger>
                     <TabsTrigger value="feedback">Feedback</TabsTrigger>
+                    <TabsTrigger value="reports">Reports</TabsTrigger>
                     <TabsTrigger value="rules">Rules</TabsTrigger>
                 </TabsList>
                 <TabsContent value="teachers">
@@ -49,6 +51,9 @@ export function AdminPanel() {
                 </TabsContent>
                 <TabsContent value="feedback">
                     <FeedbackViewer />
+                </TabsContent>
+                 <TabsContent value="reports">
+                    <ReportGeneration />
                 </TabsContent>
                  <TabsContent value="rules">
                     <Card>
