@@ -12,10 +12,10 @@ import { EventForm, EventFormValues } from './event-form';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EventCard } from './event-card';
 
 export interface Event extends DocumentData {
     id: string;
@@ -195,71 +195,25 @@ export function EventCalendar() {
                 </CardHeader>
             </Card>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="flex flex-wrap gap-8 justify-center">
                  {loading || authLoading ? (
                     Array.from({length: 4}).map((_, i) => (
-                        <Card key={i} className="flex flex-col">
-                            <Skeleton className="h-40 w-full rounded-t-lg" />
-                            <CardHeader>
-                                <Skeleton className="h-6 w-3/4" />
-                                <Skeleton className="h-4 w-1/2" />
-                            </CardHeader>
-                            <CardContent>
-                                <Skeleton className="h-4 w-full" />
-                                <Skeleton className="h-4 w-2/3 mt-2" />
-                            </CardContent>
-                            <CardFooter>
-                                <Skeleton className="h-10 w-24" />
-                            </CardFooter>
-                        </Card>
+                        <div key={i} className="w-80 h-80">
+                           <Skeleton className="h-full w-full rounded-full" />
+                        </div>
                     ))
                  ) : filteredEvents.length > 0 ? (
                         filteredEvents.map(event => (
-                            <Card key={event.id} className="flex flex-col shadow-md">
-                                {event.imageUrl && (
-                                    <div className="relative h-40 w-full">
-                                        <Image src={event.imageUrl} alt={event.title} fill style={{objectFit: "cover"}} className="rounded-t-lg" data-ai-hint="event poster" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
-                                    </div>
-                                )}
-                                <CardHeader>
-                                    <div className="flex justify-between items-start gap-2">
-                                        <div className='flex-1'>
-                                            <CardTitle className='text-lg'>{event.title}</CardTitle>
-                                            <CardDescription>{format(event.date.toDate(), 'PPP, p')}</CardDescription>
-                                        </div>
-                                        <Badge variant={event.status === 'Cancelled' ? 'destructive' : 'secondary'}>{event.category}</Badge>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="flex-grow space-y-2">
-                                    <p className="text-sm text-muted-foreground">{event.description}</p>
-                                    <p className="text-sm font-semibold">Venue: {event.venue}</p>
-                                    {event.status === 'Cancelled' && <p className="text-destructive font-bold">This event has been cancelled.</p>}
-                                </CardContent>
-                                <CardFooter className="flex justify-between items-center border-t pt-4">
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <UserCircle className="h-4 w-4" />
-                                        <span>{event.postedByName || "Admin"}</span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        {event.registrationLink && event.status !== 'Cancelled' && (
-                                            <Button asChild size="sm">
-                                                <a href={event.registrationLink} target="_blank" rel="noopener noreferrer">
-                                                    Register <ExternalLink className="ml-2 h-4 w-4" />
-                                                </a>
-                                            </Button>
-                                        )}
-                                        {isAdmin && (
-                                            <>
-                                                <Button variant="outline" size="icon" onClick={() => handleEditClick(event)}><Edit className="h-4 w-4" /></Button>
-                                                <Button variant="destructive" size="icon" onClick={() => setDeletingEvent(event)}><Trash2 className="h-4 w-4" /></Button>
-                                            </>
-                                        )}
-                                    </div>
-                                </CardFooter>
-                            </Card>
+                            <EventCard 
+                                key={event.id}
+                                event={event}
+                                isAdmin={isAdmin}
+                                onEdit={() => handleEditClick(event)}
+                                onDelete={() => setDeletingEvent(event)}
+                            />
                         ))
                 ) : (
-                    <div className="lg:col-span-3 xl:col-span-4 text-center py-16 border-dashed border-2 rounded-lg">
+                    <div className="w-full text-center py-16 border-dashed border-2 rounded-lg">
                         <h3 className="font-headline text-2xl font-semibold">No Events Found</h3>
                         <p className="text-muted-foreground">There are no events matching your current filters.</p>
                     </div>
