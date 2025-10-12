@@ -2,50 +2,66 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Function to check if a user is signed in.
+    // ===============================================================
+    //  🔐 Helper Functions
+    // ===============================================================
+
+    // Check if a user is signed in
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Helper Function to safely get a user's role from the /users collection.
-    function getUserRole() {
-      // Use exists() to check if the document exists before trying to access its data.
-      // This prevents errors on new user signup before the user doc is created.
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-        : null;
+    // Safely get a user's role from the /users collection
+    function getUserRole(uid) {
+      let userDoc = get(/databases/$(database)/documents/users/$(uid));
+      return userDoc != null && userDoc.data.role != null ? userDoc.data.role : null;
     }
-    
-    // =====================================================================
-    //  User & Profile Collections
-    // =====================================================================
 
-    // The /users collection is the single source of truth for roles.
+    // Convenience checks
+    function isAdmin() {
+      return getUserRole(request.auth.uid) == 'admin';
+    }
+
+    function isTeacher() {
+      return getUserRole(request.auth.uid) == 'teacher';
+    }
+
+    function isAdminOrTeacher() {
+      let role = getUserRole(request.auth.uid);
+      return role == 'admin' || role == 'teacher';
+    }
+
+    // ===============================================================
+    //  👤 Users Collection
+    // ===============================================================
     match /users/{userId} {
-      // A user must be able to read their own user document for the getUserRole() function to work everywhere.
-      // Admins can read any user document.
-      allow get: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
-      
-      allow list: if isSignedIn() && getUserRole() == 'admin';
-      allow create: if isSignedIn(); // Allows new users to be created.
-      allow update: if isSignedIn() && (request.auth.uid == userId || getUserRole() == 'admin');
-      allow delete: if isSignedIn() && getUserRole() == 'admin';
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isSignedIn() && isAdmin();
     }
 
+    // ===============================================================
+    //  👨‍🏫 Teachers
+    // ===============================================================
     match /teachers/{teacherId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && getUserRole() == 'admin';
+      allow create, update, delete: if isSignedIn() && isAdmin();
     }
 
+    // ===============================================================
+    //  🧑‍🎓 Students
+    // ===============================================================
     match /students/{studentId} {
       allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == studentId);
-      allow update: if isSignedIn() && (getUserRole() == 'admin' || request.auth.uid == studentId);
-      allow delete: if isSignedIn() && getUserRole() == 'admin';
+      allow create: if isSignedIn() && (isAdmin() || request.auth.uid == studentId);
+      allow update: if isSignedIn() && (isAdmin() || request.auth.uid == studentId);
+      allow delete: if isSignedIn() && isAdmin();
 
-      // --- Student Sub-collections ---
+      // --- Student Subcollections ---
       match /semesters/{semesterId} {
-        allow read, write: if isSignedIn() && (request.auth.uid == studentId || getUserRole() == 'admin');
+        allow read, write: if isSignedIn() && (isAdmin() || request.auth.uid == studentId);
       }
       match /focusSessions/{sessionId} {
         allow read, write: if isSignedIn() && request.auth.uid == studentId;
@@ -55,71 +71,98 @@ service cloud.firestore {
       }
     }
 
-    // =====================================================================
-    //  Academic Structure & App Features
-    // =====================================================================
-    
-    // --- NOTICES ---
-    match /notices/{noticeId} {
-        allow read: if isSignedIn();
-        allow create, update, delete: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
-    }
-
+    // ===============================================================
+    //  🎓 Academic Data
+    // ===============================================================
     match /degrees/{degreeId} {
       allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isSignedIn() && isAdmin();
     }
+
     match /streams/{streamId} {
       allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isSignedIn() && isAdmin();
     }
+
     match /batches/{batchId} {
       allow get, list: if isSignedIn();
-      allow write: if isSignedIn() && getUserRole() == 'admin';
+      allow write: if isSignedIn() && isAdmin();
     }
-    
+
     match /semesterGroups/{groupId} {
       allow get: if isSignedIn();
-      // Admins/teachers can list all groups. Students cannot list all groups.
-      // Students find their groups by getting specific group IDs from their own profile, which is allowed by the 'get' rule.
-      allow list: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
-      allow write: if isSignedIn() && getUserRole() == 'admin';
-      
+      allow list: if isAdminOrTeacher();
+      allow write: if isSignedIn() && isAdmin();
+
       match /attendance/{date} {
-        allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students || getUserRole() in ['admin', 'teacher']);
-        allow write: if isSignedIn() && getUserRole() in ['admin', 'teacher'];
+        allow read: if isSignedIn() && (
+          (request.auth.uid in get(/databases/$(database)/documents/semesterGroups/$(groupId)).data.students)
+          || isAdminOrTeacher()
+        );
+        allow write: if isSignedIn() && isAdminOrTeacher();
       }
     }
-    
-    // --- ASSIGNMENTS ---
+
+    // ===============================================================
+    //  📚 Assignments & Materials
+    // ===============================================================
     match /assignments/{assignmentId} {
-        allow get, list: if isSignedIn();
-        allow create, update, delete: if isSignedIn() && getUserRole() in ['teacher', 'admin'];
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && isAdminOrTeacher();
     }
-    
-    // --- STUDENT CIRCLES ---
+
+    match /studyMaterials/{materialId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && isAdminOrTeacher();
+    }
+
+    match /syllabi/{syllabusId} {
+      allow get, list: if isSignedIn();
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    match /timetables/{timetableId} {
+      allow get, list: if isSignedIn();
+      allow write: if isSignedIn() && isAdmin();
+    }
+
+    // ===============================================================
+    //  🧩 Circles / Posts
+    // ===============================================================
     match /circles/{groupId}/posts/{postId} {
-        function isGroupMember() {
-            // This checks the group document's 'students' array.
-            // It assumes the student has get access to the semesterGroup document.
-            let groupDoc = get(/databases/$(database)/documents/semesterGroups/$(groupId));
-            return isSignedIn() && request.auth.uid in groupDoc.data.students;
-        }
+      function isGroupMember() {
+        let groupDoc = get(/databases/$(database)/documents/semesterGroups/$(groupId));
+        return groupDoc != null && isSignedIn() && request.auth.uid in groupDoc.data.students;
+      }
 
-        function isTeacherOfGroup() {
-            // This checks the teacher's own profile.
-            let teacherData = get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data;
-            return isSignedIn() && 'assignedGroups' in teacherData && groupId in teacherData.assignedGroups;
-        }
+      function isTeacherOfGroup() {
+        let teacherDoc = get(/databases/$(database)/documents/teachers/$(request.auth.uid));
+        return teacherDoc != null && isSignedIn() &&
+               ('assignedGroups' in teacherDoc.data) &&
+               (groupId in teacherDoc.data.assignedGroups);
+      }
 
-        // Allow read/create for group members, teachers of the group, or admins.
-        allow read, create: if isGroupMember() || isTeacherOfGroup() || getUserRole() == 'admin';
-        
-        // Allow updates (replies) if the user is a member/teacher/admin.
-        allow update: if isGroupMember() || isTeacherOfGroup() || getUserRole() == 'admin';
-        
-        // Allow deletion only for the post author or an admin.
-        allow delete: if getUserRole() == 'admin' || (isSignedIn() && request.auth.uid == resource.data.author.uid);
+      allow read, create: if isGroupMember() || isTeacherOfGroup() || isAdmin();
+      allow update: if isGroupMember() || isTeacherOfGroup() || isAdmin();
+      allow delete: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.author.uid);
+    }
+
+    // ===============================================================
+    //  📅 Events, Feedback, Notices
+    // ===============================================================
+    match /events/{eventId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && isAdmin();
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if isSignedIn() && getUserRole(request.auth.uid) == 'student';
+      allow read, list, update, delete: if isSignedIn() && isAdmin();
+    }
+
+    match /notices/{noticeId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && isAdminOrTeacher();
     }
   }
 }

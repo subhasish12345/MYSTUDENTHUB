@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      // setLoading(true); // This was causing the redirect loop.
+      setLoading(true); 
       if (user) {
         setUser(user);
         try {
