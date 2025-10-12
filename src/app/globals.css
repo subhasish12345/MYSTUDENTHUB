@@ -57,6 +57,43 @@
   }
 }
 
+/* Virtual ID Card Styles */
+@layer components {
+    .id-card {
+        --id-card-primary: theme('colors.blue.500');
+    }
+    .id-card-blue {
+        --id-card-primary: #58b0e0;
+    }
+    .id-card-red {
+        --id-card-primary: #e05858;
+    }
+    .id-card-purple {
+        --id-card-primary: #a458e0;
+    }
+
+    .id-card .avatar-border {
+        fill: var(--id-card-primary);
+    }
+    .id-card .top-bar::after,
+    .id-card .top-bar::before {
+        background-color: var(--id-card-primary);
+    }
+    .id-card .bottom-bar {
+         background-color: var(--id-card-primary);
+    }
+    .id-card .icon-fill {
+        fill: theme('colors.stone.700');
+    }
+    .id-card:hover .icon-fill {
+         fill: var(--id-card-primary);
+    }
+     .id-card .center-bar {
+        background-color: var(--id-card-primary);
+     }
+}
+
+
 /* New Form Styles */
 @layer components {
   .form-container {

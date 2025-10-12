@@ -25,6 +25,7 @@ import {
   Handshake,
   MessageSquare,
   Megaphone,
+  Badge,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -33,6 +34,7 @@ import { auth } from "@/lib/firebase";
 
 const allMenuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/id-card", label: "ID Card", icon: Badge },
   { href: "/dashboard/assignments", label: "Assignments", icon: Briefcase },
   { href: "/dashboard/attendance", label: "Attendance", icon: ClipboardCheck, teacherOnly: true },
   { href: "/dashboard/materials", label: "Study Materials", icon: BookOpen },
