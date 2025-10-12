@@ -14,6 +14,9 @@ const themes = [
   { id: "pattern-1", name: "Cosmic Swirl", className: "bg-pattern-1" },
   { id: "pattern-2", name: "Digital Matrix", className: "bg-pattern-2" },
   { id: "pattern-3", name: "Retro Circles", className: "bg-pattern-3" },
+  { id: "pattern-4", name: "Lamp Scene", className: "bg-pattern-4" },
+  { id: "pattern-5", name: "Synthwave", className: "bg-pattern-5" },
+  { id: "pattern-6", name: "Rain", className: "bg-pattern-6" },
 ];
 
 export default function SettingsPage() {
