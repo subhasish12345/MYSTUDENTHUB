@@ -46,6 +46,11 @@ export function NoticeBoard() {
     const noticeCategories = ['All', 'Academics', 'Examination', 'Cultural', 'Hostel', 'Administrative', 'Other'];
 
     useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
         const noticesQuery = query(collection(db, "notices"), orderBy("createdAt", "desc"));
         const unsubscribe = onSnapshot(noticesQuery, (snapshot) => {
             const noticesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notice));
@@ -56,8 +61,10 @@ export function NoticeBoard() {
             toast({ title: "Error", description: "Could not fetch notices.", variant: "destructive" });
             setLoading(false);
         });
+
+        // Cleanup the listener when the component unmounts or the user changes
         return () => unsubscribe();
-    }, [toast]);
+    }, [toast, user]);
 
     const handleFormSubmit = async (values: NoticeFormValues) => {
         if (!user || !userData || !userRole || !canManage) {

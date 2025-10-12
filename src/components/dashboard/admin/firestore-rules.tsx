@@ -45,7 +45,8 @@ service cloud.firestore {
     // ===============================================================
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow list: if isSignedIn() && isAdmin();
+      // Teachers also need to list users to send notifications
+      allow list: if isAdminOrTeacher();
       allow create: if isSignedIn();
       allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow delete: if isSignedIn() && isAdmin();
