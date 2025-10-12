@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
+import { BackgroundProvider } from '@/components/background-provider';
 
 export const metadata: Metadata = {
   title: 'MyStudentHub',
@@ -27,8 +28,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster />
+          <BackgroundProvider>
+            {children}
+            <Toaster />
+          </BackgroundProvider>
         </ThemeProvider>
       </body>
     </html>
