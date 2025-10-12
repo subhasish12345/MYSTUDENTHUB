@@ -13,18 +13,19 @@ export default function AdminLayout({
   const { userRole, loading } = useAuth();
   const router = useRouter();
 
-  // The admin check is now robust and happens inside useAuth
   const isAuthorized = userRole === "admin";
 
   useEffect(() => {
+    // Wait until loading is complete before checking authorization
     if (!loading && !isAuthorized) {
       // If not loading and not an authorized admin, redirect away.
+      // Redirect to the main dashboard, which will handle further redirection if needed.
       router.replace("/dashboard");
     }
   }, [userRole, loading, router, isAuthorized]);
 
   // While loading, or if not yet authorized, show a skeleton screen.
-  // This prevents content flashing before the redirect can happen.
+  // This prevents content flashing for non-admins before the redirect can happen.
   if (loading || !isAuthorized) {
     return (
         <div className="space-y-6 p-8">
@@ -38,6 +39,6 @@ export default function AdminLayout({
     );
   }
 
-  // If loading is finished and the user is authorized, render the children.
+  // If loading is finished and the user is an authorized admin, render the children.
   return <>{children}</>;
 }
