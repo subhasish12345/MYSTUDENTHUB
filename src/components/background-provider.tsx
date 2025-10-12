@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-type BackgroundTheme = 'default' | 'pattern-1' | 'pattern-2' | 'pattern-3' | 'pattern-4' | 'pattern-5' | 'pattern-6';
+type BackgroundTheme = 'default' | 'pattern-1' | 'pattern-2' | 'pattern-3' | 'pattern-lamp-scene' | 'pattern-synthwave' | 'pattern-rain' | 'pastel-aurora' | 'blue-squares' | 'quantum-grid';
 
 interface BackgroundContextType {
   theme: BackgroundTheme;
@@ -18,7 +18,7 @@ export const BackgroundProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const storedTheme = localStorage.getItem('background-theme') as BackgroundTheme | null;
-    if (storedTheme && ['default', 'pattern-1', 'pattern-2', 'pattern-3', 'pattern-4', 'pattern-5', 'pattern-6'].includes(storedTheme)) {
+    if (storedTheme && ['default', 'pattern-1', 'pattern-2', 'pattern-3', 'pattern-lamp-scene', 'pattern-synthwave', 'pattern-rain', 'pastel-aurora', 'blue-squares', 'quantum-grid'].includes(storedTheme)) {
       setThemeState(storedTheme);
     }
     setIsMounted(true);
@@ -39,9 +39,12 @@ export const BackgroundProvider = ({ children }: { children: ReactNode }) => {
         <div className={cn("fixed inset-0 -z-10 transition-all duration-500", 
             theme === 'pattern-1' && 'bg-pattern-1',
             theme === 'pattern-3' && 'bg-pattern-3',
-            theme === 'pattern-4' && 'bg-pattern-4',
-            theme === 'pattern-5' && 'bg-pattern-5',
-            theme === 'pattern-6' && 'bg-pattern-6'
+            theme === 'pattern-lamp-scene' && 'bg-pattern-lamp-scene',
+            theme === 'pattern-synthwave' && 'bg-pattern-synthwave',
+            theme === 'pattern-rain' && 'bg-pattern-rain',
+            theme === 'pastel-aurora' && 'bg-pastel-aurora',
+            theme === 'blue-squares' && 'bg-blue-squares',
+            theme === 'quantum-grid' && 'bg-quantum-grid'
           )} 
         />
         {theme === 'pattern-2' && (
