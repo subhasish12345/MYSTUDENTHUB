@@ -3,6 +3,7 @@ import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/hooks/use-auth";
 import { FirebaseErrorListener } from "@/components/FirebaseErrorListener";
+import { NotificationProvider } from "@/hooks/use-notifications";
 
 export default function DashboardLayout({
   children,
@@ -11,16 +12,18 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthProvider>
-      <FirebaseErrorListener />
-      <SidebarProvider>
-        <DashboardSidebar />
-        <SidebarInset>
-          <DashboardHeader />
-          <main className="p-4 md:p-6 lg:p-8">
-              {children}
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
+        <NotificationProvider>
+            <FirebaseErrorListener />
+            <SidebarProvider>
+                <DashboardSidebar />
+                <SidebarInset>
+                <DashboardHeader />
+                <main className="p-4 md:p-6 lg:p-8">
+                    {children}
+                </main>
+                </SidebarInset>
+            </SidebarProvider>
+        </NotificationProvider>
     </AuthProvider>
   );
 }

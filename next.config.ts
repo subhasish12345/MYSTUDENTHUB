@@ -1,4 +1,9 @@
 import type {NextConfig} from 'next';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -40,6 +45,13 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     'https://*.cloudworkstations.dev',
   ],
+   webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Exposes the public folder to the service worker
+      config.resolve.alias['/public'] = path.join(__dirname, 'public');
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
