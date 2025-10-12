@@ -23,7 +23,7 @@ export function AdminPanel() {
             </div>
 
             <Tabs defaultValue="teachers" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-7">
+                <TabsList className="h-auto flex-wrap justify-start">
                     <TabsTrigger value="teachers">Teachers</TabsTrigger>
                     <TabsTrigger value="students">Students</TabsTrigger>
                     <TabsTrigger value="degrees">Degrees</TabsTrigger>
