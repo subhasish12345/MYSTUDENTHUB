@@ -180,6 +180,14 @@ service cloud.firestore {
         allow get, list: if isSignedIn();
         allow create, update, delete: if isSignedIn() && isAdmin();
     }
+
+    // ===============================================================
+    //  📦 Lost & Found
+    // ===============================================================
+    match /lostAndFoundItems/{itemId} {
+        allow read, list, create: if isSignedIn();
+        allow update, delete: if isSignedIn() && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
   }
 }
 `.trim();
