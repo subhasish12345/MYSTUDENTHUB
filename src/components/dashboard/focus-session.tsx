@@ -11,10 +11,6 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-// Component for a single digit in the flip clock
-const FlipDigit = ({ current, next }: { current: number; next: number }) => (
-    <div className="num" data-num={current} data-num-next={next} />
-);
 
 // Component for a single number display (0-9)
 const FlipUnit = ({ value }: { value: number }) => {
@@ -24,10 +20,10 @@ const FlipUnit = ({ value }: { value: number }) => {
         <div className="nums">
             <div
                 className="nums-wrapper"
-                style={{ transform: `translateY(-${value * 100}%)` }}
+                style={{ transform: `translateY(-${value * 100}px)` }}
             >
                 {digits.map((digit) => (
-                    <FlipDigit key={digit} current={digit} next={(digit + 1) % 10} />
+                     <div key={digit} className="num" data-num={digit} />
                 ))}
             </div>
         </div>
