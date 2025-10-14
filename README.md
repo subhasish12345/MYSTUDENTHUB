@@ -1,20 +1,21 @@
 # MyStudentHub - All-in-One Campus Platform
 
-Welcome to MyStudentHub, a modern, feature-rich, and scalable web application designed to be the central digital hub for any educational institution. Built with Next.js, Firebase, and ShadCN UI, this platform provides a seamless and integrated experience for students, teachers, and administrators.
+Welcome to MyStudentHub, a modern, feature-rich, and scalable web application designed to be the central digital hub for any educational institution. This platform provides a seamless and integrated experience for students, teachers, and administrators.
 
-This project was developed in collaboration with a project lead, demonstrating the power of AI-assisted development to rapidly prototype and build complex, real-world applications.
+This project was proudly developed by **Subhasish Nayak (Team Nanites)**, showcasing a robust and user-centric application built with modern web technologies.
 
 ## ✨ Features
 
 MyStudentHub is packed with features designed to enhance the campus experience, streamline communication, and boost productivity.
 
 ### Core Platform & Design
-- **Modern Tech Stack**: Next.js 15 (App Router), React, TypeScript, and Tailwind CSS.
+- **Modern Tech Stack**: A powerful application built with Next.js 15 (App Router), React, TypeScript, and Tailwind CSS.
 - **Role-Based Access Control**: Secure authentication and distinct dashboard experiences for **Admins**, **Teachers**, and **Students**.
 - **Customizable Appearance**:
     - **Dark/Light Mode**: Full support for system, light, and dark themes.
     - **Animated Backgrounds**: A selection of 10 unique, animated background themes for dashboard personalization.
-- **In-App & Push Notifications**: A complete notification system powered by Firebase Cloud Messaging to keep users informed about assignments, notices, and events.
+- **In-App & Push Notifications**: A complete notification system to keep users informed about assignments, notices, and events.
+- **Progressive Web App (PWA)**: Fully installable on any device (desktop or mobile) for a native-app-like experience with offline capabilities.
 - **Custom 404 Page**: A creative and engaging "Page Not Found" page with a retro TV animation.
 
 ### 👤 Admin Features
@@ -52,7 +53,7 @@ This guide will help you get a local copy of the project up and running for deve
 ### Prerequisites
 - Node.js (v18 or later)
 - npm or yarn
-- A Firebase account
+- A backend service provider account for authentication and database services.
 
 ### Installation
 
@@ -67,28 +68,26 @@ This guide will help you get a local copy of the project up and running for deve
    npm install
    ```
 
-3. **Set Up Firebase**
-   - Create a new project on the [Firebase Console](https://console.firebase.google.com/).
-   - In your project's settings, add a new Web App.
-   - Copy the `firebaseConfig` object provided.
-   - Create a file named `src/lib/firebase.ts` and paste your config:
+3. **Set Up Backend Configuration**
+   - You will need to obtain a configuration object from your backend service provider. This typically includes API keys and database connection details.
+   - Create a file named `src/lib/firebase.ts`.
+   - In this file, export the necessary initialized clients for your app. The structure should look something like this:
      ```typescript
      import { initializeApp, getApps, getApp } from "firebase/app";
      import { getAuth } from "firebase/auth";
      import { getFirestore } from "firebase/firestore";
 
-     const firebaseConfig = {
-       // Your config object here
+     const backendConfig = {
+       // Your configuration object here
      };
 
-     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+     const app = !getApps().length ? initializeApp(backendConfig) : getApp();
      const auth = getAuth(app);
      const db = getFirestore(app);
 
      export { app, auth, db };
      ```
-   - Enable **Email/Password** authentication in the Firebase Authentication console.
-   - Create a **Firestore Database** in test mode to get started quickly. Remember to secure it with the rules provided in the app before going to production.
+   - In your backend provider's console, ensure you have enabled Email/Password authentication and set up a database with the security rules provided in this application's Admin Panel.
 
 4. **Run the Development Server**
    ```sh
@@ -103,8 +102,8 @@ This guide will help you get a local copy of the project up and running for deve
 This project was brought to life by **Subhasish Nayak (Team Nanites)**, a forward-thinking developer passionate about creating impactful and user-centric applications.
 
 - **Portfolio**: [https://subhasish-nayak.onrender.com](https://subhasish-nayak.onrender.com)
-- **LinkedIn**: [linkedin.com/in/your-profile](https://linkedin.com/in/your-profile)
-- **GitHub**: [github.com/your-username](https://github.com/your-username)
+- **LinkedIn**: [https://linkedin.com/in/subhasish-nayak-75bb15228/](https://linkedin.com/in/subhasish-nayak-75bb15228/)
+- **GitHub**: [https://github.com/subhasish12345](https://github.com/subhasish12345)
 
 
-This application serves as a testament to the synergy between human vision and AI-powered development, rapidly turning a complex idea into a tangible, high-quality product.
+This application is a testament to modern development practices, turning a complex idea into a tangible, high-quality product.
