@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -20,6 +21,11 @@ const themes = [
   { id: "pastel-aurora", name: "Pastel Aurora", className: "bg-pastel-aurora" },
   { id: "blue-squares", name: "Blue Squares", className: "bg-blue-squares" },
   { id: "quantum-grid", name: "Quantum Grid", className: "bg-quantum-grid" },
+  { id: 'bw-future', name: 'B&W Future', className: 'bg-bw-future' },
+  { id: 'seigaiha', name: 'Seigaiha Wave', className: 'bg-seigaiha' },
+  { id: 'fiery-texture', name: 'Fiery Texture', className: 'bg-fiery-texture' },
+  { id: 'mandala', name: 'Mandala', className: 'bg-mandala' },
+  { id: 'island-backdrop', name: 'Island View', className: 'bg-island-backdrop' },
 ];
 
 export default function SettingsPage() {
