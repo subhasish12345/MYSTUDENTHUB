@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -64,7 +65,7 @@ export default function SettingsPage() {
                 <Label
                   htmlFor={t.id}
                   className={cn(
-                    "block w-full h-24 rounded-lg border-2 cursor-pointer relative",
+                    "block w-full h-24 rounded-lg border-2 cursor-pointer relative overflow-hidden",
                     selectedTheme === t.id && "border-primary ring-2 ring-primary"
                   )}
                 >
