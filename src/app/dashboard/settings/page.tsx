@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useBackground } from "@/components/background-provider";
+import { useSidebarColor } from "@/components/sidebar-color-provider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -28,12 +29,25 @@ const themes = [
   { id: 'island-backdrop', name: 'Island View', className: 'bg-island-backdrop' },
 ];
 
+const sidebarColors = [
+    { id: 'default', name: 'Default', className: 'bg-sidebar-foreground' },
+    { id: 'white', name: 'White', className: 'bg-white' },
+    { id: 'slate', name: 'Slate', className: 'bg-slate-400' },
+    { id: 'blue', name: 'Blue', className: 'bg-blue-400' },
+    { id: 'green', name: 'Green', className: 'bg-green-400' },
+    { id: 'orange', name: 'Orange', className: 'bg-orange-400' },
+];
+
 export default function SettingsPage() {
   const { theme, setTheme } = useBackground();
+  const { color: sidebarColor, setColor: setSidebarColor } = useSidebarColor();
+
   const [selectedTheme, setSelectedTheme] = useState(theme);
+  const [selectedSidebarColor, setSelectedSidebarColor] = useState(sidebarColor);
 
   const handleApply = () => {
     setTheme(selectedTheme);
+    setSidebarColor(selectedSidebarColor);
   };
 
   return (
@@ -84,8 +98,49 @@ export default function SettingsPage() {
           </RadioGroup>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sidebar Customization</CardTitle>
+          <CardDescription>
+            Select a text color for the sidebar navigation.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup
+            value={selectedSidebarColor}
+            onValueChange={setSelectedSidebarColor}
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
+          >
+            {sidebarColors.map((color) => (
+              <div key={color.id}>
+                <RadioGroupItem value={color.id} id={`color-${color.id}`} className="sr-only" />
+                <Label
+                  htmlFor={`color-${color.id}`}
+                  className={cn(
+                    "block w-full h-16 rounded-lg border-2 cursor-pointer relative",
+                    selectedSidebarColor === color.id && "border-primary ring-2 ring-primary"
+                  )}
+                >
+                  <div className={cn("w-full h-full rounded-md", color.className)} />
+                   <div className="absolute bottom-1 left-2 bg-black/30 text-white px-2 py-0.5 rounded-md text-xs">
+                    {color.name}
+                  </div>
+                   {selectedSidebarColor === color.id && (
+                     <div className="absolute top-2 right-2 h-6 w-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center">
+                        <Check className="h-4 w-4" />
+                    </div>
+                  )}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
+        </CardContent>
+      </Card>
+
+
       <div className="flex justify-end">
-        <Button onClick={handleApply}>Apply Theme</Button>
+        <Button onClick={handleApply}>Apply Changes</Button>
       </div>
     </div>
   );
