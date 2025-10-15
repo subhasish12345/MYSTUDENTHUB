@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { useToast } from './ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { FirestorePermissionError } from '@/firebase/errors';
 
 export function FirebaseErrorListener() {
