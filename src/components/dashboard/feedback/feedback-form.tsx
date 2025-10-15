@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -21,7 +22,6 @@ import { UserData } from '../admin/teacher-management';
 import { cn } from '@/lib/utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-
 
 const formSchema = z.object({
   feedbackType: z.enum(['Faculty', 'Event'], { required_error: 'You must select a feedback type.' }),
@@ -115,22 +115,19 @@ export function FeedbackForm() {
                 createdAt: serverTimestamp(),
             };
             
-            await addDoc(collection(db, "feedback"), feedbackData).catch(err => {
-                const permissionError = new FirestorePermissionError({
-                  path: `feedback/${user.uid}`,
-                  operation: 'create',
-                  requestResourceData: feedbackData,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-                throw err;
-            });
+            await addDoc(collection(db, "feedback"), feedbackData);
 
             toast({ title: 'Thank You!', description: 'Your feedback has been submitted successfully.' });
             router.push('/dashboard');
         } catch (error: any) {
-            if (!(error instanceof FirestorePermissionError)) {
-                toast({ title: 'Submission Failed', description: error.message, variant: 'destructive' });
-            }
+            // This is a more robust way to handle permission errors
+            const permissionError = new FirestorePermissionError({
+                path: `feedback/<new_id>`,
+                operation: 'create',
+                requestResourceData: values,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            // We let the global listener handle the developer-facing error
         } finally {
             setIsSubmitting(false);
         }
@@ -160,7 +157,7 @@ export function FeedbackForm() {
                                             <RadioGroup
                                                 onValueChange={(value) => {
                                                     field.onChange(value);
-                                                    form.setValue('subjectId', ''); // Reset subject on type change
+                                                    form.setValue('subjectId', '');
                                                 }}
                                                 defaultValue={field.value}
                                                 className="flex flex-col space-y-1"
@@ -195,7 +192,7 @@ export function FeedbackForm() {
                                             <SelectContent>
                                                 {(feedbackType === 'Faculty' ? teachers : events).map((item) => (
                                                     <SelectItem key={item.id} value={item.id}>
-                                                        {item.name || item.title}
+                                                        {item.name || item.title} {item.designation && `(${item.designation})`}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
