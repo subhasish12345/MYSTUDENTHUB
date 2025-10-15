@@ -6,13 +6,13 @@ import Link from 'next/link';
 
 export default function AboutPage() {
     return (
-        <div className="space-y-8 max-w-4xl mx-auto">
+        <div className="space-y-8 max-w-4xl mx-auto px-4">
             <header className="text-center space-y-2">
                 <div className="flex items-center justify-center gap-3">
-                    <GraduationCap className="h-12 w-12 text-primary" />
-                    <h1 className="font-headline text-5xl font-bold">About MyStudentHub</h1>
+                    <GraduationCap className="h-10 w-10 sm:h-12 sm:w-12 text-primary" />
+                    <h1 className="font-headline text-4xl sm:text-5xl font-bold">About MyStudentHub</h1>
                 </div>
-                <p className="text-xl text-muted-foreground">Your All-in-One Campus Companion</p>
+                <p className="text-lg sm:text-xl text-muted-foreground">Your All-in-One Campus Companion</p>
             </header>
 
             <Card className="shadow-lg">

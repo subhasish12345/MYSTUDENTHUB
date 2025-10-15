@@ -3,11 +3,27 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, DocumentData, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Period, TimetableData } from './actions';
+
+// Assuming these types are defined somewhere accessible
+export interface Period {
+    time: string;
+    subject: string;
+}
+
+export interface TimetableData {
+    monday?: Period[];
+    tuesday?: Period[];
+    wednesday?: Period[];
+    thursday?: Period[];
+    friday?: Period[];
+    saturday?: Period[];
+    [key: string]: Period[] | undefined;
+}
+
 
 interface TimetableViewerProps {
     specificGroup?: DocumentData | null;
@@ -25,29 +41,33 @@ export function TimetableViewer({ specificGroup = null }: TimetableViewerProps) 
             
             if (specificGroup) {
                  groupId = specificGroup.id;
-            } else if (user && userData) {
-                // Determine the group ID based on user role
-                if (userRole === 'student') {
-                    // Assuming student has one primary group for now.
-                    // This logic should be more robust in a real app.
-                    const semQuery = query(collection(db, `students/${user.uid}/semesters`), where("active", "==", true));
-                    const semSnap = await getDocs(semQuery);
-                    if (!semSnap.empty) {
-                        const semData = semSnap.docs[0].data();
-                        const degree = await getDoc(doc(db, 'degrees', userData.degree));
-                        const stream = await getDoc(doc(db, 'streams', userData.stream));
-                        const batch = await getDoc(doc(db, 'batches', userData.batch_id));
+            } else if (user && userData && userRole === 'student') {
+                const studentDocRef = doc(db, "students", user.uid);
+                const studentSnap = await getDoc(studentDocRef);
 
-                        if(degree.exists() && stream.exists() && batch.exists()) {
-                            groupId = `${degree.data().name}_${stream.data().name}_${batch.data().batch_name}_sem${semData.semester_no}_${semData.section}`.replace(/\s+/g, '_');
+                if (studentSnap.exists()) {
+                    const studentData = studentSnap.data();
+                    // Get the latest active semester for the student
+                    const semestersQuery = query(collection(studentDocRef, "semesters"), orderBy("semester_no", "desc"));
+                    const semestersSnap = await getDocs(semestersQuery);
+                    
+                    if (!semestersSnap.empty) {
+                        const latestSemester = semestersSnap.docs[0].data();
+                        const degreeSnap = await getDoc(doc(db, 'degrees', studentData.degree));
+                        const streamSnap = await getDoc(doc(db, 'streams', studentData.stream));
+                        const batchSnap = await getDoc(doc(db, 'batches', studentData.batch_id));
+
+                        if (degreeSnap.exists() && streamSnap.exists() && batchSnap.exists()) {
+                            const degreeName = degreeSnap.data().name;
+                            const streamName = streamSnap.data().name;
+                            const batchName = batchSnap.data().batch_name;
+                            groupId = `${degreeName}_${streamName}_${batchName}_sem${latestSemester.semester_no}_${latestSemester.section}`.replace(/\s+/g, '_');
                         }
                     }
-                } else if (userRole === 'teacher') {
-                    // For teachers, we'll just show the first assigned group's timetable as an example.
-                    // A group selector would be needed for teachers to view different timetables.
-                    if (userData.assignedGroups && userData.assignedGroups.length > 0) {
-                        groupId = userData.assignedGroups[0];
-                    }
+                }
+            } else if (user && userData && userRole === 'teacher') {
+                if (userData.assignedGroups && userData.assignedGroups.length > 0) {
+                    groupId = userData.assignedGroups[0];
                 }
             }
 
@@ -76,6 +96,11 @@ export function TimetableViewer({ specificGroup = null }: TimetableViewerProps) 
     }, [user, userData, userRole, authLoading, specificGroup]);
 
     const days: (keyof TimetableData)[] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const maxPeriods = useMemo(() => {
+        if (!timetable) return 0;
+        return Math.max(...days.map(day => timetable[day]?.length || 0));
+    }, [timetable]);
+
 
     if (loading) {
         return (
@@ -112,22 +137,18 @@ export function TimetableViewer({ specificGroup = null }: TimetableViewerProps) 
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[120px]">Time</TableHead>
                             {days.map(day => (
-                                <TableHead key={String(day)} className="capitalize">{String(day)}</TableHead>
+                                <TableHead key={String(day)} className="capitalize text-center">{String(day)}</TableHead>
                             ))}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {/* This is a simplified rendering. A more robust solution would handle overlapping times. */}
-                        {Array.from({ length: 8 }).map((_, rowIndex) => (
+                        {Array.from({ length: maxPeriods }).map((_, rowIndex) => (
                              <TableRow key={rowIndex}>
-                                 <TableCell className="font-semibold">
-                                     {timetable.monday[rowIndex]?.time || '-'}
-                                 </TableCell>
                                 {days.map(day => (
-                                    <TableCell key={`${String(day)}-${rowIndex}`}>
-                                        {(timetable[day] as Period[])?.[rowIndex]?.subject || ''}
+                                    <TableCell key={`${String(day)}-${rowIndex}`} className="text-center h-20 border">
+                                        <div className="font-semibold text-primary">{(timetable[day] as Period[])?.[rowIndex]?.time || '-'}</div>
+                                        <div className="text-sm text-muted-foreground">{(timetable[day] as Period[])?.[rowIndex]?.subject || ''}</div>
                                     </TableCell>
                                 ))}
                             </TableRow>

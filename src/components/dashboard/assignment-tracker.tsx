@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -54,27 +52,28 @@ export function AssignmentTracker() {
 
         const fetchStudentAndAssignmentData = async () => {
              try {
-                let studentGroupId: string | null = null;
+                let studentGroupIds: string[] = [];
                 if (userRole === 'student') {
                     const studentDocRef = doc(db, "students", user.uid);
                     const studentDoc = await getDoc(studentDocRef);
                     if (studentDoc.exists()) {
                         const data = studentDoc.data() as StudentData;
                         setStudentData(data);
-                        // This is a simplification. A student can be in multiple groups over time.
-                        // For now, we'll just try to find one relevant group.
-                        const semestersQuery = query(collection(db, "students", user.uid, "semesters"), orderBy("semester_no", "desc"));
+                        
+                        const semestersQuery = query(collection(db, "students", user.uid, "semesters"));
                         const semestersSnap = await getDocs(semestersQuery);
                         if (!semestersSnap.empty) {
-                            const latestSemester = semestersSnap.docs[0].data();
-                             const degreeDoc = await getDoc(doc(db, 'degrees', data.degree));
-                             const streamDoc = await getDoc(doc(db, 'streams', data.stream));
-                             const batchDoc = await getDoc(doc(db, 'batches', data.batch_id));
+                            const degreeDoc = await getDoc(doc(db, 'degrees', data.degree));
+                            const streamDoc = await getDoc(doc(db, 'streams', data.stream));
+                            const batchDoc = await getDoc(doc(db, 'batches', data.batch_id));
                             if(degreeDoc.exists() && streamDoc.exists() && batchDoc.exists()) {
                                 const degreeName = degreeDoc.data().name;
                                 const streamName = streamDoc.data().name;
                                 const batchName = batchDoc.data().batch_name;
-                                studentGroupId = `${degreeName}_${streamName}_${batchName}_sem${latestSemester.semester_no}_${latestSemester.section}`.replace(/\s+/g, '_');
+                                studentGroupIds = semestersSnap.docs.map(semDoc => {
+                                    const semData = semDoc.data();
+                                    return `${degreeName}_${streamName}_${batchName}_sem${semData.semester_no}_${semData.section}`.replace(/\s+/g, '_');
+                                });
                             }
                         }
                     }
@@ -83,11 +82,10 @@ export function AssignmentTracker() {
                 // Setup the Firestore listener
                 let assignmentsQuery;
                 if (isTeacherOrAdmin) {
-                    // Teachers/Admins see all assignments, ordered by due date
                     assignmentsQuery = query(collection(db, "assignments"), orderBy("dueDate", "desc"));
-                } else if (studentGroupId) {
-                    // Students see assignments for their group. Remove ordering to avoid needing a composite index.
-                    assignmentsQuery = query(collection(db, "assignments"), where("groupId", "==", studentGroupId));
+                } else if (studentGroupIds.length > 0) {
+                    // Firestore 'in' query supports up to 30 items.
+                    assignmentsQuery = query(collection(db, "assignments"), where("groupId", "in", studentGroupIds));
                 } else {
                      setLoading(false);
                     return; // No query to run
@@ -198,65 +196,67 @@ export function AssignmentTracker() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Subject</TableHead>
-                                    <TableHead>Title</TableHead>
-                                    <TableHead className="hidden md:table-cell">Due Date</TableHead>
-                                    <TableHead className="hidden sm:table-cell">Status</TableHead>
-                                    <TableHead className="text-right">Action</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {loading ? (
-                                    Array.from({ length: 3 }).map((_, i) => (
-                                        <TableRow key={i}>
-                                            <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                                            <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                                            <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-32" /></TableCell>
-                                            <TableCell className="hidden sm:table-cell"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
-                                            <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : assignments.length > 0 ? (
-                                    assignments.map((assignment) => {
-                                        const dueDate = assignment.dueDate.toDate();
-                                        const status = getStatus(dueDate);
-                                        const link = assignment.googleFormLink || assignment.fileURL;
-
-                                        return (
-                                            <TableRow key={assignment.id}>
-                                                <TableCell className="font-medium">{assignment.subject}</TableCell>
-                                                <TableCell>{assignment.title}</TableCell>
-                                                <TableCell className="hidden md:table-cell">{format(dueDate, "PPP")}</TableCell>
-                                                <TableCell className="hidden sm:table-cell">
-                                                    <Badge variant={status.variant}>{status.text}</Badge>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {link ? (
-                                                         <Button variant="outline" size="sm" asChild>
-                                                            <a href={link} target="_blank" rel="noopener noreferrer">
-                                                                <Download className="mr-2 h-4 w-4" />
-                                                                View
-                                                            </a>
-                                                        </Button>
-                                                    ) : (
-                                                         <Button variant="outline" size="sm" disabled>
-                                                            No Link
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })
-                                ) : (
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center h-24">No assignments found.</TableCell>
+                                        <TableHead>Subject</TableHead>
+                                        <TableHead>Title</TableHead>
+                                        <TableHead className="hidden md:table-cell">Due Date</TableHead>
+                                        <TableHead className="hidden sm:table-cell">Status</TableHead>
+                                        <TableHead className="text-right">Action</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {loading ? (
+                                        Array.from({ length: 3 }).map((_, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                                <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                                                <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-32" /></TableCell>
+                                                <TableCell className="hidden sm:table-cell"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                                                <TableCell className="text-right"><Skeleton className="h-8 w-20 ml-auto" /></TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : assignments.length > 0 ? (
+                                        assignments.map((assignment) => {
+                                            const dueDate = assignment.dueDate.toDate();
+                                            const status = getStatus(dueDate);
+                                            const link = assignment.googleFormLink || assignment.fileURL;
+
+                                            return (
+                                                <TableRow key={assignment.id}>
+                                                    <TableCell className="font-medium">{assignment.subject}</TableCell>
+                                                    <TableCell>{assignment.title}</TableCell>
+                                                    <TableCell className="hidden md:table-cell">{format(dueDate, "PPP")}</TableCell>
+                                                    <TableCell className="hidden sm:table-cell">
+                                                        <Badge variant={status.variant}>{status.text}</Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {link ? (
+                                                            <Button variant="outline" size="sm" asChild>
+                                                                <a href={link} target="_blank" rel="noopener noreferrer">
+                                                                    <Download className="mr-2 h-4 w-4" />
+                                                                    View
+                                                                </a>
+                                                            </Button>
+                                                        ) : (
+                                                            <Button variant="outline" size="sm" disabled>
+                                                                No Link
+                                                            </Button>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="text-center h-24">No assignments found.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

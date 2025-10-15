@@ -138,8 +138,8 @@ export function PortalList() {
                                         <Image 
                                             src={portal.imageUrl || `https://picsum.photos/seed/${portal.id}/400/200`} 
                                             alt={portal.title} 
-                                            layout="fill"
-                                            objectFit="cover"
+                                            fill
+                                            className="object-cover"
                                             data-ai-hint="website screenshot"
                                         />
                                     </div>

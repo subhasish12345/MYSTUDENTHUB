@@ -14,12 +14,14 @@ import { Button } from '@/components/ui/button';
 import { Star, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, DocumentData } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, DocumentData, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { submitFeedback } from './actions';
 import { UserData } from '../admin/teacher-management';
 import { cn } from '@/lib/utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 const formSchema = z.object({
   feedbackType: z.enum(['Faculty', 'Event'], { required_error: 'You must select a feedback type.' }),
@@ -105,17 +107,30 @@ export function FeedbackForm() {
             const subjectList = feedbackType === 'Faculty' ? teachers : events;
             const subject = subjectList.find(s => s.id === values.subjectId);
             
-            await submitFeedback({
+            const feedbackData = {
                 ...values,
                 subjectName: subject?.title || subject?.name || 'Unknown',
                 submittedBy: values.isAnonymous ? 'anonymous' : user.uid,
                 studentName: values.isAnonymous ? 'Anonymous' : userData.name,
+                createdAt: serverTimestamp(),
+            };
+            
+            await addDoc(collection(db, "feedback"), feedbackData).catch(err => {
+                const permissionError = new FirestorePermissionError({
+                  path: `feedback/${user.uid}`,
+                  operation: 'create',
+                  requestResourceData: feedbackData,
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                throw err;
             });
 
             toast({ title: 'Thank You!', description: 'Your feedback has been submitted successfully.' });
             router.push('/dashboard');
         } catch (error: any) {
-            toast({ title: 'Submission Failed', description: error.message, variant: 'destructive' });
+            if (!(error instanceof FirestorePermissionError)) {
+                toast({ title: 'Submission Failed', description: error.message, variant: 'destructive' });
+            }
         } finally {
             setIsSubmitting(false);
         }

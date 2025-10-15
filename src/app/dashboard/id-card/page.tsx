@@ -50,22 +50,15 @@ export default function IdCardPage() {
     const getCardColor = () => {
         if (userRole === 'teacher') return 'red';
         if (userRole === 'student') {
-            // TODO: Add logic for hosteler vs. outsider
-            // Example:
-            // if (fullProfile.isHosteler) {
-            //     return 'blue';
-            // } else {
-            //     return 'purple';
-            // }
-            return 'blue'; // Default for all students for now
+            return 'blue'; 
         }
-        return 'blue'; // Default color
+        return 'blue';
     }
 
     if (authLoading || loading) {
         return (
-            <div className="flex items-center justify-center p-8">
-                <Skeleton className="w-[320px] h-[500px] rounded-md" />
+            <div className="flex items-center justify-center p-4 sm:p-8">
+                <Skeleton className="w-full max-w-[320px] h-[500px] rounded-md" />
             </div>
         )
     }
@@ -75,8 +68,10 @@ export default function IdCardPage() {
     }
 
     return (
-        <main className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center p-8">
-            <IdCard profileData={fullProfile} color={getCardColor()} />
+        <main className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center p-4 sm:p-8">
+            <div className="w-full max-w-[320px]">
+                <IdCard profileData={fullProfile} color={getCardColor()} />
+            </div>
         </main>
     );
 }
