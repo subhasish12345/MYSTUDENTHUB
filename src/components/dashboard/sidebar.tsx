@@ -37,8 +37,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { auth } from "@/lib/firebase";
-import { useSidebarColor } from "../sidebar-color-provider";
-import { cn } from "@/lib/utils";
 
 const allMenuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -64,7 +62,6 @@ export function DashboardSidebar() {
   const router = useRouter();
   const { userRole } = useAuth();
   const { setOpenMobile, isMobile } = useSidebar();
-  const { color: sidebarTextColor } = useSidebarColor();
 
 
   const menuItems = allMenuItems.filter(item => {
@@ -87,10 +84,7 @@ export function DashboardSidebar() {
 
 
   return (
-    <Sidebar className={cn(
-        sidebarTextColor === 'light' && 'sidebar-text-light',
-        sidebarTextColor === 'dark' && 'sidebar-text-dark',
-    )}>
+    <Sidebar>
       <SidebarHeader>
         <Link href="/dashboard" className="flex items-center gap-2">
             <GraduationCap className="h-8 w-8 text-primary" />

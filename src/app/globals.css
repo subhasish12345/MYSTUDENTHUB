@@ -48,16 +48,6 @@
     --ring: 197 75% 49%;
   }
 
-  [data-sidebar] {
-    --sidebar-foreground: hsl(var(--foreground));
-  }
-
-  .sidebar-text-light {
-    --sidebar-foreground: #FFFFFF;
-  }
-  .sidebar-text-dark {
-    --sidebar-foreground: #000000;
-  }
 }
 
 @layer base {
@@ -1807,6 +1797,7 @@
     }
   }
 }
+
 
 
 
