@@ -40,6 +40,7 @@ export const BackgroundProvider = ({ children }: { children: ReactNode }) => {
       <div className="relative">
         <div className={cn("fixed inset-0 -z-10 transition-all duration-500", 
             theme === 'pattern-1' && 'bg-pattern-1',
+            theme === 'pattern-2' && 'bg-pattern-2',
             theme === 'pattern-3' && 'bg-pattern-3',
             theme === 'pattern-lamp-scene' && 'bg-pattern-lamp-scene',
             theme === 'pattern-synthwave' && 'bg-pattern-synthwave',
