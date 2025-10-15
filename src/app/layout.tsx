@@ -45,9 +45,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <BackgroundProvider>
-            <SidebarColorProvider>
-              {children}
-            </SidebarColorProvider>
+            {children}
             <Toaster />
           </BackgroundProvider>
         </ThemeProvider>
