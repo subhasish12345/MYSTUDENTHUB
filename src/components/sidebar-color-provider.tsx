@@ -2,9 +2,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { cn } from '@/lib/utils';
 
-type SidebarColor = 'default' | 'white' | 'slate' | 'blue' | 'green' | 'orange';
+type SidebarColor = 'default' | 'light' | 'dark';
 
 interface SidebarColorContextType {
   color: SidebarColor;
@@ -19,7 +18,7 @@ export const SidebarColorProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const storedColor = localStorage.getItem('sidebar-color') as SidebarColor | null;
-    const validColors: SidebarColor[] = ['default', 'white', 'slate', 'blue', 'green', 'orange'];
+    const validColors: SidebarColor[] = ['default', 'light', 'dark'];
     if (storedColor && validColors.includes(storedColor)) {
       setColorState(storedColor);
     }
@@ -30,10 +29,6 @@ export const SidebarColorProvider = ({ children }: { children: ReactNode }) => {
     setColorState(newColor);
     localStorage.setItem('sidebar-color', newColor);
   };
-
-  useEffect(() => {
-    document.body.dataset.sidebarColor = color;
-  }, [color]);
   
   if (!isMounted) {
     return <div className="h-screen w-full bg-background">{children}</div>; 
