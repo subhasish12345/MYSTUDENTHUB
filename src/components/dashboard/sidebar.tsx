@@ -9,6 +9,7 @@ import {
   SidebarMenuButton,
   SidebarFooter,
   SidebarSeparator,
+  useSidebar
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
@@ -59,6 +60,8 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { userRole } = useAuth();
+  const { setOpenMobile, isMobile } = useSidebar();
+
 
   const menuItems = allMenuItems.filter(item => {
     if (item.adminOnly) return userRole === "admin";
@@ -70,6 +73,12 @@ export function DashboardSidebar() {
   const handleLogout = async () => {
     await auth.signOut();
     router.replace('/'); // Force a clean redirect to the login page.
+  };
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
   };
 
 
@@ -86,7 +95,7 @@ export function DashboardSidebar() {
       <SidebarContent>
         <SidebarMenu>
           {menuItems.map((item) => (
-            <SidebarMenuItem key={item.label}>
+            <SidebarMenuItem key={item.label} onClick={handleLinkClick}>
               <SidebarMenuButton
                 asChild
                 isActive={pathname === item.href}
@@ -103,12 +112,12 @@ export function DashboardSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
-            <SidebarMenuItem>
+            <SidebarMenuItem onClick={handleLinkClick}>
                 <SidebarMenuButton asChild isActive={pathname === "/dashboard/about"} tooltip={{ children: "About App" }}>
                     <Link href="/dashboard/about"><Info /><span>About App</span></Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
-             <SidebarMenuItem>
+             <SidebarMenuItem onClick={handleLinkClick}>
                 <SidebarMenuButton asChild isActive={pathname === "/dashboard/privacy-policy"} tooltip={{ children: "Privacy Policy" }}>
                     <Link href="/dashboard/privacy-policy"><FileText /><span>Privacy Policy</span></Link>
                 </SidebarMenuButton>
