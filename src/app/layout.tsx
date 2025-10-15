@@ -44,10 +44,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <BackgroundProvider>
-            {children}
-            <Toaster />
-          </BackgroundProvider>
+          <SidebarColorProvider>
+            <BackgroundProvider>
+              {children}
+              <Toaster />
+            </BackgroundProvider>
+          </SidebarColorProvider>
         </ThemeProvider>
       </body>
     </html>
