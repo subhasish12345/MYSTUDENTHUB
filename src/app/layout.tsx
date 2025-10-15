@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { BackgroundProvider } from '@/components/background-provider';
+import { SidebarColorProvider } from '@/components/sidebar-color-provider';
 
 export default function RootLayout({
   children,
@@ -44,7 +45,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <BackgroundProvider>
-            {children}
+            <SidebarColorProvider>
+              {children}
+            </SidebarColorProvider>
             <Toaster />
           </BackgroundProvider>
         </ThemeProvider>

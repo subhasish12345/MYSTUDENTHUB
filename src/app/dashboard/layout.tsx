@@ -2,7 +2,6 @@ import { DashboardHeader } from "@/components/dashboard/header";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/hooks/use-auth";
-import { SidebarColorProvider } from "@/components/sidebar-color-provider";
 
 export default function DashboardLayout({
   children,
@@ -12,7 +11,6 @@ export default function DashboardLayout({
   return (
     <AuthProvider>
       <SidebarProvider>
-        <SidebarColorProvider>
           <DashboardSidebar />
           <SidebarInset>
             <DashboardHeader />
@@ -20,7 +18,6 @@ export default function DashboardLayout({
                 {children}
             </main>
           </SidebarInset>
-        </SidebarColorProvider>
       </SidebarProvider>
     </AuthProvider>
   );
